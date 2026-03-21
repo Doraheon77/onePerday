@@ -1,0 +1,1 @@
+ C:\\simcap\\onePerday\\frontend\\.dart_tool\\flutter_build\\ccbda853b9d2849ae14f0ff86dd37aae\\native_assets.json: 
