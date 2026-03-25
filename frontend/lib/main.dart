@@ -1,45 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:go_router/go_router.dart';
-import 'features/home/presentation/home_screen.dart';
+import 'package:intl/date_symbol_data_local.dart';
+import 'package:simcap/features/home/presentation/home_screen.dart';
+import 'package:simcap/features/cabinet/presentation/cabinet_screen.dart';
 
-class StoreScreen extends StatelessWidget {
-  const StoreScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return const Scaffold(body: Center(child: Text('스토어 - 쇼핑 준비중')));
-  }
-}
-
-class CabinetScreen extends StatelessWidget {
-  const CabinetScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return const Scaffold(body: Center(child: Text('캐비닛 - 목록 준비중')));
-  }
-}
-
-class RecommendScreen extends StatelessWidget {
-  const RecommendScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return const Scaffold(body: Center(child: Text('추천 - 리스트 준비중')));
-  }
-}
-
-class ProfileScreen extends StatelessWidget {
-  const ProfileScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return const Scaffold(body: Center(child: Text('프로필 - 정보 준비중')));
-  }
-}
-
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await initializeDateFormatting('ko_KR', null);
   runApp(const MyApp());
 }
 
@@ -49,129 +17,153 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp.router(
-      title: '심캡',
+      title: '심캡 영양제 관리',
       debugShowCheckedModeBanner: false,
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      supportedLocales: const [
+        Locale('ko', 'KR'), // 한국어 지원
+      ],
+      locale: const Locale('ko', 'KR'),
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF4CAF50), // Primary 녹색
-          brightness: Brightness.light,
-        ),
+        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF4CAF50)),
         useMaterial3: true,
         fontFamily: 'Pretendard',
-        scaffoldBackgroundColor: const Color(0xFFF9FAFB), // 밝은 회백 배경
-        appBarTheme: const AppBarTheme(
-          backgroundColor: Colors.white,
-          foregroundColor: Colors.black,
-          elevation: 0,
-        ),
-        cardTheme: CardThemeData(
-          elevation: 2,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-        ),
       ),
       routerConfig: _router,
     );
   }
 }
 
+// 라우팅 설정
 final GoRouter _router = GoRouter(
   initialLocation: '/home',
   routes: [
     ShellRoute(
       builder: (context, state, child) => ScaffoldWithNavBar(child: child),
       routes: [
-        GoRoute(
-          path: '/store',
-          builder: (context, state) => const StoreScreen(),
-        ),
+        GoRoute(path: '/home', builder: (context, state) => const HomeScreen()),
         GoRoute(
           path: '/cabinet',
           builder: (context, state) => const CabinetScreen(),
         ),
-        GoRoute(path: '/home', builder: (context, state) => const HomeScreen()),
         GoRoute(
           path: '/recommend',
           builder: (context, state) => const RecommendScreen(),
         ),
         GoRoute(
-          path: '/profile',
-          builder: (context, state) => const ProfileScreen(),
+          path: '/store',
+          builder: (context, state) => const StoreScreen(),
         ),
       ],
+    ),
+    GoRoute(
+      path: '/chatbot',
+      builder: (context, state) => Scaffold(
+        appBar: AppBar(title: const Text('AI 영양사 챗봇')),
+        body: const Center(child: Text('챗봇 서비스 준비 중입니다.')),
+      ),
     ),
   ],
 );
 
-// Bottom Navigation Bar Scaffold (5개 탭, 순서 맞춤)
+// 공통 레이아웃
 class ScaffoldWithNavBar extends StatelessWidget {
   final Widget child;
-
   const ScaffoldWithNavBar({super.key, required this.child});
 
   @override
   Widget build(BuildContext context) {
-    final location = GoRouterState.of(context).uri.toString();
-
-    int currentIndex = 0;
-    if (location.startsWith('/store')) currentIndex = 0;
-    if (location.startsWith('/cabinet')) currentIndex = 1;
-    if (location.startsWith('/home')) currentIndex = 2;
-    if (location.startsWith('/recommend')) currentIndex = 3;
-    if (location.startsWith('/profile')) currentIndex = 4;
-
     return Scaffold(
       body: child,
-      floatingActionButton:
-          currentIndex ==
-              2 // 홈 화면(인덱스 2)에서만 FAB 보이게
-          ? FloatingActionButton(
-              onPressed: () {
-                ScaffoldMessenger.of(
-                  context,
-                ).showSnackBar(const SnackBar(content: Text('새 영양제 추가 준비중')));
-              },
-              backgroundColor: const Color(0xFF4CAF50),
-              child: const Icon(Icons.add, color: Colors.white),
-            )
-          : null,
-      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: currentIndex,
-        onTap: (index) {
-          switch (index) {
-            case 0:
-              context.go('/store');
-              break;
-            case 1:
-              context.go('/cabinet');
-              break;
-            case 2:
-              context.go('/home');
-              break;
-            case 3:
-              context.go('/recommend');
-              break;
-            case 4:
-              context.go('/profile');
-              break;
-          }
-        },
-        selectedItemColor: const Color(0xFF4CAF50),
-        unselectedItemColor: Colors.grey,
-        type: BottomNavigationBarType.fixed, // 5개 탭일 때 아이콘+라벨 모두 보이게
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.shopping_cart),
-            label: '스토어',
+      floatingActionButton: FloatingActionButton(
+        backgroundColor: const Color(0xFF4CAF50),
+        elevation: 4,
+        shape: const CircleBorder(),
+        child: const Icon(Icons.chat_bubble_outline, color: Colors.white),
+        onPressed: () => context.go('/chatbot'),
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+      bottomNavigationBar: BottomAppBar(
+        shape: const CircularNotchedRectangle(),
+        notchMargin: 10,
+        color: Colors.white,
+        height: 70,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          children: [
+            _buildNavItem(context, Icons.home_filled, '홈', '/home'),
+            _buildNavItem(
+              context,
+              Icons.inventory_2_outlined,
+              '내 영양제',
+              '/cabinet',
+            ),
+            const SizedBox(width: 40),
+            _buildNavItem(
+              context,
+              Icons.thumb_up_alt_outlined,
+              '추천',
+              '/recommend',
+            ),
+            _buildNavItem(
+              context,
+              Icons.shopping_bag_outlined,
+              '스토어',
+              '/store',
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNavItem(
+    BuildContext context,
+    IconData icon,
+    String label,
+    String path,
+  ) {
+    final bool isSelected = GoRouterState.of(
+      context,
+    ).uri.toString().startsWith(path);
+    return InkWell(
+      onTap: () => context.go(path),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            icon,
+            color: isSelected ? const Color(0xFF4CAF50) : Colors.grey,
+            size: 24,
           ),
-          BottomNavigationBarItem(icon: Icon(Icons.inventory), label: '캐비닛'),
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: '홈'),
-          BottomNavigationBarItem(icon: Icon(Icons.recommend), label: '추천'),
-          BottomNavigationBarItem(icon: Icon(Icons.person), label: '프로필'),
+          Text(
+            label,
+            style: TextStyle(
+              color: isSelected ? const Color(0xFF4CAF50) : Colors.grey,
+              fontSize: 10,
+            ),
+          ),
         ],
       ),
     );
   }
+}
+
+class RecommendScreen extends StatelessWidget {
+  const RecommendScreen({super.key});
+  @override
+  Widget build(BuildContext context) =>
+      const Scaffold(body: Center(child: Text('추천')));
+}
+
+class StoreScreen extends StatelessWidget {
+  const StoreScreen({super.key});
+  @override
+  Widget build(BuildContext context) =>
+      const Scaffold(body: Center(child: Text('스토어')));
 }
