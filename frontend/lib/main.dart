@@ -4,6 +4,9 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:simcap/features/home/presentation/home_screen.dart';
 import 'package:simcap/features/cabinet/presentation/cabinet_screen.dart';
+import 'package:simcap/features/cabinet/presentation/cabinet_detail_screen.dart';
+import 'package:simcap/features/cabinet/presentation/add_supplement_screen.dart';
+import 'package:simcap/features/cabinet/domain/dataModels/supplement_model.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -49,6 +52,38 @@ final GoRouter _router = GoRouter(
         GoRoute(
           path: '/cabinet',
           builder: (context, state) => const CabinetScreen(),
+          routes: [
+            // 2. 상세 페이지 경로
+            GoRoute(
+              path: 'detail',
+              builder: (context, state) {
+                final extra = state.extra;
+                Supplement supplement;
+                if (extra is Supplement) {
+                  supplement = extra;
+                } else if (extra is Map<String, dynamic>) {
+                  supplement = Supplement.fromJson(extra);
+                } else {
+                  // 데이터 누락 시 기본값 객체 (새 필드들 추가)
+                  supplement = Supplement(
+                    name: '정보 없음',
+                    brand: '',
+                    remaining: 0,
+                    total: 0,
+                    nutrients: [],
+                    analysisGuide: '', // 필드 추가
+                    aiSummary: '', // 필드 추가
+                  );
+                }
+                return CabinetDetailScreen(item: supplement);
+              },
+            ),
+            // 3. 영양제 등록 페이지 경로 추가
+            GoRoute(
+              path: 'add',
+              builder: (context, state) => const AddSupplementScreen(),
+            ),
+          ],
         ),
         GoRoute(
           path: '/recommend',

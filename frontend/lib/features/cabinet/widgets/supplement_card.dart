@@ -1,69 +1,73 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:simcap/features/cabinet/domain/dataModels/supplement_model.dart';
 
 class SupplementCard extends StatelessWidget {
-  final Map<String, dynamic> item;
+  final Supplement item;
 
   const SupplementCard({super.key, required this.item});
 
   @override
   Widget build(BuildContext context) {
-    int remaining = item['remaining'] ?? 0;
-    int total = item['total'] ?? 1; // 0으로 나누기 방지
-    double progress = remaining / total;
+    int remaining = item.remaining;
+    int total = item.total == 0 ? 1 : item.total;
+    double progress = (remaining / total).clamp(0.0, 1.0);
 
     Color statusColor;
     if (progress <= 0.2) {
-      statusColor = const Color(0xFFFF6B6B); // 진한 Red (위험)
+      statusColor = const Color(0xFFFF6B6B);
     } else if (progress <= 0.5) {
-      statusColor = const Color(0xFFFFC107); // 진한 Yellow (주의)
+      statusColor = const Color(0xFFFFC107);
     } else {
-      statusColor = const Color(0xFF388E3C); // 진한 Green (충분)
+      statusColor = const Color(0xFF4CAF50);
     }
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 15,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(20),
-        child: IntrinsicHeight(
-          child: Row(
+    return GestureDetector(
+      onTap: () => context.push('/cabinet/detail', extra: item),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.04),
+              blurRadius: 15,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(20),
+          child: Stack(
             children: [
-              // 메인 정보 영역
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.all(20),
-                  child: Row(
-                    children: [
-                      _buildCircleIcon(),
-                      const SizedBox(width: 16),
-                      _buildTextInfo(remaining),
-                    ],
-                  ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 20, 32, 20),
+                child: Row(
+                  children: [
+                    _buildCircleIcon(),
+                    const SizedBox(width: 16),
+                    _buildTextInfo(remaining),
+                  ],
                 ),
               ),
 
-              Container(
-                width: 12,
-                color: const Color(0xFFEEEEEE),
-                child: Align(
+              Positioned(
+                top: 0,
+                bottom: 0,
+                right: 0,
+                child: Container(
+                  width: 10,
+                  color: const Color(0xFFF3F4F6),
                   alignment: Alignment.bottomCenter,
                   child: FractionallySizedBox(
-                    heightFactor: progress.clamp(0.0, 1.0),
+                    heightFactor: progress,
                     child: Container(
+                      width: 10,
                       decoration: BoxDecoration(
-                        color: statusColor, // 진해진 색상 적용
+                        color: statusColor,
                         borderRadius: const BorderRadius.vertical(
-                          top: Radius.circular(6),
+                          top: Radius.circular(5),
                         ),
                       ),
                     ),
@@ -79,8 +83,8 @@ class SupplementCard extends StatelessWidget {
 
   Widget _buildCircleIcon() {
     return Container(
-      width: 55,
-      height: 55,
+      width: 50,
+      height: 50,
       decoration: const BoxDecoration(
         color: Color(0xFFF1F8E9),
         shape: BoxShape.circle,
@@ -88,7 +92,7 @@ class SupplementCard extends StatelessWidget {
       child: const Icon(
         Icons.medication_rounded,
         color: Color(0xFF4CAF50),
-        size: 28,
+        size: 26,
       ),
     );
   }
@@ -97,32 +101,32 @@ class SupplementCard extends StatelessWidget {
     return Expanded(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisSize: MainAxisSize.min,
         children: [
           Text(
-            item['name'] ?? '',
+            item.name.isEmpty ? '제품명 없음' : item.name,
             style: const TextStyle(
               fontWeight: FontWeight.bold,
-              fontSize: 17,
+              fontSize: 16,
               color: Colors.black87,
             ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 2),
           Text(
-            item['brand'] ?? '',
-            style: TextStyle(
-              color: Colors.grey[700],
-              fontSize: 13,
-              fontWeight: FontWeight.w400,
-            ),
+            item.brand.isEmpty ? '브랜드 정보 없음' : item.brand,
+            style: TextStyle(color: Colors.grey[600], fontSize: 12),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
           Row(
             children: [
               Text(
                 "${remaining}정 남음",
                 style: const TextStyle(
-                  fontSize: 14,
+                  fontSize: 13,
                   fontWeight: FontWeight.w600,
                   color: Colors.black54,
                 ),
@@ -141,27 +145,27 @@ class SupplementCard extends StatelessWidget {
     Color badgeTextColor;
 
     if (remaining <= 7) {
-      badgeBgColor = const Color(0xFFFFEBEB); // 연한 Red 배경
-      badgeTextColor = const Color(0xFFFF6B6B); // 진한 Red 글자
+      badgeBgColor = const Color(0xFFFFEBEB);
+      badgeTextColor = const Color(0xFFFF6B6B);
     } else if (remaining <= 30) {
-      badgeBgColor = const Color(0xFFFFFDE7); // 연한 Yellow 배경
-      badgeTextColor = const Color(0xFFFFC107); // 진한 Yellow 글자
+      badgeBgColor = const Color(0xFFFFFDE7);
+      badgeTextColor = const Color(0xFFFFC107);
     } else {
-      badgeBgColor = const Color(0xFFE8F5E9); // 연한 Green 배경
-      badgeTextColor = const Color(0xFF388E3C); // 진한 Green 글자
+      badgeBgColor = const Color(0xFFE8F5E9);
+      badgeTextColor = const Color(0xFF4CAF50);
     }
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
         color: badgeBgColor,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(6),
       ),
       child: Text(
         "D-$remaining",
         style: TextStyle(
           color: badgeTextColor,
-          fontSize: 11,
+          fontSize: 10,
           fontWeight: FontWeight.bold,
         ),
       ),
