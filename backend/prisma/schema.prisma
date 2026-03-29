@@ -1,0 +1,39 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model supplements {
+  foodName          String  @unique(map: "supplements_name_unique") @map("식품명")
+  category          String? @map("식품대분류")
+  repFoodName       String? @map("대표식품명")
+  servingUnit       String? @map("영양성분제공단위량")
+  servingAmount     Float?  @map("1회분량")
+  servingAmountUnit  String? @map("1회분량 단위")
+  servingWeight     String? @map("1회분량 중량")
+  dailyIntakeCount  String? @map("1일섭취횟수")
+  foodWeight        String? @map("식품 중량")
+  manufacturer      String? @map("제조사명")
+  origin            String? @map("원산지")
+  id                BigInt  @id @default(autoincrement())
+  
+  supplements_ingredients supplements_ingredients[]
+}
+
+model supplements_ingredients {
+  foodName       String? @map("식품명")
+  ingredientName String? @map("성분명")
+  amount         Float?  @map("함량")
+  unit           String? @map("단위")
+  id             BigInt @id @map("id")
+  
+  supplements    supplements? @relation(fields: [id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_supplements")
+
+  // @ignore를 지워야 이 테이블도 코드로 쓸 수 있습니다!
+  @@index([id])
+}
