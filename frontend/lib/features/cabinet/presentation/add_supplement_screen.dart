@@ -1,6 +1,5 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:simcap/features/cabinet/domain/dataModels/supplement_model.dart';
 
@@ -12,7 +11,11 @@ class AddSupplementScreen extends StatefulWidget {
 }
 
 class _AddSupplementScreenState extends State<AddSupplementScreen> {
-  bool _isInputVisible = true;
+  // 화면 모드 제어 (false: 사진 업로드 대기, true: 입력 폼)
+  bool _isManualInputMode = false;
+  // OCR 분석 중 로딩 상태
+  bool _isLoadingOCR = false;
+
   File? _selectedImage;
   final ImagePicker _picker = ImagePicker();
 
@@ -36,15 +39,51 @@ class _AddSupplementScreenState extends State<AddSupplementScreen> {
     super.dispose();
   }
 
-  Future<void> _pickImage() async {
-    final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
-    if (image != null) {
+  // OCR 연동 로직
+  Future<void> _processOCR(File imageFile) async {
+    setState(() => _isLoadingOCR = true);
+
+    try {
+      // TODO : 팀원이 만든 OCR 분석 함수를 여기서 호출 필요
+      // 예: final result = await YourTeamMemberOCRService.analyze(imageFile);
+
+      // (가짜 데이터 시뮬레이션 - 2초 대기)
+      await Future.delayed(const Duration(seconds: 2));
+
+      // 가짜 분석 데이터를 화면에 반영 (실제 결과로 교체 필요)
       setState(() {
-        _selectedImage = File(image.path);
+        _nameController.text = "멀티비타민 골드"; // result.productName으로 추후 교체
+        _brandController.text = "시뮬레이션 브랜드"; // result.brandName으로 추후 교체
+        _nutrientController.text =
+            "비타민C, 비타민D, 아연"; // result.nutrients.join(', ')
+
+        _isLoadingOCR = false;
+        _isManualInputMode = true; // 분석 완료 후 입력 폼으로 전환
       });
+    } catch (e) {
+      setState(() => _isLoadingOCR = false);
+      // 에러 발생 시 사용자에게 알리고 수동 모드로 전환
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('OCR 분석에 실패했습니다. 내용을 직접 확인해주세요.')),
+      );
+      setState(() => _isManualInputMode = true);
     }
   }
 
+  // 갤러리에서 사진 선택
+  Future<void> _pickImage() async {
+    final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
+    if (image != null) {
+      final imageFile = File(image.path);
+      setState(() {
+        _selectedImage = imageFile;
+      });
+      // 사진 선택 직후 OCR 프로세스 시작
+      await _processOCR(imageFile);
+    }
+  }
+
+  // 수량 조절 로직
   void _adjustQuantity(TextEditingController controller, int delta) {
     int currentValue = int.tryParse(controller.text) ?? 0;
     int newValue = (currentValue + delta).clamp(0, 999);
@@ -52,6 +91,7 @@ class _AddSupplementScreenState extends State<AddSupplementScreen> {
     setState(() {});
   }
 
+  // 등록 버튼 클릭 로직
   void _onRegister() {
     final name = _nameController.text.trim();
 
@@ -67,7 +107,6 @@ class _AddSupplementScreenState extends State<AddSupplementScreen> {
       return;
     }
 
-    // 데이터 모델 생성 (기존 로직)
     final newSupplement = Supplement(
       name: name,
       brand: _brandController.text.trim(),
@@ -97,101 +136,268 @@ class _AddSupplementScreenState extends State<AddSupplementScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF9FAFB),
       appBar: AppBar(
-        title: const Text(
-          '영양제 등록',
-          style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+        title: Text(
+          _isManualInputMode ? '정보 입력' : '영양제 등록',
+          style: const TextStyle(
+            color: Colors.black,
+            fontWeight: FontWeight.bold,
+          ),
         ),
         backgroundColor: Colors.white,
         elevation: 0,
         centerTitle: true,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.black),
-          onPressed: () => Navigator.pop(context),
+          onPressed: () {
+            if (_isManualInputMode && _selectedImage == null) {
+              setState(() => _isManualInputMode = false);
+            } else {
+              Navigator.pop(context);
+            }
+          },
         ),
       ),
       body: GestureDetector(
         onTap: () => FocusScope.of(context).unfocus(),
-        child: ListView(
-          padding: const EdgeInsets.all(20),
-          children: [
-            _buildImageUploadSection(),
-            const SizedBox(height: 24),
-
-            _buildSectionTitle('기본 정보'),
-            // 제품명 입력창에 에러 상태 연결
-            _buildInputField(
-              '제품명 입력',
-              _nameController,
-              hasError: _showNameError && _nameController.text.isEmpty,
-            ),
-            _buildInputField('브랜드명 입력 (선택사항)', _brandController),
-            _buildInputField(
-              '주요 성분 (예: 비타민C, 아연)',
-              _nutrientController,
-              isMultiLine: true,
-            ),
-
-            const SizedBox(height: 24),
-            _buildSectionTitle('복용 및 수량 설정'),
-            _buildQuantityStepper('1회 복용량 (정/캡슐)', _dosageController),
-            _buildQuantityStepper('하루 복용 횟수', _frequencyController),
-
-            const SizedBox(height: 12),
-            _buildRemainingQuantitySection(),
-
-            const SizedBox(height: 40),
-            _buildRegisterButton(),
-          ],
+        child: AnimatedSwitcher(
+          duration: const Duration(milliseconds: 300),
+          child: _isManualInputMode
+              ? _buildManualInputForm()
+              : _buildAutoUploadView(),
         ),
+      ),
+      bottomNavigationBar: _isManualInputMode
+          ? SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 10,
+                ),
+                child: _buildRegisterButton(),
+              ),
+            )
+          : null,
+    );
+  }
+
+  // 자동 업로드 (OCR 로딩 포함)
+  Widget _buildAutoUploadView() {
+    return Column(
+      key: const ValueKey('auto'),
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Center(
+          child: GestureDetector(
+            onTap: _isLoadingOCR ? null : _pickImage,
+            child: Container(
+              width: MediaQuery.of(context).size.width * 0.85,
+              height: 350,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(30),
+                border: Border.all(
+                  color: const Color(0xFF4CAF50).withOpacity(0.1),
+                  width: 2,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 20,
+                    offset: const Offset(0, 10),
+                  ),
+                ],
+              ),
+              child: _isLoadingOCR
+                  ? Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const CircularProgressIndicator(
+                          color: Color(0xFF4CAF50),
+                        ),
+                        const SizedBox(height: 24),
+                        const Text(
+                          'AI가 성분을 분석하고 있어요...',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          '잠시만 기다려 주세요',
+                          style: TextStyle(color: Colors.grey[500]),
+                        ),
+                      ],
+                    )
+                  : Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(20),
+                          decoration: const BoxDecoration(
+                            color: Color(0xFFE8F5E9),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.camera_alt_rounded,
+                            size: 60,
+                            color: Color(0xFF4CAF50),
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                        const Text(
+                          '라벨 촬영하기',
+                          style: TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          '영양제 라벨을 찍으면\nAI가 정보를 자동으로 입력해요',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: Colors.grey[600],
+                            fontSize: 15,
+                            height: 1.5,
+                          ),
+                        ),
+                      ],
+                    ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 40),
+        if (!_isLoadingOCR)
+          TextButton(
+            onPressed: () => setState(() => _isManualInputMode = true),
+            child: const Text(
+              '직접 입력할게요',
+              style: TextStyle(
+                color: Colors.grey,
+                fontSize: 15,
+                decoration: TextDecoration.underline,
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  // 정보 입력 폼
+  Widget _buildManualInputForm() {
+    return ListView(
+      key: const ValueKey('manual'),
+      padding: const EdgeInsets.all(20),
+      children: [
+        if (_selectedImage != null) _buildSelectedImagePreview(),
+
+        _buildSectionTitle('기본 정보'),
+        _buildInputField(
+          '제품명 입력',
+          _nameController,
+          hasError: _showNameError && _nameController.text.isEmpty,
+        ),
+        _buildInputField('브랜드명 입력 (선택사항)', _brandController),
+        _buildInputField(
+          '주요 성분 (예: 비타민C, 아연)',
+          _nutrientController,
+          isMultiLine: true,
+        ),
+
+        const SizedBox(height: 24),
+        _buildSectionTitle('복용 및 수량 설정'),
+        _buildQuantityStepper('1회 복용량 (정/캡슐)', _dosageController),
+        _buildQuantityStepper('하루 복용 횟수', _frequencyController),
+
+        const SizedBox(height: 12),
+        _buildRemainingQuantitySection(),
+        const SizedBox(height: 40),
+      ],
+    );
+  }
+
+  Widget _buildSelectedImagePreview() {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 24),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(15),
+        border: Border.all(color: const Color(0xFFEEEEEE)),
+      ),
+      child: Row(
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: Image.file(
+              _selectedImage!,
+              width: 60,
+              height: 60,
+              fit: BoxFit.cover,
+            ),
+          ),
+          const SizedBox(width: 12),
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '사진 업로드 완료',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                Text(
+                  '정보가 자동으로 입력되었습니다',
+                  style: TextStyle(fontSize: 12, color: Colors.grey),
+                ),
+              ],
+            ),
+          ),
+          IconButton(
+            onPressed: () => setState(() {
+              _selectedImage = null;
+              // 사진 삭제 시 컨트롤러 값도 지울지 여부는 선택사항입니다.
+            }),
+            icon: const Icon(Icons.close, size: 20, color: Colors.grey),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildImageUploadSection() {
-    return GestureDetector(
-      onTap: _pickImage,
-      child: Container(
-        height: 180,
-        width: double.infinity,
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: const Color(0xFFEEEEEE)),
-          image: _selectedImage != null
-              ? DecorationImage(
-                  image: FileImage(_selectedImage!),
-                  fit: BoxFit.cover,
-                )
-              : null,
+  Widget _buildInputField(
+    String hint,
+    TextEditingController controller, {
+    bool isMultiLine = false,
+    bool isNumber = false,
+    bool hasError = false,
+  }) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(15),
+        border: Border.all(
+          color: hasError ? const Color(0xFFFF6B6B) : const Color(0xFFEEEEEE),
+          width: hasError ? 1.5 : 1,
         ),
-        child: _selectedImage == null
-            ? Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(
-                    Icons.add_a_photo_rounded,
-                    size: 40,
-                    color: Color(0xFF4CAF50),
-                  ),
-                  const SizedBox(height: 12),
-                  const Text(
-                    '라벨 사진 찍기 또는 업로드',
-                    style: TextStyle(fontWeight: FontWeight.w600),
-                  ),
-                  Text(
-                    '자동으로 정보를 입력해드려요',
-                    style: TextStyle(color: Colors.grey[400], fontSize: 12),
-                  ),
-                ],
-              )
-            : Container(
-                alignment: Alignment.bottomRight,
-                padding: const EdgeInsets.all(12),
-                child: CircleAvatar(
-                  backgroundColor: Colors.black.withOpacity(0.5),
-                  child: const Icon(Icons.edit, color: Colors.white),
-                ),
-              ),
+      ),
+      child: TextField(
+        controller: controller,
+        onChanged: (val) {
+          if (hasError && val.isNotEmpty)
+            setState(() => _showNameError = false);
+        },
+        maxLines: isMultiLine ? 3 : 1,
+        keyboardType: isNumber ? TextInputType.number : TextInputType.text,
+        decoration: InputDecoration(
+          hintText: hint,
+          hintStyle: const TextStyle(color: Colors.grey, fontSize: 14),
+          border: InputBorder.none,
+          errorText: hasError ? '제품명을 입력해 주세요' : null,
+          errorStyle: const TextStyle(height: 0),
+        ),
       ),
     );
   }
@@ -298,45 +504,6 @@ class _AddSupplementScreenState extends State<AddSupplementScreen> {
           fontSize: 14,
           fontWeight: FontWeight.bold,
           color: Colors.black54,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildInputField(
-    String hint,
-    TextEditingController controller, {
-    bool isMultiLine = false,
-    bool isNumber = false,
-    bool hasError = false,
-  }) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(15),
-        border: Border.all(
-          color: hasError ? const Color(0xFFFF6B6B) : const Color(0xFFEEEEEE),
-          width: hasError ? 1.5 : 1,
-        ),
-      ),
-      child: TextField(
-        controller: controller,
-        onChanged: (val) {
-          if (hasError && val.isNotEmpty) {
-            setState(() => _showNameError = false);
-          }
-        },
-        maxLines: isMultiLine ? 3 : 1,
-        keyboardType: isNumber ? TextInputType.number : TextInputType.text,
-        decoration: InputDecoration(
-          hintText: hint,
-          hintStyle: const TextStyle(color: Colors.grey, fontSize: 14),
-          border: InputBorder.none,
-          // 에러 텍스트 표시
-          errorText: hasError ? '제품명을 입력해 주세요' : null,
-          errorStyle: const TextStyle(height: 0),
         ),
       ),
     );

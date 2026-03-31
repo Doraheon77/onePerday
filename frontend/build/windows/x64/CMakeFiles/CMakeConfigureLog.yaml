@@ -24,7 +24,7 @@ events:
       The output was:
       0
       msbuild 踰꾩쟾 17.14.19+164abd434(.NET Framework??
-      鍮뚮뱶 ?쒖옉: 2026-03-27 ?ㅼ쟾 1:12:57
+      鍮뚮뱶 ?쒖옉: 2026-03-31 ?ㅼ쟾 1:08:35
       
       1 ?몃뱶??"C:\\simcap\\onePerday\\frontend\\build\\windows\\x64\\CMakeFiles\\3.31.6-msvc6\\CompilerIdCXX\\CompilerIdCXX.vcxproj" ?꾨줈?앺듃(湲곕낯 ?\xc2\x80???낅땲??
       PrepareForBuild:
@@ -53,7 +53,7 @@ events:
           寃쎄퀬 0媛?
           ?ㅻ쪟 0媛?
       
-      寃쎄낵 ?쒓컙: 00:00:01.43
+      寃쎄낵 ?쒓컙: 00:00:01.25
       
       
       Compilation of the CXX compiler identification source "CMakeCXXCompilerId.cpp" produced "CompilerIdCXX.exe"
@@ -72,8 +72,8 @@ events:
     checks:
       - "Detecting CXX compiler ABI info"
     directories:
-      source: "C:/simcap/onePerday/frontend/build/windows/x64/CMakeFiles/CMakeScratch/TryCompile-4r3oxc"
-      binary: "C:/simcap/onePerday/frontend/build/windows/x64/CMakeFiles/CMakeScratch/TryCompile-4r3oxc"
+      source: "C:/simcap/onePerday/frontend/build/windows/x64/CMakeFiles/CMakeScratch/TryCompile-4nfhbu"
+      binary: "C:/simcap/onePerday/frontend/build/windows/x64/CMakeFiles/CMakeScratch/TryCompile-4nfhbu"
     cmakeVariables:
       CMAKE_CXX_FLAGS: "/DWIN32 /D_WINDOWS /W3 /GR /EHsc"
       CMAKE_CXX_FLAGS_DEBUG: "/MDd /Zi /Ob0 /Od /RTC1"
@@ -83,40 +83,40 @@ events:
       variable: "CMAKE_CXX_ABI_COMPILED"
       cached: true
       stdout: |
-        Change Dir: 'C:/simcap/onePerday/frontend/build/windows/x64/CMakeFiles/CMakeScratch/TryCompile-4r3oxc'
+        Change Dir: 'C:/simcap/onePerday/frontend/build/windows/x64/CMakeFiles/CMakeScratch/TryCompile-4nfhbu'
         
-        Run Build Command(s): "C:/Program Files/Microsoft Visual Studio/2022/Preview/MSBuild/Current/Bin/amd64/MSBuild.exe" cmTC_d7d40.vcxproj /p:Configuration=Debug /p:Platform=x64 /p:VisualStudioVersion=17.0 /v:n
+        Run Build Command(s): "C:/Program Files/Microsoft Visual Studio/2022/Preview/MSBuild/Current/Bin/amd64/MSBuild.exe" cmTC_0e6a7.vcxproj /p:Configuration=Debug /p:Platform=x64 /p:VisualStudioVersion=17.0 /v:n
         msbuild 踰꾩쟾 17.14.19+164abd434(.NET Framework??
-        鍮뚮뱶 ?쒖옉: 2026-03-27 ?ㅼ쟾 1:12:59
+        鍮뚮뱶 ?쒖옉: 2026-03-31 ?ㅼ쟾 1:08:37
         
-        1 ?몃뱶??"C:\\simcap\\onePerday\\frontend\\build\\windows\\x64\\CMakeFiles\\CMakeScratch\\TryCompile-4r3oxc\\cmTC_d7d40.vcxproj" ?꾨줈?앺듃(湲곕낯 ?\xc2\x80???낅땲??
+        1 ?몃뱶??"C:\\simcap\\onePerday\\frontend\\build\\windows\\x64\\CMakeFiles\\CMakeScratch\\TryCompile-4nfhbu\\cmTC_0e6a7.vcxproj" ?꾨줈?앺듃(湲곕낯 ?\xc2\x80???낅땲??
         PrepareForBuild:
-          "cmTC_d7d40.dir\\Debug\\" ?붾젆?곕━瑜?留뚮뱾怨??덉뒿?덈떎.
+          "cmTC_0e6a7.dir\\Debug\\" ?붾젆?곕━瑜?留뚮뱾怨??덉뒿?덈떎.
           援ъ“??異쒕젰???ъ슜?????덉뒿?덈떎. 而댄뙆?쇰윭 吏꾨떒???쒖떇?\xc2\x80 ?ㅻ쪟 怨꾩링 援ъ“瑜?諛섏쁺?⑸땲?? ?먯꽭???댁슜?\xc2\x80 https://aka.ms/cpp/structured-output??李몄“?섏꽭??
-          "C:\\simcap\\onePerday\\frontend\\build\\windows\\x64\\CMakeFiles\\CMakeScratch\\TryCompile-4r3oxc\\Debug\\" ?붾젆?곕━瑜?留뚮뱾怨??덉뒿?덈떎.
-          "cmTC_d7d40.dir\\Debug\\cmTC_d7d40.tlog\\" ?붾젆?곕━瑜?留뚮뱾怨??덉뒿?덈떎.
+          "C:\\simcap\\onePerday\\frontend\\build\\windows\\x64\\CMakeFiles\\CMakeScratch\\TryCompile-4nfhbu\\Debug\\" ?붾젆?곕━瑜?留뚮뱾怨??덉뒿?덈떎.
+          "cmTC_0e6a7.dir\\Debug\\cmTC_0e6a7.tlog\\" ?붾젆?곕━瑜?留뚮뱾怨??덉뒿?덈떎.
         InitializeBuildStatus:
-          "AlwaysCreate"??媛\xc2\x80) 吏\xc2\x80?뺣릺?덇린 ?뚮Ц??"cmTC_d7d40.dir\\Debug\\cmTC_d7d40.tlog\\unsuccessfulbuild"??瑜? 留뚮뱾怨??덉뒿?덈떎.
-          "cmTC_d7d40.dir\\Debug\\cmTC_d7d40.tlog\\unsuccessfulbuild"???곌껐(touching)?섍퀬 ?덉뒿?덈떎.
+          "AlwaysCreate"??媛\xc2\x80) 吏\xc2\x80?뺣릺?덇린 ?뚮Ц??"cmTC_0e6a7.dir\\Debug\\cmTC_0e6a7.tlog\\unsuccessfulbuild"??瑜? 留뚮뱾怨??덉뒿?덈떎.
+          "cmTC_0e6a7.dir\\Debug\\cmTC_0e6a7.tlog\\unsuccessfulbuild"???곌껐(touching)?섍퀬 ?덉뒿?덈떎.
         ClCompile:
-          C:\\Program Files\\Microsoft Visual Studio\\2022\\Preview\\VC\\Tools\\MSVC\\14.44.35207\\bin\\HostX64\\x64\\CL.exe /c /Zi /W3 /WX- /diagnostics:column /Od /Ob0 /D _MBCS /D WIN32 /D _WINDOWS /D "CMAKE_INTDIR=\\"Debug\\"" /EHsc /RTC1 /MDd /GS /fp:precise /Zc:wchar_t /Zc:forScope /Zc:inline /GR /Fo"cmTC_d7d40.dir\\Debug\\\\" /Fd"cmTC_d7d40.dir\\Debug\\vc143.pdb" /external:W3 /Gd /TP /errorReport:queue "C:\\Program Files\\Microsoft Visual Studio\\2022\\Preview\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\share\\cmake-3.31\\Modules\\CMakeCXXCompilerABI.cpp"
+          C:\\Program Files\\Microsoft Visual Studio\\2022\\Preview\\VC\\Tools\\MSVC\\14.44.35207\\bin\\HostX64\\x64\\CL.exe /c /Zi /W3 /WX- /diagnostics:column /Od /Ob0 /D _MBCS /D WIN32 /D _WINDOWS /D "CMAKE_INTDIR=\\"Debug\\"" /EHsc /RTC1 /MDd /GS /fp:precise /Zc:wchar_t /Zc:forScope /Zc:inline /GR /Fo"cmTC_0e6a7.dir\\Debug\\\\" /Fd"cmTC_0e6a7.dir\\Debug\\vc143.pdb" /external:W3 /Gd /TP /errorReport:queue "C:\\Program Files\\Microsoft Visual Studio\\2022\\Preview\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\share\\cmake-3.31\\Modules\\CMakeCXXCompilerABI.cpp"
           Microsoft (R) C/C++ 理쒖쟻??而댄뙆?쇰윭 踰꾩쟾 19.44.35215(x64)
           Copyright (c) Microsoft Corporation. All rights reserved.
-          cl /c /Zi /W3 /WX- /diagnostics:column /Od /Ob0 /D _MBCS /D WIN32 /D _WINDOWS /D "CMAKE_INTDIR=\\"Debug\\"" /EHsc /RTC1 /MDd /GS /fp:precise /Zc:wchar_t /Zc:forScope /Zc:inline /GR /Fo"cmTC_d7d40.dir\\Debug\\\\" /Fd"cmTC_d7d40.dir\\Debug\\vc143.pdb" /external:W3 /Gd /TP /errorReport:queue "C:\\Program Files\\Microsoft Visual Studio\\2022\\Preview\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\share\\cmake-3.31\\Modules\\CMakeCXXCompilerABI.cpp"
+          cl /c /Zi /W3 /WX- /diagnostics:column /Od /Ob0 /D _MBCS /D WIN32 /D _WINDOWS /D "CMAKE_INTDIR=\\"Debug\\"" /EHsc /RTC1 /MDd /GS /fp:precise /Zc:wchar_t /Zc:forScope /Zc:inline /GR /Fo"cmTC_0e6a7.dir\\Debug\\\\" /Fd"cmTC_0e6a7.dir\\Debug\\vc143.pdb" /external:W3 /Gd /TP /errorReport:queue "C:\\Program Files\\Microsoft Visual Studio\\2022\\Preview\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\share\\cmake-3.31\\Modules\\CMakeCXXCompilerABI.cpp"
           CMakeCXXCompilerABI.cpp
         Link:
-          C:\\Program Files\\Microsoft Visual Studio\\2022\\Preview\\VC\\Tools\\MSVC\\14.44.35207\\bin\\HostX64\\x64\\link.exe /ERRORREPORT:QUEUE /OUT:"C:\\simcap\\onePerday\\frontend\\build\\windows\\x64\\CMakeFiles\\CMakeScratch\\TryCompile-4r3oxc\\Debug\\cmTC_d7d40.exe" /INCREMENTAL /ILK:"cmTC_d7d40.dir\\Debug\\cmTC_d7d40.ilk" /NOLOGO kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib /MANIFEST /MANIFESTUAC:"level='asInvoker' uiAccess='false'" /manifest:embed /DEBUG /PDB:"C:/simcap/onePerday/frontend/build/windows/x64/CMakeFiles/CMakeScratch/TryCompile-4r3oxc/Debug/cmTC_d7d40.pdb" /SUBSYSTEM:CONSOLE /TLBID:1 /DYNAMICBASE /NXCOMPAT /IMPLIB:"C:/simcap/onePerday/frontend/build/windows/x64/CMakeFiles/CMakeScratch/TryCompile-4r3oxc/Debug/cmTC_d7d40.lib" /MACHINE:X64  /machine:x64 cmTC_d7d40.dir\\Debug\\CMakeCXXCompilerABI.obj
-          cmTC_d7d40.vcxproj -> C:\\simcap\\onePerday\\frontend\\build\\windows\\x64\\CMakeFiles\\CMakeScratch\\TryCompile-4r3oxc\\Debug\\cmTC_d7d40.exe
+          C:\\Program Files\\Microsoft Visual Studio\\2022\\Preview\\VC\\Tools\\MSVC\\14.44.35207\\bin\\HostX64\\x64\\link.exe /ERRORREPORT:QUEUE /OUT:"C:\\simcap\\onePerday\\frontend\\build\\windows\\x64\\CMakeFiles\\CMakeScratch\\TryCompile-4nfhbu\\Debug\\cmTC_0e6a7.exe" /INCREMENTAL /ILK:"cmTC_0e6a7.dir\\Debug\\cmTC_0e6a7.ilk" /NOLOGO kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib /MANIFEST /MANIFESTUAC:"level='asInvoker' uiAccess='false'" /manifest:embed /DEBUG /PDB:"C:/simcap/onePerday/frontend/build/windows/x64/CMakeFiles/CMakeScratch/TryCompile-4nfhbu/Debug/cmTC_0e6a7.pdb" /SUBSYSTEM:CONSOLE /TLBID:1 /DYNAMICBASE /NXCOMPAT /IMPLIB:"C:/simcap/onePerday/frontend/build/windows/x64/CMakeFiles/CMakeScratch/TryCompile-4nfhbu/Debug/cmTC_0e6a7.lib" /MACHINE:X64  /machine:x64 cmTC_0e6a7.dir\\Debug\\CMakeCXXCompilerABI.obj
+          cmTC_0e6a7.vcxproj -> C:\\simcap\\onePerday\\frontend\\build\\windows\\x64\\CMakeFiles\\CMakeScratch\\TryCompile-4nfhbu\\Debug\\cmTC_0e6a7.exe
         FinalizeBuildStatus:
-          "cmTC_d7d40.dir\\Debug\\cmTC_d7d40.tlog\\unsuccessfulbuild" ?뚯씪????젣?섍퀬 ?덉뒿?덈떎.
-          "cmTC_d7d40.dir\\Debug\\cmTC_d7d40.tlog\\cmTC_d7d40.lastbuildstate"???곌껐(touching)?섍퀬 ?덉뒿?덈떎.
-        "C:\\simcap\\onePerday\\frontend\\build\\windows\\x64\\CMakeFiles\\CMakeScratch\\TryCompile-4r3oxc\\cmTC_d7d40.vcxproj" ?꾨줈?앺듃瑜?鍮뚮뱶?덉뒿?덈떎(湲곕낯 ?\xc2\x80??.
+          "cmTC_0e6a7.dir\\Debug\\cmTC_0e6a7.tlog\\unsuccessfulbuild" ?뚯씪????젣?섍퀬 ?덉뒿?덈떎.
+          "cmTC_0e6a7.dir\\Debug\\cmTC_0e6a7.tlog\\cmTC_0e6a7.lastbuildstate"???곌껐(touching)?섍퀬 ?덉뒿?덈떎.
+        "C:\\simcap\\onePerday\\frontend\\build\\windows\\x64\\CMakeFiles\\CMakeScratch\\TryCompile-4nfhbu\\cmTC_0e6a7.vcxproj" ?꾨줈?앺듃瑜?鍮뚮뱶?덉뒿?덈떎(湲곕낯 ?\xc2\x80??.
         
         鍮뚮뱶?덉뒿?덈떎.
             寃쎄퀬 0媛?
             ?ㅻ쪟 0媛?
         
-        寃쎄낵 ?쒓컙: 00:00:01.01
+        寃쎄낵 ?쒓컙: 00:00:01.10
         
       exitCode: 0
   -

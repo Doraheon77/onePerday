@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:go_router/go_router.dart';
 import 'notification_sheet.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -11,11 +12,10 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   DateTime _selectedDate = DateTime.now();
-
-  int _notificationCount = 2; // 임시 알림 개수 (나중에 API 연동으로 바꿀 예정)
+  int _notificationCount = 2; // 임시 알림 개수
 
   final List<Map<String, dynamic>> _medications = [
-    {'title': '프로바이오틱스 1캡슐', 'subtitle': '아침 식후', 'isDone': true},
+    {'title': '프로바이오틱스 캡슐', 'subtitle': '아침 식후', 'isDone': true},
     {'title': '마그네슘 2정', 'subtitle': '저녁 식후', 'isDone': false},
   ];
 
@@ -75,7 +75,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // 달력 호출
   void _showCustomCalendar(BuildContext context) async {
     final DateTime? picked = await showDatePicker(
       context: context,
@@ -132,37 +131,26 @@ class _HomeScreenState extends State<HomeScreen> {
                     ],
                   ),
                 ),
+                // 2. 알림 아이콘 부분 (우측 끝 배치)
                 Row(
                   children: [
                     Badge(
                       label: Text('$_notificationCount'),
-                      isLabelVisible: _notificationCount > 0, // 0개일 땐 숨김
+                      isLabelVisible: _notificationCount > 0,
                       backgroundColor: Colors.redAccent,
                       offset: const Offset(-2, 2),
                       child: IconButton(
                         icon: const Icon(
                           Icons.notifications_none_rounded,
                           color: Color(0xFF4CAF50),
+                          size: 26, // 아이콘 크기 살짝 키움
                         ),
                         onPressed: () {
                           NotificationSheet.show(context);
-                          setState(
-                            () => _notificationCount = 0,
-                          ); // 알림 개수 초기화 (실제 구현에서는 API 연동으로 관리)
+                          setState(() => _notificationCount = 0);
                         },
                         constraints: const BoxConstraints(),
                         padding: const EdgeInsets.all(4),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-
-                    const CircleAvatar(
-                      radius: 16,
-                      backgroundColor: Color(0xFFE8F5E9),
-                      child: Icon(
-                        Icons.person_outline_rounded,
-                        size: 20,
-                        color: Color(0xFF4CAF50),
                       ),
                     ),
                   ],
@@ -216,8 +204,10 @@ class _HomeScreenState extends State<HomeScreen> {
                   Container(
                     width: 5,
                     height: 5,
-                    decoration: const BoxDecoration(
-                      color: Color(0xFF4CAF50),
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? const Color(0xFF4CAF50)
+                          : Colors.transparent, // 선택된 날만 점 표시
                       shape: BoxShape.circle,
                     ),
                   ),

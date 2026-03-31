@@ -95,16 +95,12 @@ class _CabinetScreenState extends State<CabinetScreen> {
           ),
         ],
       ),
-      floatingActionButton: Padding(
-        padding: const EdgeInsets.only(bottom: 70),
-        child: FloatingActionButton.extended(
-          // ✅ 수정된 네비게이션 함수 연결
-          onPressed: _navigateAndAddSupplement,
-          label: const Text('영양제 추가'),
-          icon: const Icon(Icons.add),
-          backgroundColor: const Color(0xFF4CAF50),
-          foregroundColor: Colors.white,
-        ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: _navigateAndAddSupplement,
+        label: const Text('영양제 추가'),
+        icon: const Icon(Icons.add),
+        backgroundColor: const Color(0xFF4CAF50),
+        foregroundColor: Colors.white,
       ),
     );
   }

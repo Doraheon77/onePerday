@@ -7,6 +7,12 @@ import 'package:simcap/features/cabinet/presentation/cabinet_screen.dart';
 import 'package:simcap/features/cabinet/presentation/cabinet_detail_screen.dart';
 import 'package:simcap/features/cabinet/presentation/add_supplement_screen.dart';
 import 'package:simcap/features/cabinet/domain/dataModels/supplement_model.dart';
+import 'package:simcap/features/profile/presentation/login_screen.dart';
+import 'package:simcap/features/profile/presentation/onboarding_survey_screen.dart';
+import 'package:simcap/features/profile/presentation/profile_screen.dart';
+import 'package:simcap/features/store/presentation/store_screen.dart';
+import 'package:simcap/features/store/presentation/search_screen.dart';
+import 'package:simcap/features/store/presentation/basket_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -25,11 +31,9 @@ class MyApp extends StatelessWidget {
       localizationsDelegates: const [
         GlobalMaterialLocalizations.delegate,
         GlobalWidgetsLocalizations.delegate,
-        GlobalCupertinoLocalizations.delegate,
+        GlobalMaterialLocalizations.delegate,
       ],
-      supportedLocales: const [
-        Locale('ko', 'KR'), // 한국어 지원
-      ],
+      supportedLocales: const [Locale('ko', 'KR')],
       locale: const Locale('ko', 'KR'),
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF4CAF50)),
@@ -41,19 +45,39 @@ class MyApp extends StatelessWidget {
   }
 }
 
-// 라우팅 설정
 final GoRouter _router = GoRouter(
-  initialLocation: '/home',
+  initialLocation: '/login',
   routes: [
+    GoRoute(path: '/login', builder: (context, state) => const LoginScreen()),
+    GoRoute(
+      path: '/onboarding',
+      builder: (context, state) => const OnboardingSurveyScreen(),
+    ),
+
     ShellRoute(
       builder: (context, state, child) => ScaffoldWithNavBar(child: child),
       routes: [
         GoRoute(path: '/home', builder: (context, state) => const HomeScreen()),
+
+        GoRoute(
+          path: '/store',
+          builder: (context, state) => const StoreScreen(),
+          routes: [
+            GoRoute(
+              path: 'search',
+              builder: (context, state) => const SearchScreen(),
+            ),
+            GoRoute(
+              path: 'basket',
+              builder: (context, state) => const BasketScreen(),
+            ),
+          ],
+        ),
+
         GoRoute(
           path: '/cabinet',
           builder: (context, state) => const CabinetScreen(),
           routes: [
-            // 2. 상세 페이지 경로
             GoRoute(
               path: 'detail',
               builder: (context, state) {
@@ -64,21 +88,19 @@ final GoRouter _router = GoRouter(
                 } else if (extra is Map<String, dynamic>) {
                   supplement = Supplement.fromJson(extra);
                 } else {
-                  // 데이터 누락 시 기본값 객체 (새 필드들 추가)
                   supplement = Supplement(
                     name: '정보 없음',
                     brand: '',
                     remaining: 0,
                     total: 0,
                     nutrients: [],
-                    analysisGuide: '', // 필드 추가
-                    aiSummary: '', // 필드 추가
+                    analysisGuide: '',
+                    aiSummary: '',
                   );
                 }
                 return CabinetDetailScreen(item: supplement);
               },
             ),
-            // 3. 영양제 등록 페이지 경로 추가
             GoRoute(
               path: 'add',
               builder: (context, state) => const AddSupplementScreen(),
@@ -86,26 +108,28 @@ final GoRouter _router = GoRouter(
           ],
         ),
         GoRoute(
-          path: '/recommend',
-          builder: (context, state) => const RecommendScreen(),
-        ),
-        GoRoute(
-          path: '/store',
-          builder: (context, state) => const StoreScreen(),
+          path: '/profile',
+          builder: (context, state) => const ProfileScreen(),
         ),
       ],
     ),
+
     GoRoute(
       path: '/chatbot',
       builder: (context, state) => Scaffold(
-        appBar: AppBar(title: const Text('AI 영양사 챗봇')),
+        appBar: AppBar(
+          title: const Text('AI 영양사 챗봇'),
+          leading: IconButton(
+            icon: const Icon(Icons.close),
+            onPressed: () => context.pop(),
+          ),
+        ),
         body: const Center(child: Text('챗봇 서비스 준비 중입니다.')),
       ),
     ),
   ],
 );
 
-// 공통 레이아웃
 class ScaffoldWithNavBar extends StatelessWidget {
   final Widget child;
   const ScaffoldWithNavBar({super.key, required this.child});
@@ -118,8 +142,8 @@ class ScaffoldWithNavBar extends StatelessWidget {
         backgroundColor: const Color(0xFF4CAF50),
         elevation: 4,
         shape: const CircleBorder(),
-        child: const Icon(Icons.chat_bubble_outline, color: Colors.white),
-        onPressed: () => context.go('/chatbot'),
+        child: const Icon(Icons.smart_toy_outlined, color: Colors.white),
+        onPressed: () => context.push('/chatbot'),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
       bottomNavigationBar: BottomAppBar(
@@ -133,23 +157,18 @@ class ScaffoldWithNavBar extends StatelessWidget {
             _buildNavItem(context, Icons.home_filled, '홈', '/home'),
             _buildNavItem(
               context,
-              Icons.inventory_2_outlined,
-              '내 영양제',
-              '/cabinet',
-            ),
-            const SizedBox(width: 40),
-            _buildNavItem(
-              context,
-              Icons.thumb_up_alt_outlined,
-              '추천',
-              '/recommend',
-            ),
-            _buildNavItem(
-              context,
               Icons.shopping_bag_outlined,
               '스토어',
               '/store',
             ),
+            const SizedBox(width: 40),
+            _buildNavItem(
+              context,
+              Icons.inventory_2_outlined,
+              '내 영양제',
+              '/cabinet',
+            ),
+            _buildNavItem(context, Icons.person_outline, '프로필', '/profile'),
           ],
         ),
       ),
@@ -162,9 +181,10 @@ class ScaffoldWithNavBar extends StatelessWidget {
     String label,
     String path,
   ) {
-    final bool isSelected = GoRouterState.of(
-      context,
-    ).uri.toString().startsWith(path);
+    final String currentUri = GoRouterState.of(context).uri.toString();
+    final bool isSelected =
+        currentUri == path || currentUri.startsWith('$path/');
+
     return InkWell(
       onTap: () => context.go(path),
       child: Column(
@@ -176,29 +196,17 @@ class ScaffoldWithNavBar extends StatelessWidget {
             color: isSelected ? const Color(0xFF4CAF50) : Colors.grey,
             size: 24,
           ),
+          const SizedBox(height: 4),
           Text(
             label,
             style: TextStyle(
               color: isSelected ? const Color(0xFF4CAF50) : Colors.grey,
               fontSize: 10,
+              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
             ),
           ),
         ],
       ),
     );
   }
-}
-
-class RecommendScreen extends StatelessWidget {
-  const RecommendScreen({super.key});
-  @override
-  Widget build(BuildContext context) =>
-      const Scaffold(body: Center(child: Text('추천')));
-}
-
-class StoreScreen extends StatelessWidget {
-  const StoreScreen({super.key});
-  @override
-  Widget build(BuildContext context) =>
-      const Scaffold(body: Center(child: Text('스토어')));
 }

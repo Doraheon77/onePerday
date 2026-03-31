@@ -1,0 +1,54 @@
+import 'package:flutter/material.dart';
+
+class LoginSocialButton extends StatelessWidget {
+  final IconData icon;
+  final String text;
+  final Color color;
+  final VoidCallback onPressed;
+  final Color textColor;
+  final bool border;
+
+  const LoginSocialButton({
+    super.key,
+    required this.icon,
+    required this.text,
+    required this.color,
+    required this.onPressed,
+    this.textColor = Colors.white,
+    this.border = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      height: 56,
+      child: ElevatedButton(
+        onPressed: onPressed,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: color,
+          elevation: 0,
+          side: border ? BorderSide(color: Colors.grey.shade300) : null,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, color: textColor),
+            const SizedBox(width: 10),
+            Text(
+              text,
+              style: TextStyle(
+                color: textColor,
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
