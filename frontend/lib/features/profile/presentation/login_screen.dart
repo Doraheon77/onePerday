@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:simcap/features/profile/widgets/login_social_button.dart';
+import 'package:simcap/services/auth_service.dart';
 
 class LoginScreen extends StatelessWidget {
-  const LoginScreen({super.key});
+  LoginScreen({super.key});
+
+  final AuthService _authService = AuthService();
 
   @override
   Widget build(BuildContext context) {
@@ -40,7 +43,7 @@ class LoginScreen extends StatelessWidget {
               text: '카카오로 시작하기',
               color: const Color(0xFFFEE500),
               textColor: Colors.black87,
-              onPressed: () => _handleLogin(context, isNewUser: true),
+              onPressed: () => _handleKakaoLogin(context),
             ),
             const SizedBox(height: 12),
             LoginSocialButton(
@@ -49,7 +52,7 @@ class LoginScreen extends StatelessWidget {
               color: Colors.white,
               textColor: Colors.black87,
               border: true,
-              onPressed: () => _handleLogin(context, isNewUser: true),
+              onPressed: () => _handleGoogleLogin(context),
             ),
             const SizedBox(height: 48),
           ],
@@ -58,15 +61,45 @@ class LoginScreen extends StatelessWidget {
     );
   }
 
-  void _handleLogin(BuildContext context, {required bool isNewUser}) {
-    // TODO: 나중에 여기서 실제 로그인 상태 저장 로직 추가
+  Future<void> _handleGoogleLogin(BuildContext context) async {
+    try {
+      final result = await _authService.signInWithGoogle();
+      final bool isNewUser = result['isNewUser'] as bool? ?? false;
 
-    if (isNewUser) {
-      // 신규 유저라면 온보딩 화면으로 이동
-      context.go('/onboarding');
-    } else {
-      // 기존 유저라면 바로 홈 화면으로 이동
-      context.go('/home');
+      if (!context.mounted) return;
+
+      if (isNewUser) {
+        context.go('/onboarding');
+      } else {
+        context.go('/home');
+      }
+    } catch (e) {
+      if (!context.mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('구글 로그인 실패: $e')),
+      );
+    }
+  }
+
+  Future<void> _handleKakaoLogin(BuildContext context) async {
+    try {
+      final result = await _authService.signInWithKakao();
+      final bool isNewUser = result['isNewUser'] as bool? ?? false;
+
+      if (!context.mounted) return;
+
+      if (isNewUser) {
+        context.go('/onboarding');
+      } else {
+        context.go('/home');
+      }
+    } catch (e) {
+      if (!context.mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('카카오 로그인 실패: $e')),
+      );
     }
   }
 }
