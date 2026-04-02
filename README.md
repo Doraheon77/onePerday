@@ -1,98 +1,86 @@
-# onePerday
-2026 AI컴퓨터공학부 심화캡스톤 onePerday팀 프로젝트용 github
+# 💊 AI OCR 모듈 사용 가이드 (onePerday)
 
-## 🌿 Branch Strategy
+이 모듈은 **GLM-OCR (0.9B)** 모델을 사용하여 카메라로 촬영한 영양제 라벨에서 제품명, 영양 성분, 주의사항 등을 추출합니다. 0.9B 경량 모델의 특성을 고려하여 한국어 의학 용어 및 곡면 왜곡 보정에 최적화된 프롬프트가 적용되어 있습니다.
 
-효율적인 협업을 위해 아래와 같은 브랜치 전략을 준수합니다. 모든 작업은 본인의 개별 브랜치에서 수행함을 원칙으로 합니다.
-
-| 브랜치 이름 | 설명 |
-| :--- | :--- |
-| **Main** | 항상 배포 가능한 최신 상태를 유지하는 메인 브랜치 |
-| **Release** | 배포 직전 최종 테스트 및 버그 수정을 위한 브랜치 |
-| **Develop** | 다음 버전 출시를 위한 기능을 통합하는 개발 브랜치 |
-| **Feature** | 단위 기능을 개발하는 브랜치 (실질적인 작업 공간) |
-| **HotFix** | Main 브랜치에서 발생한 긴급 버그를 수정하는 브랜치 |
-
-### 🏷️ Branch Naming Convention
-
-브랜치 생성 시 아래의 규칙에 따라 이름을 부여합니다.
-
-> **형식:** `브랜치 종류-브랜치 목적(띄어쓰기 없이)-작성자 이니셜`  
-> **이니셜 목록:** `HJ`, `KB`, `SJ`, `HS`, `CH`, `EJ`
-
-**Example:**
-- `Feature-체크리스트-EJ`
-- `Develop-0.1v개발-HJ`
-- `HotFix-셧다운버그수정-KB`
+## 📂 파일 위치
+`C:\onePerday\ai\ocr.py`
 
 ---
 
-## 💬 Commit Convention
+## 🛠 1. 환경 설정 (Prerequisites)
 
-코드의 변경 이력을 명확히 하기 위해 아래의 커밋 메시지 규약을 따릅니다.
+이 모듈은 GPU(CUDA) 가속을 권장합니다. 아래 순서대로 라이브러리를 설치하세요.
 
-### 1. Commit Type
-
-| Type | Description |
-| :--- | :--- |
-| **Feat** | 새로운 기능 추가 |
-| **Fix** | 버그 수정 |
-| **Docs** | 문서 수정 (README 등) |
-| **Style** | 코드 의미에 영향이 없는 서식 변경 (들여쓰기, 세미콜론 등) |
-| **Refactor** | 코드 리팩토링 |
-| **Test** | 테스트 코드 추가 및 수정 |
-| **Chore** | 빌드 업무, 패키지 매니저 설정 등 기타 변경 사항 |
-
-### 2. Commit Message Format
-
-커밋 메시지는 제목과 상세 내용을 구분하여 상세하게 작성합니다.
-
-```text
-작성자 이니셜 : [Type] 제목
-
-수정 내용 (최대한 상세하게 작성)
+### 1-1. 필수 라이브러리 설치
+```bash
+pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu130
+pip install "transformers>=4.46.0" "accelerate>=0.34.0" opencv-python pillow
 ```
 
-
-**Example:**
-```text
-HJ : [Feat] 회원 가입 기능 구현
-
-이메일 가입, 외부 인증 로그인 기능 및 사용자 특성 입력 페이지 개발
+### 1-2. 하드웨어 체크
+GPU가 정상적으로 인식되는지 확인하려면 아래 명령어를 실행하세요.
+```bash
+python -c "import torch; print(f'GPU 가능 여부: {torch.cuda.is_available()}')"
 ```
 
+---
+
+## 🚀 2. 사용 방법
+
+### A. 독립 실행 (테스트용)
+`ocr.py` 파일을 직접 실행하여 카메라 작동 및 인식 성능을 테스트할 수 있습니다.
+```bash
+python ai/ocr.py
+```
+* **Spacebar**: 사진 촬영 및 분석 시작
+* **q**: 촬영 취소 및 종료
+
+### B. 서브루틴 호출 (모듈 통합용)
+다른 서비스 파일(예: `main.py`)에서 OCR 기능을 가져와 사용할 때의 예시입니다.
+
+```python
+from ai.ocr import capture_image_from_camera, get_text_from_image
+
+def process_nutrition_label():
+    # 1. 카메라 호출 및 이미지 객체 획득
+    img = capture_image_from_camera()
+    
+    if img:
+        # 2. OCR 분석 수행 (텍스트만 반환)
+        # 반환값: Markdown 형식의 문자열(String)
+        extracted_text = get_text_from_image(img)
+        
+        print("--- 인식 결과 ---")
+        print(extracted_text.strip())
+        return extracted_text
+    
+    return None
+```
 
 ---
 
-## 🚀 Pull Request (PR) Strategy
+## 📝 3. 주요 함수 설명
 
-코드 리뷰를 활성화하고 코드의 품질을 유지하기 위해 아래의 PR 규칙을 준수합니다.
-
-### 1. PR Title Convention
-
-브랜치 전략과 통일성을 갖추어 제목을 작성합니다.
-
-> **형식:** `[PR 종류(브랜치 종류와 동일)] 기능 명칭 - 작성자 이니셜`
-> 
-> **Example:** `[Feature] 회원가입 API 연동 완료 - HJ`
-
-### 2. PR Body Template
-
-상세한 코드 리뷰를 위해 PR 본문에 아래 항목을 포함하여 작성합니다.
-
-| 항목 | 내용 |
-| :--- | :--- |
-| **개요 (Summary)** | 작업한 내용의 핵심 요약 |
-| **주요 변경 사항** | 구체적인 코드 수정 및 추가 사항 (리스트 형태 권장) |
-| **스크린샷/영상** | UI 변경 사항이 있을 경우 반드시 첨부 (선택 사항) |
-
-### 3. Review & Merge Rules
-
-원활한 병합을 위해 아래 프로세스를 따릅니다.
-
-* **Reviewer 지정:** 작업 완료 후 모든 팀원을 리뷰어로 지정합니다.
-* **Approve 조건:** 팀장 + 팀장 외 2인의 승인(Approve)**이 있어야 `Main` 또는 `Develop` 브랜치로 머지할 수 있습니다.
-* **Merge 방식:** * `Feature` → `Develop`: 코드 이력을 남기기 위해 **Squash and Merge** 혹은 **Merge Commit**을 활용합니다.
-    * 리뷰 중 발견된 수정 사항은 해당 PR 브랜치에서 추가 커밋으로 반영합니다.
+| 함수명 | 설명 | 반환값 |
+| :--- | :--- | :--- |
+| `capture_image_from_camera()` | 웹캠을 활성화하여 사용자가 촬영한 프레임을 반환합니다. | `PIL.Image` 객체 (취소 시 `None`) |
+| `get_text_from_image(image)` | 입력받은 이미지를 GLM-OCR 모델로 분석합니다. | 추출된 **텍스트 문자열(String)** |
 
 ---
+
+## 💡 4. 기술적 특징 (0.9B 최적화)
+
+* **Vocabulary Injection**: 0.9B 모델의 어휘력 한계를 보완하기 위해 '근육통', '신경통', '병중·병후' 등 영양제 라벨 전용 의학 용어 교정 로직이 프롬프트에 포함되어 있습니다.
+* **Curvature Correction**: 약통의 곡면으로 인해 자음/모음이 분리되는 현상을 문맥적으로 재결합하도록 지시합니다.
+* **Multilingual**: 한국어와 영어를 동시에 인식하며, 성분표는 Markdown Table 형식으로 구조화합니다.
+
+---
+
+## ⚠️ 주의 사항
+1. **조명**: 라벨의 비닐 재질로 인한 빛 반사가 심할 경우 인식률이 떨어질 수 있습니다.
+2. **GPU 메모리**: 최소 4GB 이상의 VRAM을 권장합니다. 메모리 부족 시 `ocr.py` 내의 `dtype=torch.bfloat16` 설정을 확인하세요.
+3. **최초 실행**: 모델 파일(약 2GB)을 허브에서 다운로드하므로 첫 실행 시 시간이 다소 소요될 수 있습니다.
+
+---
+**작성자**: SJ (AI 파트)  
+**최종 수정일**: 2026-04-02
