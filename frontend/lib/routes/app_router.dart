@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:simcap/features/chatbot/presentation/chatbot_screen.dart';
 import 'package:simcap/features/home/presentation/home_screen.dart';
 import 'package:simcap/features/cabinet/presentation/cabinet_screen.dart';
 import 'package:simcap/features/cabinet/presentation/cabinet_detail_screen.dart';
@@ -11,6 +12,7 @@ import 'package:simcap/features/profile/presentation/profile_screen.dart';
 import 'package:simcap/features/store/presentation/store_screen.dart';
 import 'package:simcap/features/store/presentation/search_screen.dart';
 import 'package:simcap/features/store/presentation/basket_screen.dart';
+import 'package:simcap/features/chatbot/presentation/chatbot_screen.dart';
 import 'package:simcap/main.dart';
 
 class AppRouter {
@@ -84,16 +86,7 @@ class AppRouter {
       ),
       GoRoute(
         path: '/chatbot',
-        builder: (context, state) => Scaffold(
-          appBar: AppBar(
-            title: const Text('AI 영양사 챗봇'),
-            leading: IconButton(
-              icon: const Icon(Icons.close),
-              onPressed: () => context.pop(),
-            ),
-          ),
-          body: const Center(child: Text('챗봇 서비스 준비 중입니다.')),
-        ),
+        builder: (context, state) => const ChatbotScreen(),
       ),
     ],
   );
