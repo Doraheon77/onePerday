@@ -107,6 +107,28 @@ class CabinetDetailScreen extends StatelessWidget {
   }
 
   Widget _buildStatusSection() {
+    final int? daysLeft = item.daysUntilEmpty;
+    final DateTime? emptyDate = item.emptyDate;
+
+    // 소진 예정일 문자열 포맷
+    String emptyDateLabel;
+    if (daysLeft == null) {
+      emptyDateLabel = '정보 없음';
+    } else if (daysLeft <= 0) {
+      emptyDateLabel = '오늘 소진';
+    } else if (emptyDate != null) {
+      emptyDateLabel = '${emptyDate.month}월 ${emptyDate.day}일 (D-$daysLeft)';
+    } else {
+      emptyDateLabel = 'D-$daysLeft';
+    }
+
+    // 소진 임박 여부에 따른 강조 색상
+    final Color emptyDateColor = (daysLeft != null && daysLeft <= 7)
+        ? const Color(0xFFFF6B6B)
+        : (daysLeft != null && daysLeft <= 30)
+            ? const Color(0xFFFFC107)
+            : Colors.black87;
+
     return Padding(
       padding: const EdgeInsets.all(24.0),
       child: Column(
@@ -117,13 +139,26 @@ class CabinetDetailScreen extends StatelessWidget {
             style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 16),
+          _buildRemainingBar(),
+          const SizedBox(height: 16),
           _buildInfoRow(
-            Icons.inventory_2_outlined,
-            '남은 수량',
-            '${item.remaining}정',
+            Icons.event_outlined,
+            '소진 예정일',
+            emptyDateLabel,
+            valueColor: emptyDateColor,
           ),
           _buildInfoRow(
-            Icons.calendar_month_outlined,
+            Icons.schedule_outlined,
+            '복용 시점',
+            item.mealTiming.label,
+          ),
+          _buildInfoRow(
+            Icons.medication_outlined,
+            '1일 복용량',
+            '${item.dailyDose}정',
+          ),
+          _buildInfoRow(
+            Icons.inventory_2_outlined,
             '전체 용량',
             '${item.total}정',
           ),
@@ -137,7 +172,76 @@ class CabinetDetailScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildInfoRow(IconData icon, String label, String value) {
+  Widget _buildRemainingBar() {
+    final int total = item.total == 0 ? 1 : item.total;
+    final double progress = (item.remaining / total).clamp(0.0, 1.0);
+    final Color barColor = progress <= 0.2
+        ? const Color(0xFFFF6B6B)
+        : progress <= 0.5
+            ? const Color(0xFFFFC107)
+            : const Color(0xFF4CAF50);
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF9FAFB),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.inventory_2_outlined,
+                      size: 16, color: Colors.grey[500]),
+                  const SizedBox(width: 6),
+                  const Text(
+                    '남은 수량',
+                    style: TextStyle(fontSize: 13, color: Colors.black54),
+                  ),
+                ],
+              ),
+              Text(
+                '${item.remaining}정 / ${item.total}정',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: barColor,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(6),
+            child: LinearProgressIndicator(
+              value: progress,
+              backgroundColor: Colors.grey[200],
+              color: barColor,
+              minHeight: 10,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Align(
+            alignment: Alignment.centerRight,
+            child: Text(
+              '${(progress * 100).toInt()}% 남음',
+              style: TextStyle(fontSize: 11, color: Colors.grey[500]),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInfoRow(
+    IconData icon,
+    String label,
+    String value, {
+    Color? valueColor,
+  }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Row(
@@ -146,7 +250,13 @@ class CabinetDetailScreen extends StatelessWidget {
           const SizedBox(width: 12),
           Text(label, style: const TextStyle(color: Colors.black54)),
           const Spacer(),
-          Text(value, style: const TextStyle(fontWeight: FontWeight.bold)),
+          Text(
+            value,
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              color: valueColor ?? Colors.black87,
+            ),
+          ),
         ],
       ),
     );

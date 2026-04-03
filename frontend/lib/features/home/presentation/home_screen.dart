@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:go_router/go_router.dart';
+import 'package:simcap/features/cabinet/domain/dataModels/supplement_model.dart';
+import 'package:simcap/providers/supplement_provider.dart';
 import 'notification_sheet.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -12,12 +13,6 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   DateTime _selectedDate = DateTime.now();
-  int _notificationCount = 2; // 임시 알림 개수
-
-  final List<Map<String, dynamic>> _medications = [
-    {'title': '프로바이오틱스 캡슐', 'subtitle': '아침 식후', 'isDone': true},
-    {'title': '마그네슘 2정', 'subtitle': '저녁 식후', 'isDone': false},
-  ];
 
   @override
   Widget build(BuildContext context) {
@@ -53,16 +48,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                       ),
                       const SizedBox(height: 12),
-                      ..._medications
-                          .asMap()
-                          .entries
-                          .map(
-                            (entry) => _buildMedicationToggleCard(
-                              entry.key,
-                              entry.value,
-                            ),
-                          )
-                          .toList(),
+                      _buildMedicationList(),
                       const SizedBox(height: 100),
                     ],
                   ),
@@ -102,6 +88,9 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildWeeklyCalendar() {
+    final notifier = SupplementProvider.of(context);
+    final notificationCount = notifier.totalNotificationCount;
+
     return Container(
       color: Colors.white,
       padding: const EdgeInsets.symmetric(vertical: 16),
@@ -131,29 +120,21 @@ class _HomeScreenState extends State<HomeScreen> {
                     ],
                   ),
                 ),
-                // 2. 알림 아이콘 부분 (우측 끝 배치)
-                Row(
-                  children: [
-                    Badge(
-                      label: Text('$_notificationCount'),
-                      isLabelVisible: _notificationCount > 0,
-                      backgroundColor: Colors.redAccent,
-                      offset: const Offset(-2, 2),
-                      child: IconButton(
-                        icon: const Icon(
-                          Icons.notifications_none_rounded,
-                          color: Color(0xFF4CAF50),
-                          size: 26, // 아이콘 크기 살짝 키움
-                        ),
-                        onPressed: () {
-                          NotificationSheet.show(context);
-                          setState(() => _notificationCount = 0);
-                        },
-                        constraints: const BoxConstraints(),
-                        padding: const EdgeInsets.all(4),
-                      ),
+                Badge(
+                  label: Text('$notificationCount'),
+                  isLabelVisible: notificationCount > 0,
+                  backgroundColor: Colors.redAccent,
+                  offset: const Offset(-2, 2),
+                  child: IconButton(
+                    icon: const Icon(
+                      Icons.notifications_none_rounded,
+                      color: Color(0xFF4CAF50),
+                      size: 26,
                     ),
-                  ],
+                    onPressed: () => NotificationSheet.show(context),
+                    constraints: const BoxConstraints(),
+                    padding: const EdgeInsets.all(4),
+                  ),
                 ),
               ],
             ),
@@ -207,7 +188,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     decoration: BoxDecoration(
                       color: isSelected
                           ? const Color(0xFF4CAF50)
-                          : Colors.transparent, // 선택된 날만 점 표시
+                          : Colors.transparent,
                       shape: BoxShape.circle,
                     ),
                   ),
@@ -314,10 +295,45 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildMedicationToggleCard(int index, Map<String, dynamic> med) {
-    bool isDone = med['isDone'];
+  Widget _buildMedicationList() {
+    final notifier = SupplementProvider.of(context);
+    final supplements = notifier.todaySupplements;
+
+    if (supplements.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: const Center(
+          child: Text(
+            '등록된 영양제가 없습니다.\n캐비닛에서 영양제를 추가해보세요!',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: Colors.grey, height: 1.6),
+          ),
+        ),
+      );
+    }
+
+    return Column(
+      children: supplements
+          .map((s) => _buildMedicationToggleCard(s, notifier))
+          .toList(),
+    );
+  }
+
+  Widget _buildMedicationToggleCard(
+    Supplement supplement,
+    SupplementNotifier notifier, 
+  ) {
+    final isDone = notifier.isDoneOn(supplement.name, _selectedDate);
+    final isToday = _dateOnly(_selectedDate) == _dateOnly(DateTime.now());
+
     return GestureDetector(
-      onTap: () => setState(() => _medications[index]['isDone'] = !isDone),
+      onTap: isToday
+          ? () => notifier.toggleDose(supplement.name, date: _selectedDate)
+          : null,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 250),
         margin: const EdgeInsets.only(bottom: 12),
@@ -334,7 +350,9 @@ class _HomeScreenState extends State<HomeScreen> {
           leading: CircleAvatar(
             backgroundColor: isDone
                 ? const Color(0xFF4CAF50)
-                : const Color(0xFFFFEBEE),
+                : isToday
+                    ? const Color(0xFFFFEBEE)
+                    : Colors.grey.shade200,
             child: Icon(
               isDone ? Icons.check : Icons.priority_high,
               color: Colors.white,
@@ -342,23 +360,57 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
           title: Text(
-            med['title'],
+            supplement.name,
             style: TextStyle(
               fontWeight: FontWeight.bold,
               decoration: isDone ? TextDecoration.lineThrough : null,
               color: isDone ? Colors.grey : Colors.black87,
             ),
           ),
-          subtitle: Text(isDone ? "복용 완료" : med['subtitle']),
-          trailing: Icon(
+          subtitle: Text(
             isDone
-                ? Icons.check_box_rounded
-                : Icons.check_box_outline_blank_rounded,
-            color: isDone ? const Color(0xFF4CAF50) : Colors.grey[400],
-            size: 28,
+                ? '복용 완료 · ${supplement.remaining}정 남음'
+                : '${supplement.mealTiming.label} · ${supplement.remaining}정 남음',
+          ),
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // 재고가 부족할 때 표시되는 D-day 배지
+              if (!isDone && supplement.remaining <= 7)
+                Container(
+                  margin: const EdgeInsets.only(right: 8),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFEBEB),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    'D-${supplement.remaining}',
+                    style: const TextStyle(
+                      fontSize: 10,
+                      color: Color(0xFFFF6B6B),
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              Icon(
+                isDone
+                    ? Icons.check_box_rounded
+                    : Icons.check_box_outline_blank_rounded,
+                color: isDone
+                    ? const Color(0xFF4CAF50)
+                    : isToday
+                        ? Colors.grey[400]
+                        : Colors.grey[200],
+                size: 28,
+              ),
+            ],
           ),
         ),
       ),
     );
   }
+
+  DateTime _dateOnly(DateTime dt) => DateTime(dt.year, dt.month, dt.day);
 }

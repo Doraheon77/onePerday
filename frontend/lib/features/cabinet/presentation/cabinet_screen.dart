@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:simcap/features/cabinet/widgets/supplement_card.dart';
 import 'package:simcap/features/cabinet/domain/dataModels/supplement_model.dart';
+import 'package:simcap/providers/supplement_provider.dart';
 import 'package:go_router/go_router.dart';
 
 class CabinetScreen extends StatefulWidget {
@@ -11,47 +12,15 @@ class CabinetScreen extends StatefulWidget {
 }
 
 class _CabinetScreenState extends State<CabinetScreen> {
-  List<Supplement> _mySupplements = [
-    Supplement(
-      name: '비타민D 제품',
-      brand: '브랜드 1',
-      remaining: 60,
-      total: 90,
-      analysisGuide: '지용성 비타민이므로 식후에 복용하면 흡수율이 더 높습니다.',
-      nutrients: [
-        Nutrient(name: '비타민 D', value: 1000, unit: 'IU', percent: 0.8),
-      ],
-    ),
-    Supplement(
-      name: '오메가3 제품',
-      brand: '브랜드 2',
-      remaining: 15,
-      total: 60,
-      analysisGuide: '특유의 비린내를 방지하려면 찬물과 함께 복용하세요.',
-      nutrients: [
-        Nutrient(name: 'EPA+DHA', value: 1200, unit: 'mg', percent: 0.95),
-        Nutrient(name: '비타민 E', value: 15, unit: 'mg', percent: 0.4),
-      ],
-    ),
-    Supplement(
-      name: '마그네슘 제품',
-      brand: '브랜드 3',
-      remaining: 3,
-      total: 30,
-      analysisGuide: '취침 전 복용 시 근육 이완과 숙면에 도움을 줄 수 있습니다.',
-      nutrients: [Nutrient(name: '마그네슘', value: 400, unit: 'mg', percent: 1.1)],
-    ),
-  ];
 
   Future<void> _navigateAndAddSupplement() async {
+    final notifier = SupplementProvider.of(context);
     final Supplement? newSupplement = await context.push<Supplement>(
       '/cabinet/add',
     );
 
     if (newSupplement != null) {
-      setState(() {
-        _mySupplements.add(newSupplement);
-      });
+      notifier.addSupplement(newSupplement);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -84,12 +53,16 @@ class _CabinetScreenState extends State<CabinetScreen> {
         children: [
           _buildSummaryCard(),
           Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              itemCount: _mySupplements.length,
-              itemBuilder: (context, index) {
-                final item = _mySupplements[index];
-                return SupplementCard(item: item);
+            child: Builder(
+              builder: (context) {
+                final supplements = SupplementProvider.of(context).supplements;
+                return ListView.builder(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  itemCount: supplements.length,
+                  itemBuilder: (context, index) {
+                    return SupplementCard(item: supplements[index]);
+                  },
+                );
               },
             ),
           ),
@@ -130,7 +103,7 @@ class _CabinetScreenState extends State<CabinetScreen> {
           ),
           const SizedBox(height: 4),
           Text(
-            '${_mySupplements.length}개의 영양제',
+            '${SupplementProvider.of(context).supplements.length}개의 영양제',
             style: const TextStyle(
               color: Colors.white,
               fontSize: 22,

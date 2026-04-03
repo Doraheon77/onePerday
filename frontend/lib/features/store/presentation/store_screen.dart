@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:simcap/features/store/presentation/supplement_detail_screen.dart';
 
 class StoreScreen extends StatefulWidget {
   const StoreScreen({super.key});
@@ -178,16 +179,57 @@ class _StoreScreenState extends State<StoreScreen> {
         scrollDirection: Axis.horizontal,
         itemCount: 5,
         itemBuilder: (context, index) {
-          return Container(
-            width: 140,
-            margin: const EdgeInsets.symmetric(horizontal: 4),
-            decoration: BoxDecoration(
-              color: Colors.grey.shade50,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.grey.shade200),
+          return GestureDetector(
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) =>
+                    SupplementDetailScreen(product: dummyProduct),
+              ),
             ),
-            child: const Center(
-              child: Text('영양제 상품', style: TextStyle(color: Colors.grey)),
+            child: Container(
+              width: 140,
+              margin: const EdgeInsets.symmetric(horizontal: 4),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade50,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.grey.shade200),
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    width: 56,
+                    height: 56,
+                    decoration: const BoxDecoration(
+                      color: Color(0xFFF1F8E9),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.medication_rounded,
+                      color: Color(0xFF4CAF50),
+                      size: 28,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    '추천 영양제 ${index + 1}',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  const Text(
+                    '28,000원',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Color(0xFF4CAF50),
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
             ),
           );
         },
@@ -300,6 +342,13 @@ class _StoreScreenState extends State<StoreScreen> {
       itemBuilder: (context, index) {
         return ListTile(
           contentPadding: EdgeInsets.zero,
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) =>
+                  SupplementDetailScreen(product: dummyProduct),
+            ),
+          ),
           leading: Container(
             width: 32,
             alignment: Alignment.center,

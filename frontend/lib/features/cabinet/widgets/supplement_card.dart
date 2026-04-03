@@ -98,6 +98,8 @@ class SupplementCard extends StatelessWidget {
   }
 
   Widget _buildTextInfo(int remaining) {
+    final int? daysLeft = item.daysUntilEmpty;
+
     return Expanded(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -124,7 +126,7 @@ class SupplementCard extends StatelessWidget {
           Row(
             children: [
               Text(
-                "${remaining}정 남음",
+                '${remaining}정 남음',
                 style: const TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
@@ -132,7 +134,8 @@ class SupplementCard extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 8),
-              _buildDDayBadge(remaining),
+              // daysLeft가 null이면 배지 숨김 (dailyDose 미설정 방어)
+              if (daysLeft != null) _buildDDayBadge(daysLeft),
             ],
           ),
         ],
@@ -140,31 +143,35 @@ class SupplementCard extends StatelessWidget {
     );
   }
 
-  Widget _buildDDayBadge(int remaining) {
-    Color badgeBgColor;
-    Color badgeTextColor;
-
-    if (remaining <= 7) {
-      badgeBgColor = const Color(0xFFFFEBEB);
-      badgeTextColor = const Color(0xFFFF6B6B);
-    } else if (remaining <= 30) {
-      badgeBgColor = const Color(0xFFFFFDE7);
-      badgeTextColor = const Color(0xFFFFC107);
-    } else {
-      badgeBgColor = const Color(0xFFE8F5E9);
-      badgeTextColor = const Color(0xFF4CAF50);
+  Widget _buildDDayBadge(int daysLeft) {
+    // 오늘 소진 또는 이미 소진
+    if (daysLeft <= 0) {
+      return _badge('소진', const Color(0xFFFFEBEB), const Color(0xFFFF6B6B));
     }
 
+    // D-Day 문자열: 7일 이하 D-7, 이후 D-30 형식
+    final label = 'D-$daysLeft';
+
+    if (daysLeft <= 7) {
+      return _badge(label, const Color(0xFFFFEBEB), const Color(0xFFFF6B6B));
+    } else if (daysLeft <= 30) {
+      return _badge(label, const Color(0xFFFFFDE7), const Color(0xFFFFC107));
+    } else {
+      return _badge(label, const Color(0xFFE8F5E9), const Color(0xFF4CAF50));
+    }
+  }
+
+  Widget _badge(String label, Color bgColor, Color textColor) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        color: badgeBgColor,
+        color: bgColor,
         borderRadius: BorderRadius.circular(6),
       ),
       child: Text(
-        "D-$remaining",
+        label,
         style: TextStyle(
-          color: badgeTextColor,
+          color: textColor,
           fontSize: 10,
           fontWeight: FontWeight.bold,
         ),

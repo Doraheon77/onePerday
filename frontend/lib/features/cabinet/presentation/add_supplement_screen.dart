@@ -20,6 +20,7 @@ class _AddSupplementScreenState extends State<AddSupplementScreen> {
   final ImagePicker _picker = ImagePicker();
 
   bool _showNameError = false;
+  MealTiming _selectedMealTiming = MealTiming.afterMeal; // 기본값: 식후
 
   final _nameController = TextEditingController();
   final _brandController = TextEditingController();
@@ -113,6 +114,8 @@ class _AddSupplementScreenState extends State<AddSupplementScreen> {
       imagePath: _selectedImage?.path,
       remaining: int.tryParse(_remainingController.text) ?? 0,
       total: (int.tryParse(_remainingController.text) ?? 0) + 30,
+      dailyDose: int.tryParse(_dosageController.text) ?? 1,
+      mealTiming: _selectedMealTiming,
       nutrients: _nutrientController.text
           .split(',')
           .where((e) => e.trim().isNotEmpty)
@@ -120,8 +123,8 @@ class _AddSupplementScreenState extends State<AddSupplementScreen> {
             (e) => Nutrient(name: e.trim(), value: 0, unit: '', percent: 0.7),
           )
           .toList(),
-      analysisGuide: "방금 등록된 영양제입니다.",
-      aiSummary: "분석 데이터 준비 중",
+      analysisGuide: '방금 등록된 영양제입니다.',
+      aiSummary: '분석 데이터 준비 중',
     );
 
     FocusManager.instance.primaryFocus?.unfocus();
@@ -307,6 +310,7 @@ class _AddSupplementScreenState extends State<AddSupplementScreen> {
 
         const SizedBox(height: 24),
         _buildSectionTitle('복용 및 수량 설정'),
+        _buildMealTimingSelector(),
         _buildQuantityStepper('1회 복용량 (정/캡슐)', _dosageController),
         _buildQuantityStepper('하루 복용 횟수', _frequencyController),
 
@@ -315,6 +319,84 @@ class _AddSupplementScreenState extends State<AddSupplementScreen> {
         const SizedBox(height: 40),
       ],
     );
+  }
+
+  Widget _buildMealTimingSelector() {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(15),
+        border: Border.all(color: const Color(0xFFEEEEEE)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            '복용 시점',
+            style: TextStyle(fontWeight: FontWeight.w500, fontSize: 14),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: MealTiming.values.map((timing) {
+              final isSelected = _selectedMealTiming == timing;
+              return Expanded(
+                child: GestureDetector(
+                  onTap: () => setState(() => _selectedMealTiming = timing),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 180),
+                    margin: const EdgeInsets.only(right: 6),
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? const Color(0xFF4CAF50)
+                          : const Color(0xFFF5F5F5),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: isSelected
+                            ? const Color(0xFF4CAF50)
+                            : const Color(0xFFEEEEEE),
+                      ),
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          _mealTimingIcon(timing),
+                          size: 18,
+                          color: isSelected
+                              ? Colors.white
+                              : Colors.grey[500],
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          timing.label,
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: isSelected ? Colors.white : Colors.grey[600],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  IconData _mealTimingIcon(MealTiming timing) {
+    switch (timing) {
+      case MealTiming.beforeMeal:  return Icons.lunch_dining_outlined;
+      case MealTiming.afterMeal:   return Icons.restaurant_outlined;
+      case MealTiming.beforeSleep: return Icons.bedtime_outlined;
+      case MealTiming.anytime:     return Icons.access_time_outlined;
+    }
   }
 
   Widget _buildSelectedImagePreview() {

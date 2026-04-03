@@ -12,14 +12,16 @@ import 'package:simcap/features/profile/presentation/profile_screen.dart';
 import 'package:simcap/features/store/presentation/store_screen.dart';
 import 'package:simcap/features/store/presentation/search_screen.dart';
 import 'package:simcap/features/store/presentation/basket_screen.dart';
-import 'package:simcap/features/chatbot/presentation/chatbot_screen.dart';
 import 'package:simcap/main.dart';
 
 class AppRouter {
   static final GoRouter router = GoRouter(
     initialLocation: '/login',
     routes: [
-      GoRoute(path: '/login', builder: (context, state) => const LoginScreen()),
+      GoRoute(
+        path: '/login',
+        builder: (context, state) => const LoginScreen(),
+      ),
       GoRoute(
         path: '/onboarding',
         builder: (context, state) => const OnboardingSurveyScreen(),
