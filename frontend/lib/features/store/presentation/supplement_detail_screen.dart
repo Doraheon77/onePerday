@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 // 스토어 상품 데이터 모델
 // TODO: 백엔드 연동 후 API 응답 모델로 교체
@@ -10,8 +11,11 @@ class StoreProduct {
   final int price;
   final String description;
   final List<NutrientInfo> nutrients;
-  final List<String> contraindications; // 병용 금지 약물/성분
+  final List<String> contraindications;
   final List<StoreProduct> similarProducts;
+  // 외부 구매 페이지 URL (네이버 스토어, 쿠팡 등)
+  // null이면 구매 버튼 비활성화
+  final String? purchaseUrl;
 
   const StoreProduct({
     required this.id,
@@ -22,6 +26,7 @@ class StoreProduct {
     required this.nutrients,
     this.contraindications = const [],
     this.similarProducts = const [],
+    this.purchaseUrl,
   });
 }
 
@@ -77,13 +82,12 @@ final dummyProduct = StoreProduct(
       '햇빛을 충분히 쬐기 어려운 현대인을 위한 고함량 비타민D입니다. '
       '면역 기능 유지, 뼈 건강, 근육 기능에 도움을 줍니다. '
       '연질캡슐 형태로 흡수율을 높였습니다.',
+  // TODO: 백엔드에서 실제 구매 URL을 받아 교체
+  purchaseUrl: 'https://smartstore.naver.com',
   nutrients: [
-    NutrientInfo(
-        name: '비타민 D3', amount: 5000, unit: 'IU', dailyPercent: 1.25),
-    NutrientInfo(
-        name: '비타민 K2', amount: 45, unit: 'mcg', dailyPercent: 0.6),
-    NutrientInfo(
-        name: '비타민 E', amount: 10, unit: 'mg', dailyPercent: 0.67),
+    NutrientInfo(name: '비타민 D3', amount: 5000, unit: 'IU', dailyPercent: 1.25),
+    NutrientInfo(name: '비타민 K2', amount: 45, unit: 'mcg', dailyPercent: 0.6),
+    NutrientInfo(name: '비타민 E', amount: 10, unit: 'mg', dailyPercent: 0.67),
   ],
   contraindications: [
     '와파린 (항응고제) — 비타민K2와 상호작용',
@@ -104,6 +108,40 @@ class SupplementDetailScreen extends StatefulWidget {
 
 class _SupplementDetailScreenState extends State<SupplementDetailScreen> {
   bool _contraExpanded = false;
+  bool _isPurchaseLoading = false;
+
+  Future<void> _launchPurchaseUrl(String url) async {
+    final uri = Uri.tryParse(url);
+    if (uri == null) {
+      _showErrorSnackBar('잘못된 URL입니다.');
+      return;
+    }
+
+    setState(() => _isPurchaseLoading = true);
+
+    try {
+      final canLaunch = await canLaunchUrl(uri);
+      if (!canLaunch) {
+        if (mounted) _showErrorSnackBar('구매 페이지를 열 수 없습니다.');
+        return;
+      }
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } catch (e) {
+      if (mounted) _showErrorSnackBar('구매 페이지 연결에 실패했습니다.');
+    } finally {
+      if (mounted) setState(() => _isPurchaseLoading = false);
+    }
+  }
+
+  void _showErrorSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: const Color(0xFFFF6B6B),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -230,8 +268,7 @@ class _SupplementDetailScreenState extends State<SupplementDetailScreen> {
     final isOver = n.dailyPercent > 1.0;
     final clampedPercent = n.dailyPercent.clamp(0.0, 1.5);
     final barColor = isOver ? const Color(0xFFFF6B6B) : const Color(0xFF4CAF50);
-    final percentLabel =
-        '${(n.dailyPercent * 100).toStringAsFixed(0)}%';
+    final percentLabel = '${(n.dailyPercent * 100).toStringAsFixed(0)}%';
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 14),
@@ -243,19 +280,22 @@ class _SupplementDetailScreenState extends State<SupplementDetailScreen> {
               Text(
                 n.name,
                 style: const TextStyle(
-                    fontSize: 14, fontWeight: FontWeight.w600),
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
               Row(
                 children: [
                   Text(
                     '${n.amount}${n.unit}',
-                    style:
-                        const TextStyle(fontSize: 13, color: Colors.black54),
+                    style: const TextStyle(fontSize: 13, color: Colors.black54),
                   ),
                   const SizedBox(width: 8),
                   Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 2,
+                    ),
                     decoration: BoxDecoration(
                       color: isOver
                           ? const Color(0xFFFFEBEB)
@@ -295,7 +335,8 @@ class _SupplementDetailScreenState extends State<SupplementDetailScreen> {
                     duration: const Duration(milliseconds: 600),
                     curve: Curves.easeOut,
                     height: 8,
-                    width: constraints.maxWidth *
+                    width:
+                        constraints.maxWidth *
                         (clampedPercent / 1.5).clamp(0.0, 1.0),
                     decoration: BoxDecoration(
                       color: barColor,
@@ -340,10 +381,7 @@ class _SupplementDetailScreenState extends State<SupplementDetailScreen> {
               AnimatedCrossFade(
                 firstChild: const SizedBox.shrink(),
                 secondChild: Column(
-                  children: items
-                      .skip(1)
-                      .map(_buildContraItem)
-                      .toList(),
+                  children: items.skip(1).map(_buildContraItem).toList(),
                 ),
                 crossFadeState: _contraExpanded
                     ? CrossFadeState.showSecond
@@ -352,15 +390,12 @@ class _SupplementDetailScreenState extends State<SupplementDetailScreen> {
               ),
               const SizedBox(height: 8),
               GestureDetector(
-                onTap: () =>
-                    setState(() => _contraExpanded = !_contraExpanded),
+                onTap: () => setState(() => _contraExpanded = !_contraExpanded),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      _contraExpanded
-                          ? '접기'
-                          : '${items.length - 1}개 더 보기',
+                      _contraExpanded ? '접기' : '${items.length - 1}개 더 보기',
                       style: const TextStyle(
                         fontSize: 13,
                         color: Color(0xFF4CAF50),
@@ -428,8 +463,7 @@ class _SupplementDetailScreenState extends State<SupplementDetailScreen> {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) =>
-                            SupplementDetailScreen(product: sp),
+                        builder: (_) => SupplementDetailScreen(product: sp),
                       ),
                     );
                   },
@@ -458,8 +492,7 @@ class _SupplementDetailScreenState extends State<SupplementDetailScreen> {
                         ),
                         const SizedBox(height: 8),
                         Padding(
-                          padding:
-                              const EdgeInsets.symmetric(horizontal: 8),
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
                           child: Text(
                             sp.name,
                             style: const TextStyle(
@@ -542,21 +575,34 @@ class _SupplementDetailScreenState extends State<SupplementDetailScreen> {
             child: ElevatedButton(
               style: ElevatedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(vertical: 16),
-                backgroundColor: const Color(0xFF4CAF50),
+                backgroundColor: p.purchaseUrl != null
+                    ? const Color(0xFF4CAF50)
+                    : Colors.grey[300],
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(14),
                 ),
                 elevation: 0,
               ),
-              onPressed: () {
-                // TODO: 네이버 스토어 등 외부 구매 페이지 연동
-              },
-              child: const Text(
-                '바로 구매',
-                style:
-                    TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-              ),
+              onPressed: p.purchaseUrl != null && !_isPurchaseLoading
+                  ? () => _launchPurchaseUrl(p.purchaseUrl!)
+                  : null,
+              child: _isPurchaseLoading
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : Text(
+                      p.purchaseUrl != null ? '바로 구매' : '구매 링크 없음',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
             ),
           ),
         ],
@@ -598,8 +644,8 @@ class _SupplementDetailScreenState extends State<SupplementDetailScreen> {
 
   String _formatPrice(int price) {
     return price.toString().replaceAllMapped(
-          RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
-          (m) => '${m[1]},',
-        );
+      RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+      (m) => '${m[1]},',
+    );
   }
 }

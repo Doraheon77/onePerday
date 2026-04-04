@@ -18,9 +18,9 @@
     </ProjectConfiguration>
   </ItemGroup>
   <PropertyGroup Label="Globals">
-    <ProjectGuid>{B9B646AA-CF54-3B6D-AA8C-F531BDFE7025}</ProjectGuid>
+    <ProjectGuid>{6AD27355-73CE-310C-A758-3FCDBD35F712}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
-    <WindowsTargetPlatformVersion>10.0.22000.0</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformVersion>10.0.26100.0</WindowsTargetPlatformVersion>
     <Platform>x64</Platform>
     <ProjectName>flutter_wrapper_app</ProjectName>
     <VCProjectUpgraderObjectName>NoUpgrade</VCProjectUpgraderObjectName>
@@ -50,22 +50,22 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup>
     <_ProjectFileVersion>10.0.20506.1</_ProjectFileVersion>
-    <OutDir Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">C:\Users\cogus\Desktop\심캡\onePerday\frontend\build\windows\x64\flutter\Debug\</OutDir>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">C:\simcap\onePerday\frontend\build\windows\x64\flutter\Debug\</OutDir>
     <IntDir Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">flutter_wrapper_app.dir\Debug\</IntDir>
     <TargetName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">flutter_wrapper_app</TargetName>
     <TargetExt Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">.lib</TargetExt>
-    <OutDir Condition="'$(Configuration)|$(Platform)'=='Profile|x64'">C:\Users\cogus\Desktop\심캡\onePerday\frontend\build\windows\x64\flutter\Profile\</OutDir>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='Profile|x64'">C:\simcap\onePerday\frontend\build\windows\x64\flutter\Profile\</OutDir>
     <IntDir Condition="'$(Configuration)|$(Platform)'=='Profile|x64'">flutter_wrapper_app.dir\Profile\</IntDir>
     <TargetName Condition="'$(Configuration)|$(Platform)'=='Profile|x64'">flutter_wrapper_app</TargetName>
     <TargetExt Condition="'$(Configuration)|$(Platform)'=='Profile|x64'">.lib</TargetExt>
-    <OutDir Condition="'$(Configuration)|$(Platform)'=='Release|x64'">C:\Users\cogus\Desktop\심캡\onePerday\frontend\build\windows\x64\flutter\Release\</OutDir>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='Release|x64'">C:\simcap\onePerday\frontend\build\windows\x64\flutter\Release\</OutDir>
     <IntDir Condition="'$(Configuration)|$(Platform)'=='Release|x64'">flutter_wrapper_app.dir\Release\</IntDir>
     <TargetName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">flutter_wrapper_app</TargetName>
     <TargetExt Condition="'$(Configuration)|$(Platform)'=='Release|x64'">.lib</TargetExt>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
-      <AdditionalIncludeDirectories>C:\Users\cogus\Desktop\심캡\onePerday\frontend\windows\flutter\ephemeral\cpp_client_wrapper\include;C:\Users\cogus\Desktop\심캡\onePerday\frontend\windows\flutter\ephemeral;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\simcap\onePerday\frontend\windows\flutter\ephemeral\cpp_client_wrapper\include;C:\simcap\onePerday\frontend\windows\flutter\ephemeral;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AssemblerListingLocation>$(IntDir)</AssemblerListingLocation>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
@@ -73,22 +73,25 @@
       <ExceptionHandling>Sync</ExceptionHandling>
       <InlineFunctionExpansion>Disabled</InlineFunctionExpansion>
       <LanguageStandard>stdcpp17</LanguageStandard>
+      <MinimalRebuild></MinimalRebuild>
       <Optimization>Disabled</Optimization>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
       <RuntimeTypeInfo>true</RuntimeTypeInfo>
+      <SupportJustMyCode></SupportJustMyCode>
       <TreatWarningAsError>true</TreatWarningAsError>
       <UseFullPaths>false</UseFullPaths>
       <WarningLevel>Level4</WarningLevel>
       <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;_HAS_EXCEPTIONS=0;_DEBUG;UNICODE;_UNICODE;CMAKE_INTDIR="Debug"</PreprocessorDefinitions>
       <ObjectFileName>$(IntDir)</ObjectFileName>
+      <ScanSourceForModuleDependencies>false</ScanSourceForModuleDependencies>
     </ClCompile>
     <ResourceCompile>
       <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_DEBUG;_WINDOWS;_HAS_EXCEPTIONS=0;UNICODE;_UNICODE;CMAKE_INTDIR=\"Debug\"</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>C:\Users\cogus\Desktop\심캡\onePerday\frontend\windows\flutter\ephemeral\cpp_client_wrapper\include;C:\Users\cogus\Desktop\심캡\onePerday\frontend\windows\flutter\ephemeral;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\simcap\onePerday\frontend\windows\flutter\ephemeral\cpp_client_wrapper\include;C:\simcap\onePerday\frontend\windows\flutter\ephemeral;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ResourceCompile>
     <Midl>
-      <AdditionalIncludeDirectories>C:\Users\cogus\Desktop\심캡\onePerday\frontend\windows\flutter\ephemeral\cpp_client_wrapper\include;C:\Users\cogus\Desktop\심캡\onePerday\frontend\windows\flutter\ephemeral;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\simcap\onePerday\frontend\windows\flutter\ephemeral\cpp_client_wrapper\include;C:\simcap\onePerday\frontend\windows\flutter\ephemeral;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <OutputDirectory>$(ProjectDir)/$(IntDir)</OutputDirectory>
       <HeaderFileName>%(Filename).h</HeaderFileName>
       <TypeLibraryName>%(Filename).tlb</TypeLibraryName>
@@ -101,16 +104,19 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Profile|x64'">
     <ClCompile>
-      <AdditionalIncludeDirectories>C:\Users\cogus\Desktop\심캡\onePerday\frontend\windows\flutter\ephemeral\cpp_client_wrapper\include;C:\Users\cogus\Desktop\심캡\onePerday\frontend\windows\flutter\ephemeral;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\simcap\onePerday\frontend\windows\flutter\ephemeral\cpp_client_wrapper\include;C:\simcap\onePerday\frontend\windows\flutter\ephemeral;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AssemblerListingLocation>$(IntDir)</AssemblerListingLocation>
+      <BasicRuntimeChecks>Default</BasicRuntimeChecks>
       <DisableSpecificWarnings>"4100"</DisableSpecificWarnings>
       <ExceptionHandling>Sync</ExceptionHandling>
       <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
       <LanguageStandard>stdcpp17</LanguageStandard>
+      <MinimalRebuild></MinimalRebuild>
       <Optimization>MaxSpeed</Optimization>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
       <RuntimeTypeInfo>true</RuntimeTypeInfo>
+      <SupportJustMyCode></SupportJustMyCode>
       <TreatWarningAsError>true</TreatWarningAsError>
       <UseFullPaths>false</UseFullPaths>
       <WarningLevel>Level4</WarningLevel>
@@ -118,13 +124,14 @@
       <ObjectFileName>$(IntDir)</ObjectFileName>
       <DebugInformationFormat>
       </DebugInformationFormat>
+      <ScanSourceForModuleDependencies>false</ScanSourceForModuleDependencies>
     </ClCompile>
     <ResourceCompile>
       <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;NDEBUG;_HAS_EXCEPTIONS=0;UNICODE;_UNICODE;CMAKE_INTDIR=\"Profile\"</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>C:\Users\cogus\Desktop\심캡\onePerday\frontend\windows\flutter\ephemeral\cpp_client_wrapper\include;C:\Users\cogus\Desktop\심캡\onePerday\frontend\windows\flutter\ephemeral;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\simcap\onePerday\frontend\windows\flutter\ephemeral\cpp_client_wrapper\include;C:\simcap\onePerday\frontend\windows\flutter\ephemeral;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ResourceCompile>
     <Midl>
-      <AdditionalIncludeDirectories>C:\Users\cogus\Desktop\심캡\onePerday\frontend\windows\flutter\ephemeral\cpp_client_wrapper\include;C:\Users\cogus\Desktop\심캡\onePerday\frontend\windows\flutter\ephemeral;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\simcap\onePerday\frontend\windows\flutter\ephemeral\cpp_client_wrapper\include;C:\simcap\onePerday\frontend\windows\flutter\ephemeral;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <OutputDirectory>$(ProjectDir)/$(IntDir)</OutputDirectory>
       <HeaderFileName>%(Filename).h</HeaderFileName>
       <TypeLibraryName>%(Filename).tlb</TypeLibraryName>
@@ -137,16 +144,19 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
-      <AdditionalIncludeDirectories>C:\Users\cogus\Desktop\심캡\onePerday\frontend\windows\flutter\ephemeral\cpp_client_wrapper\include;C:\Users\cogus\Desktop\심캡\onePerday\frontend\windows\flutter\ephemeral;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\simcap\onePerday\frontend\windows\flutter\ephemeral\cpp_client_wrapper\include;C:\simcap\onePerday\frontend\windows\flutter\ephemeral;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AssemblerListingLocation>$(IntDir)</AssemblerListingLocation>
+      <BasicRuntimeChecks>Default</BasicRuntimeChecks>
       <DisableSpecificWarnings>"4100"</DisableSpecificWarnings>
       <ExceptionHandling>Sync</ExceptionHandling>
       <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
       <LanguageStandard>stdcpp17</LanguageStandard>
+      <MinimalRebuild></MinimalRebuild>
       <Optimization>MaxSpeed</Optimization>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
       <RuntimeTypeInfo>true</RuntimeTypeInfo>
+      <SupportJustMyCode></SupportJustMyCode>
       <TreatWarningAsError>true</TreatWarningAsError>
       <UseFullPaths>false</UseFullPaths>
       <WarningLevel>Level4</WarningLevel>
@@ -154,13 +164,14 @@
       <ObjectFileName>$(IntDir)</ObjectFileName>
       <DebugInformationFormat>
       </DebugInformationFormat>
+      <ScanSourceForModuleDependencies>false</ScanSourceForModuleDependencies>
     </ClCompile>
     <ResourceCompile>
       <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;NDEBUG;_HAS_EXCEPTIONS=0;UNICODE;_UNICODE;CMAKE_INTDIR=\"Release\"</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>C:\Users\cogus\Desktop\심캡\onePerday\frontend\windows\flutter\ephemeral\cpp_client_wrapper\include;C:\Users\cogus\Desktop\심캡\onePerday\frontend\windows\flutter\ephemeral;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\simcap\onePerday\frontend\windows\flutter\ephemeral\cpp_client_wrapper\include;C:\simcap\onePerday\frontend\windows\flutter\ephemeral;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ResourceCompile>
     <Midl>
-      <AdditionalIncludeDirectories>C:\Users\cogus\Desktop\심캡\onePerday\frontend\windows\flutter\ephemeral\cpp_client_wrapper\include;C:\Users\cogus\Desktop\심캡\onePerday\frontend\windows\flutter\ephemeral;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\simcap\onePerday\frontend\windows\flutter\ephemeral\cpp_client_wrapper\include;C:\simcap\onePerday\frontend\windows\flutter\ephemeral;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <OutputDirectory>$(ProjectDir)/$(IntDir)</OutputDirectory>
       <HeaderFileName>%(Filename).h</HeaderFileName>
       <TypeLibraryName>%(Filename).tlb</TypeLibraryName>
@@ -172,11 +183,11 @@
     </Lib>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <CustomBuild Include="C:\Users\cogus\Desktop\심캡\onePerday\frontend\windows\flutter\CMakeLists.txt">
+    <CustomBuild Include="C:\simcap\onePerday\frontend\windows\flutter\CMakeLists.txt">
       <UseUtf8Encoding>Always</UseUtf8Encoding>
-      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Building Custom Rule C:/Users/cogus/Desktop/심캡/onePerday/frontend/windows/flutter/CMakeLists.txt</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Building Custom Rule C:/simcap/onePerday/frontend/windows/flutter/CMakeLists.txt</Message>
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">setlocal
-"C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe" -SC:/Users/cogus/Desktop/심캡/onePerday/frontend/windows -BC:/Users/cogus/Desktop/심캡/onePerday/frontend/build/windows/x64 --check-stamp-file C:/Users/cogus/Desktop/심캡/onePerday/frontend/build/windows/x64/flutter/CMakeFiles/generate.stamp
+"C:\Program Files\Microsoft Visual Studio\2022\Preview\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe" -SC:/simcap/onePerday/frontend/windows -BC:/simcap/onePerday/frontend/build/windows/x64 --check-stamp-file C:/simcap/onePerday/frontend/build/windows/x64/flutter/CMakeFiles/generate.stamp
 if %errorlevel% neq 0 goto :cmEnd
 :cmEnd
 endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
@@ -184,12 +195,12 @@ endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
 exit /b %1
 :cmDone
 if %errorlevel% neq 0 goto :VCEnd</Command>
-      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">C:\Users\cogus\Desktop\심캡\onePerday\frontend\windows\flutter\ephemeral\generated_config.cmake;%(AdditionalInputs)</AdditionalInputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">C:\Users\cogus\Desktop\심캡\onePerday\frontend\build\windows\x64\flutter\CMakeFiles\generate.stamp</Outputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">C:\simcap\onePerday\frontend\windows\flutter\ephemeral\generated_config.cmake;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">C:\simcap\onePerday\frontend\build\windows\x64\flutter\CMakeFiles\generate.stamp</Outputs>
       <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</LinkObjects>
-      <Message Condition="'$(Configuration)|$(Platform)'=='Profile|x64'">Building Custom Rule C:/Users/cogus/Desktop/심캡/onePerday/frontend/windows/flutter/CMakeLists.txt</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Profile|x64'">Building Custom Rule C:/simcap/onePerday/frontend/windows/flutter/CMakeLists.txt</Message>
       <Command Condition="'$(Configuration)|$(Platform)'=='Profile|x64'">setlocal
-"C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe" -SC:/Users/cogus/Desktop/심캡/onePerday/frontend/windows -BC:/Users/cogus/Desktop/심캡/onePerday/frontend/build/windows/x64 --check-stamp-file C:/Users/cogus/Desktop/심캡/onePerday/frontend/build/windows/x64/flutter/CMakeFiles/generate.stamp
+"C:\Program Files\Microsoft Visual Studio\2022\Preview\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe" -SC:/simcap/onePerday/frontend/windows -BC:/simcap/onePerday/frontend/build/windows/x64 --check-stamp-file C:/simcap/onePerday/frontend/build/windows/x64/flutter/CMakeFiles/generate.stamp
 if %errorlevel% neq 0 goto :cmEnd
 :cmEnd
 endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
@@ -197,12 +208,12 @@ endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
 exit /b %1
 :cmDone
 if %errorlevel% neq 0 goto :VCEnd</Command>
-      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Profile|x64'">C:\Users\cogus\Desktop\심캡\onePerday\frontend\windows\flutter\ephemeral\generated_config.cmake;%(AdditionalInputs)</AdditionalInputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Profile|x64'">C:\Users\cogus\Desktop\심캡\onePerday\frontend\build\windows\x64\flutter\CMakeFiles\generate.stamp</Outputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Profile|x64'">C:\simcap\onePerday\frontend\windows\flutter\ephemeral\generated_config.cmake;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Profile|x64'">C:\simcap\onePerday\frontend\build\windows\x64\flutter\CMakeFiles\generate.stamp</Outputs>
       <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Profile|x64'">false</LinkObjects>
-      <Message Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Building Custom Rule C:/Users/cogus/Desktop/심캡/onePerday/frontend/windows/flutter/CMakeLists.txt</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Building Custom Rule C:/simcap/onePerday/frontend/windows/flutter/CMakeLists.txt</Message>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">setlocal
-"C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe" -SC:/Users/cogus/Desktop/심캡/onePerday/frontend/windows -BC:/Users/cogus/Desktop/심캡/onePerday/frontend/build/windows/x64 --check-stamp-file C:/Users/cogus/Desktop/심캡/onePerday/frontend/build/windows/x64/flutter/CMakeFiles/generate.stamp
+"C:\Program Files\Microsoft Visual Studio\2022\Preview\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe" -SC:/simcap/onePerday/frontend/windows -BC:/simcap/onePerday/frontend/build/windows/x64 --check-stamp-file C:/simcap/onePerday/frontend/build/windows/x64/flutter/CMakeFiles/generate.stamp
 if %errorlevel% neq 0 goto :cmEnd
 :cmEnd
 endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
@@ -210,26 +221,27 @@ endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
 exit /b %1
 :cmDone
 if %errorlevel% neq 0 goto :VCEnd</Command>
-      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">C:\Users\cogus\Desktop\심캡\onePerday\frontend\windows\flutter\ephemeral\generated_config.cmake;%(AdditionalInputs)</AdditionalInputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">C:\Users\cogus\Desktop\심캡\onePerday\frontend\build\windows\x64\flutter\CMakeFiles\generate.stamp</Outputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">C:\simcap\onePerday\frontend\windows\flutter\ephemeral\generated_config.cmake;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">C:\simcap\onePerday\frontend\build\windows\x64\flutter\CMakeFiles\generate.stamp</Outputs>
       <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</LinkObjects>
     </CustomBuild>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="C:\Users\cogus\Desktop\심캡\onePerday\frontend\windows\flutter\ephemeral\cpp_client_wrapper\core_implementations.cc" />
-    <ClCompile Include="C:\Users\cogus\Desktop\심캡\onePerday\frontend\windows\flutter\ephemeral\cpp_client_wrapper\standard_codec.cc" />
-    <ClCompile Include="C:\Users\cogus\Desktop\심캡\onePerday\frontend\windows\flutter\ephemeral\cpp_client_wrapper\flutter_engine.cc" />
-    <ClCompile Include="C:\Users\cogus\Desktop\심캡\onePerday\frontend\windows\flutter\ephemeral\cpp_client_wrapper\flutter_view_controller.cc" />
+    <ClCompile Include="C:\simcap\onePerday\frontend\windows\flutter\ephemeral\cpp_client_wrapper\core_implementations.cc" />
+    <ClCompile Include="C:\simcap\onePerday\frontend\windows\flutter\ephemeral\cpp_client_wrapper\standard_codec.cc" />
+    <ClCompile Include="C:\simcap\onePerday\frontend\windows\flutter\ephemeral\cpp_client_wrapper\flutter_engine.cc" />
+    <ClCompile Include="C:\simcap\onePerday\frontend\windows\flutter\ephemeral\cpp_client_wrapper\flutter_view_controller.cc" />
   </ItemGroup>
+  <ItemGroup />
   <ItemGroup>
-    <ProjectReference Include="C:\Users\cogus\Desktop\심캡\onePerday\frontend\build\windows\x64\ZERO_CHECK.vcxproj">
-      <Project>{1005204F-A402-348B-B4C7-C72B5A56ACBB}</Project>
+    <ProjectReference Include="C:\simcap\onePerday\frontend\build\windows\x64\ZERO_CHECK.vcxproj">
+      <Project>{15AE653E-A8D8-329C-A558-923034D9B819}</Project>
       <Name>ZERO_CHECK</Name>
       <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
       <CopyToOutputDirectory>Never</CopyToOutputDirectory>
     </ProjectReference>
-    <ProjectReference Include="C:\Users\cogus\Desktop\심캡\onePerday\frontend\build\windows\x64\flutter\flutter_assemble.vcxproj">
-      <Project>{3C3C9504-26CD-3F4D-A62C-3C3DA061D618}</Project>
+    <ProjectReference Include="C:\simcap\onePerday\frontend\build\windows\x64\flutter\flutter_assemble.vcxproj">
+      <Project>{0FD06A86-1909-38F1-8892-030C8449D828}</Project>
       <Name>flutter_assemble</Name>
       <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
       <CopyToOutputDirectory>Never</CopyToOutputDirectory>

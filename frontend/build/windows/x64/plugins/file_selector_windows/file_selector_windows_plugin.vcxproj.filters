@@ -1,48 +1,48 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="17.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <ClCompile Include="C:\Users\cogus\Desktop\심캡\onePerday\frontend\windows\flutter\ephemeral\.plugin_symlinks\file_selector_windows\windows\file_selector_windows.cpp">
+    <ClCompile Include="C:\simcap\onePerday\frontend\windows\flutter\ephemeral\.plugin_symlinks\file_selector_windows\windows\file_selector_windows.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Users\cogus\Desktop\심캡\onePerday\frontend\windows\flutter\ephemeral\.plugin_symlinks\file_selector_windows\windows\file_dialog_controller.cpp">
+    <ClCompile Include="C:\simcap\onePerday\frontend\windows\flutter\ephemeral\.plugin_symlinks\file_selector_windows\windows\file_dialog_controller.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Users\cogus\Desktop\심캡\onePerday\frontend\windows\flutter\ephemeral\.plugin_symlinks\file_selector_windows\windows\file_selector_plugin.cpp">
+    <ClCompile Include="C:\simcap\onePerday\frontend\windows\flutter\ephemeral\.plugin_symlinks\file_selector_windows\windows\file_selector_plugin.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Users\cogus\Desktop\심캡\onePerday\frontend\windows\flutter\ephemeral\.plugin_symlinks\file_selector_windows\windows\messages.g.cpp">
+    <ClCompile Include="C:\simcap\onePerday\frontend\windows\flutter\ephemeral\.plugin_symlinks\file_selector_windows\windows\messages.g.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Users\cogus\Desktop\심캡\onePerday\frontend\windows\flutter\ephemeral\.plugin_symlinks\file_selector_windows\windows\string_utils.cpp">
+    <ClCompile Include="C:\simcap\onePerday\frontend\windows\flutter\ephemeral\.plugin_symlinks\file_selector_windows\windows\string_utils.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="C:\Users\cogus\Desktop\심캡\onePerday\frontend\windows\flutter\ephemeral\.plugin_symlinks\file_selector_windows\windows\include\file_selector_windows\file_selector_windows.h">
+    <ClInclude Include="C:\simcap\onePerday\frontend\windows\flutter\ephemeral\.plugin_symlinks\file_selector_windows\windows\include\file_selector_windows\file_selector_windows.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="C:\Users\cogus\Desktop\심캡\onePerday\frontend\windows\flutter\ephemeral\.plugin_symlinks\file_selector_windows\windows\file_dialog_controller.h">
+    <ClInclude Include="C:\simcap\onePerday\frontend\windows\flutter\ephemeral\.plugin_symlinks\file_selector_windows\windows\file_dialog_controller.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="C:\Users\cogus\Desktop\심캡\onePerday\frontend\windows\flutter\ephemeral\.plugin_symlinks\file_selector_windows\windows\file_selector_plugin.h">
+    <ClInclude Include="C:\simcap\onePerday\frontend\windows\flutter\ephemeral\.plugin_symlinks\file_selector_windows\windows\file_selector_plugin.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="C:\Users\cogus\Desktop\심캡\onePerday\frontend\windows\flutter\ephemeral\.plugin_symlinks\file_selector_windows\windows\messages.g.h">
+    <ClInclude Include="C:\simcap\onePerday\frontend\windows\flutter\ephemeral\.plugin_symlinks\file_selector_windows\windows\messages.g.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="C:\Users\cogus\Desktop\심캡\onePerday\frontend\windows\flutter\ephemeral\.plugin_symlinks\file_selector_windows\windows\string_utils.h">
+    <ClInclude Include="C:\simcap\onePerday\frontend\windows\flutter\ephemeral\.plugin_symlinks\file_selector_windows\windows\string_utils.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <CustomBuild Include="C:\Users\cogus\Desktop\심캡\onePerday\frontend\windows\flutter\ephemeral\.plugin_symlinks\file_selector_windows\windows\CMakeLists.txt" />
+    <CustomBuild Include="C:\simcap\onePerday\frontend\windows\flutter\ephemeral\.plugin_symlinks\file_selector_windows\windows\CMakeLists.txt" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Header Files">
-      <UniqueIdentifier>{9DF629D2-7C10-3182-A0E4-1880C360B1DA}</UniqueIdentifier>
+      <UniqueIdentifier>{770D997A-07C3-3AA4-93CC-2803ECB2219B}</UniqueIdentifier>
     </Filter>
     <Filter Include="Source Files">
-      <UniqueIdentifier>{3F6DD13C-5FA6-3C77-868E-F2ACF8591810}</UniqueIdentifier>
+      <UniqueIdentifier>{725B90D1-7F4D-3015-8AE6-352BA235C293}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
 </Project>

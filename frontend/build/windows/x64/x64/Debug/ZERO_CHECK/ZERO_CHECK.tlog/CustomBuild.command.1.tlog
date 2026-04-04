@@ -1,6 +1,6 @@
-^C:\USERS\COGUS\DESKTOP\심캡\ONEPERDAY\FRONTEND\BUILD\WINDOWS\X64\CMAKEFILES\CAEE0543C73740C183DCADB4FE1A942C\GENERATE.STAMP.RULE
+^C:\SIMCAP\ONEPERDAY\FRONTEND\BUILD\WINDOWS\X64\CMAKEFILES\9C68E21F6CBC43DA7773CB7B0A42FF75\GENERATE.STAMP.RULE
 setlocal
-"C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe" -SC:/Users/cogus/Desktop/심캡/onePerday/frontend/windows -BC:/Users/cogus/Desktop/심캡/onePerday/frontend/build/windows/x64 --check-stamp-list CMakeFiles/generate.stamp.list --vs-solution-file C:/Users/cogus/Desktop/심캡/onePerday/frontend/build/windows/x64/simcap.sln
+"C:\Program Files\Microsoft Visual Studio\2022\Preview\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe" -SC:/simcap/onePerday/frontend/windows -BC:/simcap/onePerday/frontend/build/windows/x64 --check-stamp-list CMakeFiles/generate.stamp.list --vs-solution-file C:/simcap/onePerday/frontend/build/windows/x64/simcap.sln
 if %errorlevel% neq 0 goto :cmEnd
 :cmEnd
 endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone
