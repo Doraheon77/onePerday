@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:simcap/core/constant/app_constants.dart';
 import 'package:simcap/features/cabinet/domain/dataModels/supplement_model.dart';
 
 // 복용 기록 모델
@@ -82,9 +81,7 @@ class SupplementNotifier extends ChangeNotifier {
   int get undoneCount => _supplements.where((s) => !isDoneToday(s.name)).length;
 
   // 재고가 7정 이하로 남은 영양제 개수
-  int get lowStockCount => _supplements
-      .where((s) => s.remaining <= AppConstants.lowStockThreshold)
-      .length;
+  int get lowStockCount => _supplements.where((s) => s.remaining <= 7).length;
 
   // 홈 화면 배지에 표시할 전체 알림 개수
   int get totalNotificationCount => undoneCount + lowStockCount;
@@ -100,6 +97,18 @@ class SupplementNotifier extends ChangeNotifier {
   /// 오늘 해당 영양제를 복용했는지 여부
   bool isDoneToday(String supplementName) =>
       isDoneOn(supplementName, DateTime.now());
+
+  /// 특정 날짜에 복용 기록이 하나라도 있는지 여부 (캘린더 도트용)
+  bool hasDoseRecordOn(DateTime date) {
+    final day = _dateOnly(date);
+    return _doseHistory.any((r) => _dateOnly(r.date) == day);
+  }
+
+  /// 특정 날짜에 모든 영양제를 복용 완료했는지 여부 (완전 완료 도트용)
+  bool isAllDoneOn(DateTime date) {
+    if (_supplements.isEmpty) return false;
+    return _supplements.every((s) => isDoneOn(s.name, date));
+  }
 
   /// 복용 체크/해제 토글.
   /// - 체크 시: 복용 기록 추가 + remaining -= dailyDose

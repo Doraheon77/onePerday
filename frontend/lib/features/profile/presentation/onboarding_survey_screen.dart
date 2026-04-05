@@ -15,7 +15,6 @@ class OnboardingSurveyScreen extends StatefulWidget {
 class _OnboardingSurveyScreenState extends State<OnboardingSurveyScreen> {
   final PageController _pageController = PageController();
   final TextEditingController _searchController = TextEditingController();
-
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _ageController = TextEditingController();
 
@@ -29,6 +28,8 @@ class _OnboardingSurveyScreenState extends State<OnboardingSurveyScreen> {
   List<String> selectedHealth = [];
   List<String> selectedAllergies = [];
   String? smokingStatus;
+  String? drinkingStatus;
+  String? pregnancyStatus;
 
   @override
   void dispose() {
@@ -42,7 +43,6 @@ class _OnboardingSurveyScreenState extends State<OnboardingSurveyScreen> {
   Future<void> _saveSurveyData() async {
     final prefs = await SharedPreferences.getInstance();
 
-    // 마이페이지 및 요약창에서 사용할 키값 설정
     await prefs.setString('userName', userName ?? '');
     await prefs.setString('userAge', userAge ?? '');
     await prefs.setString('userGender', userGender ?? '');
@@ -50,6 +50,12 @@ class _OnboardingSurveyScreenState extends State<OnboardingSurveyScreen> {
     await prefs.setStringList('selectedHealth', selectedHealth);
     await prefs.setStringList('selectedAllergies', selectedAllergies);
     await prefs.setString('smokingStatus', smokingStatus ?? '비흡연자입니다');
+    await prefs.setString('drinkingStatus', drinkingStatus ?? '비음주자입니다');
+
+    String finalPregnancy = (userGender == '남성')
+        ? '해당 없음'
+        : (pregnancyStatus ?? '미선택');
+    await prefs.setString('pregnancyStatus', finalPregnancy);
 
     await prefs.setBool('isOnboardingComplete', true);
   }
@@ -104,6 +110,7 @@ class _OnboardingSurveyScreenState extends State<OnboardingSurveyScreen> {
     final filtered = options
         .where((opt) => opt.label.contains(_searchQuery))
         .toList();
+
     if (noneOption != null) {
       return [
         SurveyOption(label: noneOption, imagePath: 'assets/images/none.png'),
@@ -113,7 +120,6 @@ class _OnboardingSurveyScreenState extends State<OnboardingSurveyScreen> {
     return filtered;
   }
 
-  // 데이터 확인용 요약 모달
   void _showSummaryModal() {
     showModalBottomSheet(
       context: context,
@@ -156,6 +162,10 @@ class _OnboardingSurveyScreenState extends State<OnboardingSurveyScreen> {
               3,
             ),
             _buildSummaryRow('흡연 여부', smokingStatus ?? '미선택', 4),
+
+            _buildSummaryRow('음주 여부', drinkingStatus ?? '미선택', 4),
+            if (userGender == '여성')
+              _buildSummaryRow('임신 여부', pregnancyStatus ?? '미선택', 4),
             const SizedBox(height: 40),
             _buildFullWidthButton('네, 맞아요! 분석 시작하기', () async {
               await _saveSurveyData();
@@ -264,7 +274,6 @@ class _OnboardingSurveyScreenState extends State<OnboardingSurveyScreen> {
     );
   }
 
-  // 정보 입력
   Widget _buildBasicInfoStep() {
     return _surveyLayout(
       title: '정확한 분석을 위해\n기본 정보를 알려주세요.',
@@ -287,10 +296,10 @@ class _OnboardingSurveyScreenState extends State<OnboardingSurveyScreen> {
           const SizedBox(height: 20),
           TextField(
             controller: _ageController,
-            keyboardType: TextInputType.number, // 숫자 키패드
+            keyboardType: TextInputType.number,
             inputFormatters: [
-              FilteringTextInputFormatter.digitsOnly, // ✅ 숫자만 입력 가능하게 제한
-              LengthLimitingTextInputFormatter(3), // ✅ 최대 3자리 제한
+              FilteringTextInputFormatter.digitsOnly,
+              LengthLimitingTextInputFormatter(3),
             ],
             onChanged: (val) => setState(() => userAge = val),
             decoration: InputDecoration(
@@ -388,46 +397,91 @@ class _OnboardingSurveyScreenState extends State<OnboardingSurveyScreen> {
   );
 
   Widget _buildLifestyleStep() {
-    final options = ['비흡연자입니다', '흡연자입니다'];
     return _surveyLayout(
       title: '평소 생활 습관에 대해\n알려주세요.',
-      subtitle: '흡연 여부에 따라 권장 영양소가 달라집니다.',
-      content: Column(
-        children: options
-            .map(
-              (status) => Container(
-                margin: const EdgeInsets.only(bottom: 16),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: smokingStatus == status
-                        ? const Color(0xFF4CAF50)
-                        : Colors.grey.shade200,
-                    width: 2,
-                  ),
-                  color: smokingStatus == status
-                      ? const Color(0xFFE8F5E9)
-                      : Colors.white,
-                ),
-                child: RadioListTile<String>(
-                  title: Text(
-                    status,
-                    style: TextStyle(
-                      fontWeight: smokingStatus == status
-                          ? FontWeight.bold
-                          : FontWeight.normal,
-                      fontSize: 16,
-                    ),
-                  ),
-                  value: status,
-                  groupValue: smokingStatus,
-                  activeColor: const Color(0xFF4CAF50),
-                  onChanged: (val) => setState(() => smokingStatus = val),
+      subtitle: '생활 환경에 따라 꼭 필요한 영양소가 달라집니다.',
+      content: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildSelectionGroup(
+              '흡연 여부',
+              ['비흡연자', '흡연 중'],
+              smokingStatus,
+              (val) => setState(() => smokingStatus = val),
+            ),
+            const SizedBox(height: 24),
+            _buildSelectionGroup(
+              '음주 여부',
+              ['마시지 않음', '음주 중'],
+              drinkingStatus,
+              (val) => setState(() => drinkingStatus = val),
+            ),
+            if (userGender == '여성') ...[
+              const SizedBox(height: 24),
+              _buildSelectionGroup(
+                '임신 여부',
+                ['해당 없음', '임신 중'],
+                pregnancyStatus,
+                (val) => setState(() => pregnancyStatus = val),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSelectionGroup(
+    String groupTitle,
+    List<String> options,
+    String? currentValue,
+    ValueChanged<String?> onChanged,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          groupTitle,
+          style: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: Colors.black87,
+          ),
+        ),
+        const SizedBox(height: 12),
+        ...options.map((option) {
+          final isSelected = currentValue == option;
+          return Container(
+            margin: const EdgeInsets.only(bottom: 12),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: isSelected
+                    ? const Color(0xFF4CAF50)
+                    : Colors.grey.shade200,
+                width: 2,
+              ),
+              color: isSelected ? const Color(0xFFE8F5E9) : Colors.white,
+            ),
+            child: RadioListTile<String>(
+              title: Text(
+                option,
+                style: TextStyle(
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                  fontSize: 15,
                 ),
               ),
-            )
-            .toList(),
-      ),
+              value: option,
+              groupValue: currentValue,
+              activeColor: const Color(0xFF4CAF50),
+              onChanged: onChanged,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 8),
+              controlAffinity: ListTileControlAffinity.trailing,
+            ),
+          );
+        }).toList(),
+      ],
     );
   }
 
@@ -555,16 +609,17 @@ class _OnboardingSurveyScreenState extends State<OnboardingSurveyScreen> {
           (userName?.isNotEmpty ?? false) &&
           (userAge?.isNotEmpty ?? false) &&
           userGender != null;
-    } else if (_currentPage == 1)
+    } else if (_currentPage == 1) {
       isEnabled = selectedGoals.isNotEmpty;
-    else if (_currentPage == 2)
+    } else if (_currentPage == 2) {
       isEnabled = selectedHealth.isNotEmpty;
-    else if (_currentPage == 3)
+    } else if (_currentPage == 3) {
       isEnabled = selectedAllergies.isNotEmpty;
-    else if (_currentPage == 4)
+    } else if (_currentPage == 4) {
       isEnabled = smokingStatus != null;
-    else
+    } else {
       isEnabled = true;
+    }
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(24, 10, 24, 40),

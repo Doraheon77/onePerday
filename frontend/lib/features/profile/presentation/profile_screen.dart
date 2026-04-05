@@ -12,14 +12,17 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  // 데이터 상태 변수
   String _userName = '사용자';
   String _userAge = '';
   String _userGender = '미설정';
   List<String> _goals = [];
   List<String> _healthIssues = [];
   List<String> _allergies = [];
-  String _smokingStatus = '비흡연자입니다';
+
+  String _smokingStatus = '비흡연자';
+  String _drinkingStatus = '마시지 않음';
+  String _pregnancyStatus = '해당 없음';
+
   bool _isLoading = true;
 
   @override
@@ -28,41 +31,44 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _loadProfileData();
   }
 
-  // 로컬 저장소에서 데이터 불러오기
   Future<void> _loadProfileData() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
-      // 온보딩에서 저장된 기본 정보 로드
       _userName = prefs.getString('userName') ?? '사용자';
       _userAge = prefs.getString('userAge') ?? '';
-
       _userGender =
           prefs.getString('gender') ?? prefs.getString('userGender') ?? '미설정';
 
-      // 설문 데이터 로드
       _goals = prefs.getStringList('selectedGoals') ?? [];
       _healthIssues = prefs.getStringList('selectedHealth') ?? [];
       _allergies = prefs.getStringList('selectedAllergies') ?? [];
-      _smokingStatus = prefs.getString('smokingStatus') ?? '비흡연자입니다';
+
+      _smokingStatus = prefs.getString('smokingStatus') ?? '비흡연자';
+      _drinkingStatus = prefs.getString('drinkingStatus') ?? '마시지 않음';
+      _pregnancyStatus = prefs.getString('pregnancyStatus') ?? '해당 없음';
+
       _isLoading = false;
     });
   }
 
-  // 데이터 수정 및 저장 함수
+  Future<void> _toggleLifestyle(
+    String key,
+    String currentVal,
+    String optionA,
+    String optionB,
+  ) async {
+    final prefs = await SharedPreferences.getInstance();
+    String newVal = (currentVal == optionA) ? optionB : optionA;
+    await prefs.setString(key, newVal);
+    await _loadProfileData();
+  }
+
   Future<void> _updateData(String key, List<String> newData) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setStringList(key, newData);
     await _loadProfileData();
   }
 
-  // 생활 습관(흡연) 업데이트 함수
-  Future<void> _updateSmokingStatus(String status) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('smokingStatus', status);
-    await _loadProfileData();
-  }
-
-  // 편집 모달 로직
   void _showEditModal({
     required String title,
     required List<SurveyOption> options,
@@ -170,21 +176,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             await _updateData(storageKey, tempSelected);
                             if (mounted) Navigator.pop(context);
                           },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF4CAF50),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                            elevation: 0,
-                          ),
-                          child: const Text(
-                            '변경사항 저장하기',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
-                          ),
+                          child: const Text('변경사항 저장하기'),
                         ),
                       ),
                     ),
@@ -205,10 +197,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
       appBar: AppBar(
         title: const Text(
           '마이페이지',
-          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black),
+          style: TextStyle(fontWeight: FontWeight.bold),
         ),
-        backgroundColor: Colors.white,
-        elevation: 0,
         centerTitle: true,
       ),
       body: _isLoading
@@ -222,12 +212,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 children: [
                   _buildHeader(),
                   const SizedBox(height: 40),
-
-                  // 1. 기본 정보 섹션 (나이/성별)
                   _buildBasicInfoSection(),
                   const SizedBox(height: 32),
-
-                  // 2. 건강 목표 섹션
                   _buildProfileSection(
                     '나의 건강 목표',
                     _goals,
@@ -239,8 +225,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       storageKey: 'selectedGoals',
                     ),
                   ),
-
-                  // 3. 질환 섹션
                   _buildProfileSection(
                     '주의가 필요한 질환',
                     _healthIssues,
@@ -252,8 +236,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       noneOption: SurveyData.noneOptionHealth,
                     ),
                   ),
-
-                  // 4. 알레르기 섹션
                   _buildProfileSection(
                     '나의 알레르기',
                     _allergies,
@@ -265,13 +247,52 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       noneOption: SurveyData.noneOptionAllergy,
                     ),
                   ),
-
-                  // 5. 생활 습관 섹션
-                  _buildLifestyleSection(),
-
+                  const Text(
+                    '생활 습관 및 환경',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 16),
+                  _buildLifestyleToggleTile(
+                    title: '흡연 여부',
+                    value: _smokingStatus,
+                    icon: Icons.smoking_rooms,
+                    isActive: _smokingStatus == '흡연 중',
+                    onTap: () => _toggleLifestyle(
+                      'smokingStatus',
+                      _smokingStatus,
+                      '비흡연자',
+                      '흡연 중',
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  _buildLifestyleToggleTile(
+                    title: '음주 여부',
+                    value: _drinkingStatus,
+                    icon: Icons.local_bar,
+                    isActive: _drinkingStatus == '마시는 중',
+                    onTap: () => _toggleLifestyle(
+                      'drinkingStatus',
+                      _drinkingStatus,
+                      '마시지 않음',
+                      '마시는 중',
+                    ),
+                  ),
+                  if (_userGender == '여성' || _userGender == '미설정') ...[
+                    const SizedBox(height: 12),
+                    _buildLifestyleToggleTile(
+                      title: '임신/수유 상태',
+                      value: _pregnancyStatus,
+                      icon: Icons.pregnant_woman,
+                      isActive: _pregnancyStatus == '임신 중이다',
+                      onTap: () => _toggleLifestyle(
+                        'pregnancyStatus',
+                        _pregnancyStatus,
+                        '해당 없음',
+                        '임신 중이다',
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 40),
-
-                  // 메뉴 버튼들
                   _buildMenuButton(
                     '설문 데이터 다시하기',
                     Icons.refresh,
@@ -284,7 +305,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  // 헤더
   Widget _buildHeader() {
     return Row(
       children: [
@@ -312,7 +332,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  // 나의 기본 정보 섹션
   Widget _buildBasicInfoSection() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -323,7 +342,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
         const SizedBox(height: 16),
         Container(
-          width: double.infinity,
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
             color: Colors.grey.shade50,
@@ -333,45 +351,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
           child: Row(
             children: [
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      '나이',
-                      style: TextStyle(color: Colors.grey, fontSize: 13),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      _userAge.isNotEmpty ? '$_userAge세' : '미입력',
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
+                child: _buildInfoItem(
+                  '나이',
+                  _userAge.isNotEmpty ? '$_userAge세' : '미입력',
                 ),
               ),
               Container(width: 1, height: 30, color: Colors.grey.shade300),
               Expanded(
                 child: Padding(
                   padding: const EdgeInsets.only(left: 20),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        '성별',
-                        style: TextStyle(color: Colors.grey, fontSize: 13),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        _userGender, // 💡 여기서 미설정이 나오면 로드 시 키값을 확인해야 합니다.
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
+                  child: _buildInfoItem('성별', _userGender),
                 ),
               ),
             ],
@@ -381,7 +370,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  // 프로필 정보 섹션 (목표, 질환, 알레르기)
+  Widget _buildInfoItem(String label, String value) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: const TextStyle(color: Colors.grey, fontSize: 13)),
+        const SizedBox(height: 4),
+        Text(
+          value,
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+        ),
+      ],
+    );
+  }
+
   Widget _buildProfileSection(
     String title,
     List<String> items, {
@@ -389,8 +391,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     bool isGoal = false,
   }) {
     final bool isEmpty =
-        items.isEmpty || (items.length == 1 && (items[0].contains('없음')));
-
+        items.isEmpty || (items.length == 1 && items[0].contains('없음'));
     return Padding(
       padding: const EdgeInsets.only(bottom: 32),
       child: Column(
@@ -440,11 +441,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             ? const Color(0xFFE8F5E9)
                             : Colors.grey.shade100,
                         borderRadius: BorderRadius.circular(20),
-                        border: isGoal
-                            ? Border.all(
-                                color: const Color(0xFF4CAF50).withOpacity(0.2),
-                              )
-                            : null,
                       ),
                       child: Text(
                         item,
@@ -467,65 +463,59 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  // 생활 습관 섹션
-  Widget _buildLifestyleSection() {
-    final bool isSmoker = _smokingStatus == '흡연자입니다';
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          '생활 습관',
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 16),
-        InkWell(
-          onTap: () {
-            final newStatus = isSmoker ? '비흡연자입니다' : '흡연자입니다';
-            _updateSmokingStatus(newStatus);
-          },
+  Widget _buildLifestyleToggleTile({
+    required String title,
+    required String value,
+    required IconData icon,
+    required bool isActive,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: isActive ? const Color(0xFFFFF3E0) : Colors.grey.shade50,
           borderRadius: BorderRadius.circular(16),
-          child: Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(18),
-            decoration: BoxDecoration(
-              color: isSmoker
-                  ? const Color(0xFFFFF3E0)
-                  : const Color(0xFFE8F5E9),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: isSmoker
-                    ? Colors.orange.withOpacity(0.2)
-                    : const Color(0xFF4CAF50).withOpacity(0.2),
-              ),
-            ),
-            child: Row(
-              children: [
-                Icon(
-                  isSmoker ? Icons.smoking_rooms : Icons.smoke_free,
-                  color: isSmoker ? Colors.orange : const Color(0xFF4CAF50),
-                ),
-                const SizedBox(width: 12),
-                Text(
-                  _smokingStatus,
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.bold,
-                    color: isSmoker
-                        ? Colors.orange.shade900
-                        : const Color(0xFF2E7D32),
-                  ),
-                ),
-                const Spacer(),
-                const Icon(Icons.sync, size: 18, color: Colors.grey),
-              ],
-            ),
+          border: Border.all(
+            color: isActive
+                ? Colors.orange.withOpacity(0.2)
+                : Colors.grey.shade200,
           ),
         ),
-      ],
+        child: Row(
+          children: [
+            Icon(
+              icon,
+              color: isActive ? Colors.orange : Colors.grey.shade600,
+              size: 22,
+            ),
+            const SizedBox(width: 12),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                ),
+                Text(
+                  value,
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            const Spacer(),
+            const Icon(Icons.sync, color: Colors.grey, size: 18),
+          ],
+        ),
+      ),
     );
   }
 
-  // 메뉴 버튼 공통 위젯
   Widget _buildMenuButton(
     String title,
     IconData icon, {

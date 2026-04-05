@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:simcap/core/constant/app_constants.dart';
 import 'package:intl/intl.dart';
+import 'package:go_router/go_router.dart';
+import 'package:simcap/core/constant/app_constants.dart';
 import 'package:simcap/features/cabinet/domain/dataModels/supplement_model.dart';
 import 'package:simcap/providers/supplement_provider.dart';
 import 'notification_sheet.dart';
@@ -144,14 +145,25 @@ class _HomeScreenState extends State<HomeScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: List.generate(7, (index) {
-              DateTime now = DateTime.now();
-              DateTime firstDayOfWeek = now.subtract(
+              final DateTime now = DateTime.now();
+              final DateTime firstDayOfWeek = now.subtract(
                 Duration(days: now.weekday - 1),
               );
-              DateTime date = firstDayOfWeek.add(Duration(days: index));
-              bool isSelected =
+              final DateTime date = firstDayOfWeek.add(Duration(days: index));
+
+              final bool isSelected =
                   date.day == _selectedDate.day &&
                   date.month == _selectedDate.month;
+
+              // 미래 날짜는 도트 표시 안 함
+              final bool isFuture = date.isAfter(now);
+
+              // Provider에서 복용 기록 조회
+              final notifier = SupplementProvider.of(context);
+              final bool allDone = !isFuture && notifier.isAllDoneOn(date);
+              final bool partialDone =
+                  !isFuture && !allDone && notifier.hasDoseRecordOn(date);
+
               return Column(
                 children: [
                   Text(
@@ -183,13 +195,16 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ),
                   const SizedBox(height: 6),
+                  // ── 복용 상태 도트 ──────────────────────────────
+                  // 전체 완료: 초록 채움  /  일부 완료: 초록 테두리  /  없음: 투명
                   Container(
                     width: 5,
                     height: 5,
                     decoration: BoxDecoration(
-                      color: isSelected
-                          ? AppColors.primary
-                          : Colors.transparent,
+                      color: allDone ? AppColors.primary : Colors.transparent,
+                      border: partialDone
+                          ? Border.all(color: AppColors.primary, width: 1)
+                          : null,
                       shape: BoxShape.circle,
                     ),
                   ),

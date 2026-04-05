@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:simcap/core/constant/app_constants.dart';
 import 'package:go_router/go_router.dart';
 
 // 스토어 상품 데이터 모델
@@ -11,7 +10,7 @@ class StoreProduct {
   final int price;
   final String description;
   final List<NutrientInfo> nutrients;
-  final List<String> contraindications; // 병용 금지 약물/성분
+  final List<String> contraindications;
   final List<StoreProduct> similarProducts;
 
   const StoreProduct({
@@ -30,7 +29,7 @@ class NutrientInfo {
   final String name;
   final double amount;
   final String unit;
-  final double dailyPercent; // 일일 권장량 대비 %
+  final double dailyPercent;
 
   const NutrientInfo({
     required this.name,
@@ -108,7 +107,7 @@ class _SupplementDetailScreenState extends State<SupplementDetailScreen> {
     final p = widget.product;
 
     return Scaffold(
-      backgroundColor: AppColors.scaffoldBg,
+      backgroundColor: const Color(0xFFF9FAFB),
       body: CustomScrollView(
         slivers: [
           _buildAppBar(p),
@@ -133,7 +132,7 @@ class _SupplementDetailScreenState extends State<SupplementDetailScreen> {
     );
   }
 
-  // AppBar (이미지 영역 포함
+  // AppBar
   Widget _buildAppBar(StoreProduct p) {
     return SliverAppBar(
       expandedHeight: 260,
@@ -151,12 +150,12 @@ class _SupplementDetailScreenState extends State<SupplementDetailScreen> {
       ],
       flexibleSpace: FlexibleSpaceBar(
         background: Container(
-          color: AppColors.primaryFaint,
+          color: const Color(0xFFF1F8E9),
           child: const Center(
             child: Icon(
               Icons.medication_rounded,
               size: 100,
-              color: AppColors.primary,
+              color: Color(0xFF4CAF50),
             ),
           ),
         ),
@@ -185,7 +184,7 @@ class _SupplementDetailScreenState extends State<SupplementDetailScreen> {
             style: const TextStyle(
               fontSize: 22,
               fontWeight: FontWeight.bold,
-              color: AppColors.primary,
+              color: Color(0xFF4CAF50),
             ),
           ),
           const SizedBox(height: 16),
@@ -227,7 +226,7 @@ class _SupplementDetailScreenState extends State<SupplementDetailScreen> {
     // 100% 초과 시 바를 빨간색으로
     final isOver = n.dailyPercent > 1.0;
     final clampedPercent = n.dailyPercent.clamp(0.0, 1.5);
-    final barColor = isOver ? AppColors.danger : AppColors.primary;
+    final barColor = isOver ? const Color(0xFFFF6B6B) : const Color(0xFF4CAF50);
     final percentLabel = '${(n.dailyPercent * 100).toStringAsFixed(0)}%';
 
     return Padding(
@@ -258,8 +257,8 @@ class _SupplementDetailScreenState extends State<SupplementDetailScreen> {
                     ),
                     decoration: BoxDecoration(
                       color: isOver
-                          ? AppColors.dangerBg
-                          : AppColors.primaryLight,
+                          ? const Color(0xFFFFEBEB)
+                          : const Color(0xFFE8F5E9),
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: Text(
@@ -267,7 +266,9 @@ class _SupplementDetailScreenState extends State<SupplementDetailScreen> {
                       style: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.bold,
-                        color: isOver ? AppColors.danger : AppColors.primary,
+                        color: isOver
+                            ? const Color(0xFFFF6B6B)
+                            : const Color(0xFF4CAF50),
                       ),
                     ),
                   ),
@@ -356,7 +357,7 @@ class _SupplementDetailScreenState extends State<SupplementDetailScreen> {
                       _contraExpanded ? '접기' : '${items.length - 1}개 더 보기',
                       style: const TextStyle(
                         fontSize: 13,
-                        color: AppColors.primary,
+                        color: Color(0xFF4CAF50),
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -365,7 +366,7 @@ class _SupplementDetailScreenState extends State<SupplementDetailScreen> {
                           ? Icons.keyboard_arrow_up
                           : Icons.keyboard_arrow_down,
                       size: 18,
-                      color: AppColors.primary,
+                      color: const Color(0xFF4CAF50),
                     ),
                   ],
                 ),
@@ -385,7 +386,7 @@ class _SupplementDetailScreenState extends State<SupplementDetailScreen> {
         children: [
           const Padding(
             padding: EdgeInsets.only(top: 3),
-            child: Icon(Icons.block, size: 15, color: AppColors.danger),
+            child: Icon(Icons.block, size: 15, color: Color(0xFFFF6B6B)),
           ),
           const SizedBox(width: 8),
           Expanded(
@@ -417,14 +418,7 @@ class _SupplementDetailScreenState extends State<SupplementDetailScreen> {
               itemBuilder: (context, index) {
                 final sp = products[index];
                 return GestureDetector(
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => SupplementDetailScreen(product: sp),
-                      ),
-                    );
-                  },
+                  onTap: () => context.push('/store/detail', extra: sp),
                   child: Container(
                     width: 120,
                     decoration: BoxDecoration(
@@ -439,12 +433,12 @@ class _SupplementDetailScreenState extends State<SupplementDetailScreen> {
                           width: 56,
                           height: 56,
                           decoration: const BoxDecoration(
-                            color: AppColors.primaryFaint,
+                            color: Color(0xFFF1F8E9),
                             shape: BoxShape.circle,
                           ),
                           child: const Icon(
                             Icons.medication_rounded,
-                            color: AppColors.primary,
+                            color: Color(0xFF4CAF50),
                             size: 28,
                           ),
                         ),
@@ -467,7 +461,7 @@ class _SupplementDetailScreenState extends State<SupplementDetailScreen> {
                           '${_formatPrice(sp.price)}원',
                           style: const TextStyle(
                             fontSize: 12,
-                            color: AppColors.primary,
+                            color: Color(0xFF4CAF50),
                             fontWeight: FontWeight.bold,
                           ),
                         ),
@@ -508,7 +502,7 @@ class _SupplementDetailScreenState extends State<SupplementDetailScreen> {
             child: OutlinedButton(
               style: OutlinedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(vertical: 16),
-                side: const BorderSide(color: AppColors.primary),
+                side: const BorderSide(color: Color(0xFF4CAF50)),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(14),
                 ),
@@ -519,7 +513,7 @@ class _SupplementDetailScreenState extends State<SupplementDetailScreen> {
               child: const Text(
                 '장바구니',
                 style: TextStyle(
-                  color: AppColors.primary,
+                  color: Color(0xFF4CAF50),
                   fontWeight: FontWeight.bold,
                   fontSize: 16,
                 ),
@@ -533,7 +527,7 @@ class _SupplementDetailScreenState extends State<SupplementDetailScreen> {
             child: ElevatedButton(
               style: ElevatedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(vertical: 16),
-                backgroundColor: AppColors.primary,
+                backgroundColor: const Color(0xFF4CAF50),
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(14),
@@ -576,7 +570,7 @@ class _SupplementDetailScreenState extends State<SupplementDetailScreen> {
   Widget _sectionTitle(String title, {required IconData icon}) {
     return Row(
       children: [
-        Icon(icon, size: 20, color: AppColors.primary),
+        Icon(icon, size: 20, color: const Color(0xFF4CAF50)),
         const SizedBox(width: 8),
         Text(
           title,

@@ -180,13 +180,7 @@ class _StoreScreenState extends State<StoreScreen> {
         itemCount: 5,
         itemBuilder: (context, index) {
           return GestureDetector(
-            onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) =>
-                    SupplementDetailScreen(product: dummyProduct),
-              ),
-            ),
+            onTap: () => context.push('/store/detail', extra: dummyProduct),
             child: Container(
               width: 140,
               margin: const EdgeInsets.symmetric(horizontal: 4),
@@ -342,13 +336,7 @@ class _StoreScreenState extends State<StoreScreen> {
       itemBuilder: (context, index) {
         return ListTile(
           contentPadding: EdgeInsets.zero,
-          onTap: () => Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) =>
-                  SupplementDetailScreen(product: dummyProduct),
-            ),
-          ),
+          onTap: () => context.push('/store/detail', extra: dummyProduct),
           leading: Container(
             width: 32,
             alignment: Alignment.center,

@@ -12,16 +12,14 @@ import 'package:simcap/features/profile/presentation/profile_screen.dart';
 import 'package:simcap/features/store/presentation/store_screen.dart';
 import 'package:simcap/features/store/presentation/search_screen.dart';
 import 'package:simcap/features/store/presentation/basket_screen.dart';
+import 'package:simcap/features/store/presentation/supplement_detail_screen.dart';
 import 'package:simcap/main.dart';
 
 class AppRouter {
   static final GoRouter router = GoRouter(
     initialLocation: '/login',
     routes: [
-      GoRoute(
-        path: '/login',
-        builder: (context, state) => const LoginScreen(),
-      ),
+      GoRoute(path: '/login', builder: (context, state) => const LoginScreen()),
       GoRoute(
         path: '/onboarding',
         builder: (context, state) => const OnboardingSurveyScreen(),
@@ -44,6 +42,17 @@ class AppRouter {
               GoRoute(
                 path: 'basket',
                 builder: (context, state) => const BasketScreen(),
+              ),
+              GoRoute(
+                path: 'detail',
+                builder: (context, state) {
+                  // StoreProduct를 extra로 전달받아 상세 화면 표시
+                  // extra가 없거나 타입이 맞지 않으면 더미 데이터로 폴백
+                  final product = state.extra is StoreProduct
+                      ? state.extra as StoreProduct
+                      : dummyProduct;
+                  return SupplementDetailScreen(product: product);
+                },
               ),
             ],
           ),
