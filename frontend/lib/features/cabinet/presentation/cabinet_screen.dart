@@ -12,7 +12,6 @@ class CabinetScreen extends StatefulWidget {
 }
 
 class _CabinetScreenState extends State<CabinetScreen> {
-
   Future<void> _navigateAndAddSupplement() async {
     final notifier = SupplementProvider.of(context);
     final Supplement? newSupplement = await context.push<Supplement>(
@@ -57,7 +56,10 @@ class _CabinetScreenState extends State<CabinetScreen> {
               builder: (context) {
                 final supplements = SupplementProvider.of(context).supplements;
                 return ListView.builder(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
                   itemCount: supplements.length,
                   itemBuilder: (context, index) {
                     return SupplementCard(item: supplements[index]);

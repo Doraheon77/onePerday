@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:simcap/core/constant/app_constants.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:simcap/features/cabinet/domain/dataModels/supplement_model.dart';
@@ -101,7 +102,7 @@ class _AddSupplementScreenState extends State<AddSupplementScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('제품명을 입력해주세요!'),
-          backgroundColor: Color(0xFFFF6B6B),
+          backgroundColor: AppColors.danger,
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -137,7 +138,7 @@ class _AddSupplementScreenState extends State<AddSupplementScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF9FAFB),
+      backgroundColor: AppColors.scaffoldBg,
       appBar: AppBar(
         title: Text(
           _isManualInputMode ? '정보 입력' : '영양제 등록',
@@ -199,7 +200,7 @@ class _AddSupplementScreenState extends State<AddSupplementScreen> {
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(30),
                 border: Border.all(
-                  color: const Color(0xFF4CAF50).withOpacity(0.1),
+                  color: AppColors.primary.withOpacity(0.1),
                   width: 2,
                 ),
                 boxShadow: [
@@ -215,7 +216,7 @@ class _AddSupplementScreenState extends State<AddSupplementScreen> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         const CircularProgressIndicator(
-                          color: Color(0xFF4CAF50),
+                          color: AppColors.primary,
                         ),
                         const SizedBox(height: 24),
                         const Text(
@@ -238,13 +239,13 @@ class _AddSupplementScreenState extends State<AddSupplementScreen> {
                         Container(
                           padding: const EdgeInsets.all(20),
                           decoration: const BoxDecoration(
-                            color: Color(0xFFE8F5E9),
+                            color: AppColors.primaryLight,
                             shape: BoxShape.circle,
                           ),
                           child: const Icon(
                             Icons.camera_alt_rounded,
                             size: 60,
-                            color: Color(0xFF4CAF50),
+                            color: AppColors.primary,
                           ),
                         ),
                         const SizedBox(height: 24),
@@ -328,7 +329,7 @@ class _AddSupplementScreenState extends State<AddSupplementScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(15),
-        border: Border.all(color: const Color(0xFFEEEEEE)),
+        border: Border.all(color: AppColors.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -350,13 +351,13 @@ class _AddSupplementScreenState extends State<AddSupplementScreen> {
                     padding: const EdgeInsets.symmetric(vertical: 10),
                     decoration: BoxDecoration(
                       color: isSelected
-                          ? const Color(0xFF4CAF50)
-                          : const Color(0xFFF5F5F5),
+                          ? AppColors.primary
+                          : AppColors.dividerBg,
                       borderRadius: BorderRadius.circular(10),
                       border: Border.all(
                         color: isSelected
-                            ? const Color(0xFF4CAF50)
-                            : const Color(0xFFEEEEEE),
+                            ? AppColors.primary
+                            : AppColors.border,
                       ),
                     ),
                     child: Column(
@@ -365,9 +366,7 @@ class _AddSupplementScreenState extends State<AddSupplementScreen> {
                         Icon(
                           _mealTimingIcon(timing),
                           size: 18,
-                          color: isSelected
-                              ? Colors.white
-                              : Colors.grey[500],
+                          color: isSelected ? Colors.white : Colors.grey[500],
                         ),
                         const SizedBox(height: 4),
                         Text(
@@ -392,10 +391,14 @@ class _AddSupplementScreenState extends State<AddSupplementScreen> {
 
   IconData _mealTimingIcon(MealTiming timing) {
     switch (timing) {
-      case MealTiming.beforeMeal:  return Icons.lunch_dining_outlined;
-      case MealTiming.afterMeal:   return Icons.restaurant_outlined;
-      case MealTiming.beforeSleep: return Icons.bedtime_outlined;
-      case MealTiming.anytime:     return Icons.access_time_outlined;
+      case MealTiming.beforeMeal:
+        return Icons.lunch_dining_outlined;
+      case MealTiming.afterMeal:
+        return Icons.restaurant_outlined;
+      case MealTiming.beforeSleep:
+        return Icons.bedtime_outlined;
+      case MealTiming.anytime:
+        return Icons.access_time_outlined;
     }
   }
 
@@ -406,7 +409,7 @@ class _AddSupplementScreenState extends State<AddSupplementScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(15),
-        border: Border.all(color: const Color(0xFFEEEEEE)),
+        border: Border.all(color: AppColors.border),
       ),
       child: Row(
         children: [
@@ -461,7 +464,7 @@ class _AddSupplementScreenState extends State<AddSupplementScreen> {
         color: Colors.white,
         borderRadius: BorderRadius.circular(15),
         border: Border.all(
-          color: hasError ? const Color(0xFFFF6B6B) : const Color(0xFFEEEEEE),
+          color: hasError ? AppColors.danger : AppColors.border,
           width: hasError ? 1.5 : 1,
         ),
       ),
@@ -491,7 +494,7 @@ class _AddSupplementScreenState extends State<AddSupplementScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(15),
-        border: Border.all(color: const Color(0xFFEEEEEE)),
+        border: Border.all(color: AppColors.border),
       ),
       child: Row(
         children: [
@@ -518,7 +521,7 @@ class _AddSupplementScreenState extends State<AddSupplementScreen> {
           IconButton(
             icon: const Icon(
               Icons.add_circle_outline,
-              color: Color(0xFF4CAF50),
+              color: AppColors.primary,
             ),
             onPressed: () => _adjustQuantity(controller, 1),
           ),
@@ -550,12 +553,10 @@ class _AddSupplementScreenState extends State<AddSupplementScreen> {
                   onSelected: (_) => setState(
                     () => _remainingController.text = val.toString(),
                   ),
-                  selectedColor: const Color(0xFFE8F5E9),
+                  selectedColor: AppColors.primaryLight,
                   backgroundColor: Colors.white,
                   labelStyle: TextStyle(
-                    color: isSelected
-                        ? const Color(0xFF4CAF50)
-                        : Colors.black54,
+                    color: isSelected ? AppColors.primary : Colors.black54,
                     fontWeight: isSelected
                         ? FontWeight.bold
                         : FontWeight.normal,
@@ -563,9 +564,7 @@ class _AddSupplementScreenState extends State<AddSupplementScreen> {
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(10),
                     side: BorderSide(
-                      color: isSelected
-                          ? const Color(0xFF4CAF50)
-                          : const Color(0xFFEEEEEE),
+                      color: isSelected ? AppColors.primary : AppColors.border,
                     ),
                   ),
                 ),
@@ -598,7 +597,7 @@ class _AddSupplementScreenState extends State<AddSupplementScreen> {
       child: ElevatedButton(
         onPressed: _onRegister,
         style: ElevatedButton.styleFrom(
-          backgroundColor: const Color(0xFF4CAF50),
+          backgroundColor: AppColors.primary,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
           ),

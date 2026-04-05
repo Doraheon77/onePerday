@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:simcap/core/constant/app_constants.dart';
 import 'package:simcap/features/cabinet/domain/dataModels/supplement_model.dart';
 import 'package:simcap/providers/supplement_provider.dart';
 
@@ -30,7 +31,7 @@ class NotificationSheet extends StatelessWidget {
 
     // 잔여량 7정 이하 (재구매 필요)
     final List<Supplement> lowStockList = supplements
-        .where((s) => s.remaining <= 7)
+        .where((s) => s.remaining <= AppConstants.lowStockThreshold)
         .toList();
 
     final bool isEmpty = undoneTodayList.isEmpty && lowStockList.isEmpty;
@@ -55,7 +56,9 @@ class NotificationSheet extends StatelessWidget {
                     const SizedBox(width: 8),
                     Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 2),
+                        horizontal: 8,
+                        vertical: 2,
+                      ),
                       decoration: BoxDecoration(
                         color: Colors.redAccent,
                         borderRadius: BorderRadius.circular(99),
@@ -85,22 +88,20 @@ class NotificationSheet extends StatelessWidget {
                 ? _buildEmptyState()
                 : ListView(
                     children: [
-                      // ── 섹션 1: 오늘 미복용 알림 ──
+                      // 섹션 1: 오늘 미복용 알림
                       if (undoneTodayList.isNotEmpty) ...[
                         _buildSectionLabel('오늘 복용 알림', Icons.medication_liquid),
-                        ...undoneTodayList.map(
-                          (s) => _buildPillItem(s),
-                        ),
+                        ...undoneTodayList.map((s) => _buildPillItem(s)),
                         const SizedBox(height: 8),
                       ],
 
-                      // ── 섹션 2: 재구매 필요 알림 ──
+                      // 섹션 2: 재구매 필요 알림
                       if (lowStockList.isNotEmpty) ...[
                         _buildSectionLabel(
-                            '재구매 알림', Icons.shopping_bag_outlined),
-                        ...lowStockList.map(
-                          (s) => _buildStockItem(context, s),
+                          '재구매 알림',
+                          Icons.shopping_bag_outlined,
                         ),
+                        ...lowStockList.map((s) => _buildStockItem(context, s)),
                       ],
                     ],
                   ),
@@ -144,7 +145,11 @@ class NotificationSheet extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.medication_liquid, color: Colors.redAccent, size: 22),
+          const Icon(
+            Icons.medication_liquid,
+            color: Colors.redAccent,
+            size: 22,
+          ),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -176,15 +181,13 @@ class NotificationSheet extends StatelessWidget {
   // 재구매 알림 카드
   Widget _buildStockItem(BuildContext context, Supplement s) {
     final int? daysLeft = s.daysUntilEmpty;
-    final bool isCritical = s.remaining <= 3;
+    final bool isCritical = s.remaining <= AppConstants.criticalStockThreshold;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: isCritical
-            ? const Color(0xFFFFF3F3)
-            : const Color(0xFFFFFDE7),
+        color: isCritical ? const Color(0xFFFFF3F3) : const Color(0xFFFFFDE7),
         borderRadius: BorderRadius.circular(15),
       ),
       child: Row(
@@ -211,7 +214,9 @@ class NotificationSheet extends StatelessWidget {
                     if (daysLeft != null)
                       Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 7, vertical: 2),
+                          horizontal: 7,
+                          vertical: 2,
+                        ),
                         decoration: BoxDecoration(
                           color: isCritical
                               ? const Color(0xFFFF6B6B)
@@ -273,14 +278,17 @@ class NotificationSheet extends StatelessWidget {
     );
   }
 
-  // ── 알림 없음 상태 ────────────────────────────────
+  // 알림 없음 상태
   Widget _buildEmptyState() {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.notifications_none_rounded,
-              size: 56, color: Colors.grey[300]),
+          Icon(
+            Icons.notifications_none_rounded,
+            size: 56,
+            color: Colors.grey[300],
+          ),
           const SizedBox(height: 16),
           Text(
             '새로운 알림이 없습니다',

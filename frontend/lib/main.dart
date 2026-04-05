@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'package:simcap/core/constant/app_constants.dart';
+import 'package:simcap/core/theme/app_theme.dart';
 import 'package:simcap/providers/supplement_provider.dart';
 import 'package:simcap/routes/app_router.dart';
 
@@ -9,10 +11,7 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await initializeDateFormatting('ko_KR', null);
   runApp(
-    SupplementProvider(
-      notifier: SupplementNotifier(),
-      child: const MyApp(),
-    ),
+    SupplementProvider(notifier: SupplementNotifier(), child: const MyApp()),
   );
 }
 
@@ -31,11 +30,7 @@ class MyApp extends StatelessWidget {
       ],
       supportedLocales: const [Locale('ko', 'KR')],
       locale: const Locale('ko', 'KR'),
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF4CAF50)),
-        useMaterial3: true,
-        fontFamily: 'Pretendard',
-      ),
+      theme: AppTheme.light,
       routerConfig: AppRouter.router,
     );
   }
@@ -50,7 +45,7 @@ class ScaffoldWithNavBar extends StatelessWidget {
     return Scaffold(
       body: child,
       floatingActionButton: FloatingActionButton(
-        backgroundColor: const Color(0xFF4CAF50),
+        backgroundColor: AppColors.primary,
         elevation: 4,
         shape: const CircleBorder(),
         child: const Icon(Icons.smart_toy_outlined, color: Colors.white),
@@ -103,14 +98,14 @@ class ScaffoldWithNavBar extends StatelessWidget {
         children: [
           Icon(
             icon,
-            color: isSelected ? const Color(0xFF4CAF50) : Colors.grey,
+            color: isSelected ? AppColors.primary : Colors.grey,
             size: 24,
           ),
           const SizedBox(height: 4),
           Text(
             label,
             style: TextStyle(
-              color: isSelected ? const Color(0xFF4CAF50) : Colors.grey,
+              color: isSelected ? AppColors.primary : Colors.grey,
               fontSize: 10,
               fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
             ),

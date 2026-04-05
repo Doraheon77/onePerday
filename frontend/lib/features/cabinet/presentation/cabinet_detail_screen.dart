@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:simcap/core/constant/app_constants.dart';
 import 'package:simcap/features/cabinet/domain/dataModels/supplement_model.dart';
 
 class CabinetDetailScreen extends StatelessWidget {
@@ -29,15 +30,15 @@ class CabinetDetailScreen extends StatelessWidget {
           children: [
             // 헤더 영역
             _buildProductHeader(),
-            const Divider(height: 1, thickness: 8, color: Color(0xFFF5F5F5)),
+            const Divider(height: 1, thickness: 8, color: AppColors.dividerBg),
 
             // 복용 상태 정보
             _buildStatusSection(),
-            const Divider(height: 1, thickness: 8, color: Color(0xFFF5F5F5)),
+            const Divider(height: 1, thickness: 8, color: AppColors.dividerBg),
 
             // 성분 및 함량 분석
             _buildNutrientAnalysisSection(),
-            const Divider(height: 1, thickness: 8, color: Color(0xFFF5F5F5)),
+            const Divider(height: 1, thickness: 8, color: AppColors.dividerBg),
 
             // AI 리뷰 요약
             _buildAIReviewSummary(),
@@ -57,10 +58,9 @@ class CabinetDetailScreen extends StatelessWidget {
             width: 90,
             height: 90,
             decoration: BoxDecoration(
-              color: const Color(0xFFF1F8E9),
+              color: AppColors.primaryFaint,
               borderRadius: BorderRadius.circular(20),
             ),
-            // ✅ 이미지 유무에 따른 분기 처리
             child: (item.imagePath != null && item.imagePath!.isNotEmpty)
                 ? ClipRRect(
                     borderRadius: BorderRadius.circular(20),
@@ -71,14 +71,14 @@ class CabinetDetailScreen extends StatelessWidget {
                       errorBuilder: (context, error, stackTrace) => const Icon(
                         Icons.medication_rounded,
                         size: 45,
-                        color: Color(0xFF4CAF50),
+                        color: AppColors.primary,
                       ),
                     ),
                   )
                 : const Icon(
                     Icons.medication_rounded,
                     size: 45,
-                    color: Color(0xFF4CAF50),
+                    color: AppColors.primary,
                   ),
           ),
           const SizedBox(width: 20),
@@ -124,10 +124,10 @@ class CabinetDetailScreen extends StatelessWidget {
 
     // 소진 임박 여부에 따른 강조 색상
     final Color emptyDateColor = (daysLeft != null && daysLeft <= 7)
-        ? const Color(0xFFFF6B6B)
+        ? AppColors.danger
         : (daysLeft != null && daysLeft <= 30)
-            ? const Color(0xFFFFC107)
-            : Colors.black87;
+        ? AppColors.warning
+        : Colors.black87;
 
     return Padding(
       padding: const EdgeInsets.all(24.0),
@@ -157,11 +157,7 @@ class CabinetDetailScreen extends StatelessWidget {
             '1일 복용량',
             '${item.dailyDose}정',
           ),
-          _buildInfoRow(
-            Icons.inventory_2_outlined,
-            '전체 용량',
-            '${item.total}정',
-          ),
+          _buildInfoRow(Icons.inventory_2_outlined, '전체 용량', '${item.total}정'),
           _buildInfoRow(
             Icons.notifications_active_outlined,
             '알림 설정',
@@ -176,15 +172,15 @@ class CabinetDetailScreen extends StatelessWidget {
     final int total = item.total == 0 ? 1 : item.total;
     final double progress = (item.remaining / total).clamp(0.0, 1.0);
     final Color barColor = progress <= 0.2
-        ? const Color(0xFFFF6B6B)
+        ? AppColors.danger
         : progress <= 0.5
-            ? const Color(0xFFFFC107)
-            : const Color(0xFF4CAF50);
+        ? AppColors.warning
+        : AppColors.primary;
 
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFFF9FAFB),
+        color: AppColors.scaffoldBg,
         borderRadius: BorderRadius.circular(14),
       ),
       child: Column(
@@ -194,8 +190,11 @@ class CabinetDetailScreen extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  Icon(Icons.inventory_2_outlined,
-                      size: 16, color: Colors.grey[500]),
+                  Icon(
+                    Icons.inventory_2_outlined,
+                    size: 16,
+                    color: Colors.grey[500],
+                  ),
                   const SizedBox(width: 6),
                   const Text(
                     '남은 수량',
@@ -299,11 +298,11 @@ class CabinetDetailScreen extends StatelessWidget {
   }
 
   Widget _buildNutrientBar(Nutrient n) {
-    Color barColor = const Color(0xFF4CAF50);
+    Color barColor = AppColors.primary;
     if (n.percent >= 1.0) {
-      barColor = const Color(0xFFFF6B6B);
+      barColor = AppColors.danger;
     } else if (n.percent < 0.3) {
-      barColor = const Color(0xFFFFC107);
+      barColor = AppColors.warning;
     }
 
     return Padding(
@@ -346,7 +345,7 @@ class CabinetDetailScreen extends StatelessWidget {
                 height: 10,
                 width: double.infinity,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF5F5F5),
+                  color: AppColors.dividerBg,
                   borderRadius: BorderRadius.circular(5),
                 ),
               ),
@@ -371,7 +370,7 @@ class CabinetDetailScreen extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: const Color(0xFFF1F8E9),
+        color: AppColors.primaryFaint,
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
@@ -379,7 +378,7 @@ class CabinetDetailScreen extends StatelessWidget {
           const Icon(
             Icons.lightbulb_outline,
             size: 16,
-            color: Color(0xFF4CAF50),
+            color: AppColors.primary,
           ),
           const SizedBox(width: 8),
           Expanded(
@@ -389,7 +388,7 @@ class CabinetDetailScreen extends StatelessWidget {
                   : item.analysisGuide,
               style: const TextStyle(
                 fontSize: 12,
-                color: Color(0xFF2E7D32),
+                color: AppColors.primaryDark,
                 fontWeight: FontWeight.w500,
               ),
             ),
@@ -419,7 +418,7 @@ class CabinetDetailScreen extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: const Color(0xFFF9FAFB),
+              color: AppColors.scaffoldBg,
               borderRadius: BorderRadius.circular(16),
             ),
             child: Text(
@@ -447,7 +446,7 @@ class CabinetDetailScreen extends StatelessWidget {
               onPressed: () {},
               style: OutlinedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(vertical: 16),
-                side: const BorderSide(color: Color(0xFF4CAF50), width: 1.5),
+                side: const BorderSide(color: AppColors.primary, width: 1.5),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(14),
                 ),
@@ -455,7 +454,7 @@ class CabinetDetailScreen extends StatelessWidget {
               child: const Text(
                 '리뷰 작성하기',
                 style: TextStyle(
-                  color: Color(0xFF4CAF50),
+                  color: AppColors.primary,
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -466,7 +465,7 @@ class CabinetDetailScreen extends StatelessWidget {
             child: ElevatedButton(
               onPressed: () {},
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF4CAF50),
+                backgroundColor: AppColors.primary,
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 elevation: 0,
                 shape: RoundedRectangleBorder(

@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:simcap/core/constant/app_constants.dart';
 import 'package:simcap/features/cabinet/domain/dataModels/supplement_model.dart';
 
 // 복용 기록 모델
 // 날짜별로 어떤 영양제를 복용했는지 추적
 class DoseRecord {
   final String supplementName; // Supplement.name을 키로 사용
-  final DateTime date;         // 복용한 날짜 (시간은 무시, 날짜만 비교)
+  final DateTime date; // 복용한 날짜 (시간은 무시, 날짜만 비교)
 
   const DoseRecord({required this.supplementName, required this.date});
 }
@@ -21,8 +22,8 @@ class SupplementProvider extends InheritedNotifier<SupplementNotifier> {
 
   /// 트리 어디서든 `SupplementProvider.of(context)` 로 접근
   static SupplementNotifier of(BuildContext context) {
-    final provider =
-        context.dependOnInheritedWidgetOfExactType<SupplementProvider>();
+    final provider = context
+        .dependOnInheritedWidgetOfExactType<SupplementProvider>();
     assert(provider != null, 'SupplementProvider가 위젯 트리에 없습니다.');
     return provider!.notifier!;
   }
@@ -65,9 +66,7 @@ class SupplementNotifier extends ChangeNotifier {
       dailyDose: 1,
       mealTiming: MealTiming.beforeSleep,
       analysisGuide: '취침 전 복용 시 근육 이완과 숙면에 도움을 줄 수 있습니다.',
-      nutrients: [
-        Nutrient(name: '마그네슘', value: 400, unit: 'mg', percent: 1.1),
-      ],
+      nutrients: [Nutrient(name: '마그네슘', value: 400, unit: 'mg', percent: 1.1)],
     ),
   ];
 
@@ -80,13 +79,11 @@ class SupplementNotifier extends ChangeNotifier {
   List<Supplement> get todaySupplements => List.unmodifiable(_supplements);
 
   // 복용 여부 조회
-  int get undoneCount => _supplements
-      .where((s) => !isDoneToday(s.name))
-      .length;
+  int get undoneCount => _supplements.where((s) => !isDoneToday(s.name)).length;
 
   // 재고가 7정 이하로 남은 영양제 개수
   int get lowStockCount => _supplements
-      .where((s) => s.remaining <= 7)
+      .where((s) => s.remaining <= AppConstants.lowStockThreshold)
       .length;
 
   // 홈 화면 배지에 표시할 전체 알림 개수
@@ -130,8 +127,10 @@ class SupplementNotifier extends ChangeNotifier {
       _doseHistory.add(
         DoseRecord(supplementName: supplementName, date: targetDate),
       );
-      final newRemaining = (supplement.remaining - supplement.dailyDose)
-          .clamp(0, supplement.total);
+      final newRemaining = (supplement.remaining - supplement.dailyDose).clamp(
+        0,
+        supplement.total,
+      );
       _supplements[idx] = supplement.copyWith(remaining: newRemaining);
     }
 

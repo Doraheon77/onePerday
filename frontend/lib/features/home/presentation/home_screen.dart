@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:simcap/core/constant/app_constants.dart';
 import 'package:intl/intl.dart';
 import 'package:simcap/features/cabinet/domain/dataModels/supplement_model.dart';
 import 'package:simcap/providers/supplement_provider.dart';
@@ -17,7 +18,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF9FAFB),
+      backgroundColor: AppColors.scaffoldBg,
       body: SafeArea(
         child: Column(
           children: [
@@ -73,7 +74,7 @@ class _HomeScreenState extends State<HomeScreen> {
         return Theme(
           data: Theme.of(context).copyWith(
             colorScheme: const ColorScheme.light(
-              primary: Color(0xFF4CAF50),
+              primary: AppColors.primary,
               onPrimary: Colors.white,
               onSurface: Colors.black87,
             ),
@@ -110,12 +111,12 @@ class _HomeScreenState extends State<HomeScreen> {
                         style: const TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.bold,
-                          color: Color(0xFF4CAF50),
+                          color: AppColors.primary,
                         ),
                       ),
                       const Icon(
                         Icons.arrow_drop_down,
-                        color: Color(0xFF4CAF50),
+                        color: AppColors.primary,
                       ),
                     ],
                   ),
@@ -128,7 +129,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: IconButton(
                     icon: const Icon(
                       Icons.notifications_none_rounded,
-                      color: Color(0xFF4CAF50),
+                      color: AppColors.primary,
                       size: 26,
                     ),
                     onPressed: () => NotificationSheet.show(context),
@@ -157,7 +158,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     ["월", "화", "수", "목", "금", "토", "일"][index],
                     style: TextStyle(
                       fontSize: 12,
-                      color: isSelected ? const Color(0xFF4CAF50) : Colors.grey,
+                      color: isSelected ? AppColors.primary : Colors.grey,
                     ),
                   ),
                   const SizedBox(height: 10),
@@ -169,7 +170,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       alignment: Alignment.center,
                       decoration: BoxDecoration(
                         color: isSelected
-                            ? const Color(0xFF4CAF50)
+                            ? AppColors.primary
                             : Colors.transparent,
                         shape: BoxShape.circle,
                       ),
@@ -187,7 +188,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     height: 5,
                     decoration: BoxDecoration(
                       color: isSelected
-                          ? const Color(0xFF4CAF50)
+                          ? AppColors.primary
                           : Colors.transparent,
                       shape: BoxShape.circle,
                     ),
@@ -224,7 +225,7 @@ class _HomeScreenState extends State<HomeScreen> {
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: const Color(0xFFF1F8E9),
+              color: AppColors.primaryFaint,
               borderRadius: BorderRadius.circular(12),
             ),
             child: const Row(
@@ -233,14 +234,14 @@ class _HomeScreenState extends State<HomeScreen> {
                 Icon(
                   Icons.lightbulb_outline,
                   size: 16,
-                  color: Color(0xFF4CAF50),
+                  color: AppColors.primary,
                 ),
                 SizedBox(width: 8),
                 Text(
                   "적정 섭취량은 권장량의 70%~100% 사이입니다.",
                   style: TextStyle(
                     fontSize: 12,
-                    color: Color(0xFF2E7D32),
+                    color: AppColors.primaryDark,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
@@ -255,7 +256,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildBarGraph(String label, double ratio) {
     Color statusColor = ratio > 1.0
         ? Colors.redAccent
-        : (ratio >= 0.7 ? const Color(0xFF4CAF50) : Colors.orangeAccent);
+        : (ratio >= 0.7 ? AppColors.primary : Colors.orangeAccent);
     return Padding(
       padding: const EdgeInsets.only(bottom: 18),
       child: Column(
@@ -325,7 +326,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildMedicationToggleCard(
     Supplement supplement,
-    SupplementNotifier notifier, 
+    SupplementNotifier notifier,
   ) {
     final isDone = notifier.isDoneOn(supplement.name, _selectedDate);
     final isToday = _dateOnly(_selectedDate) == _dateOnly(DateTime.now());
@@ -338,21 +339,21 @@ class _HomeScreenState extends State<HomeScreen> {
         duration: const Duration(milliseconds: 250),
         margin: const EdgeInsets.only(bottom: 12),
         decoration: BoxDecoration(
-          color: isDone ? const Color(0xFFF1F8E9) : Colors.white,
+          color: isDone ? AppColors.primaryFaint : Colors.white,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
             color: isDone
-                ? const Color(0xFF4CAF50).withOpacity(0.5)
+                ? AppColors.primary.withOpacity(0.5)
                 : Colors.grey.withOpacity(0.1),
           ),
         ),
         child: ListTile(
           leading: CircleAvatar(
             backgroundColor: isDone
-                ? const Color(0xFF4CAF50)
+                ? AppColors.primary
                 : isToday
-                    ? const Color(0xFFFFEBEE)
-                    : Colors.grey.shade200,
+                ? AppColors.dangerBg
+                : Colors.grey.shade200,
             child: Icon(
               isDone ? Icons.check : Icons.priority_high,
               color: Colors.white,
@@ -379,17 +380,19 @@ class _HomeScreenState extends State<HomeScreen> {
               if (!isDone && supplement.remaining <= 7)
                 Container(
                   margin: const EdgeInsets.only(right: 8),
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 2,
+                  ),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFFFEBEB),
+                    color: AppColors.dangerBg,
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Text(
                     'D-${supplement.remaining}',
                     style: const TextStyle(
                       fontSize: 10,
-                      color: Color(0xFFFF6B6B),
+                      color: AppColors.danger,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -399,10 +402,10 @@ class _HomeScreenState extends State<HomeScreen> {
                     ? Icons.check_box_rounded
                     : Icons.check_box_outline_blank_rounded,
                 color: isDone
-                    ? const Color(0xFF4CAF50)
+                    ? AppColors.primary
                     : isToday
-                        ? Colors.grey[400]
-                        : Colors.grey[200],
+                    ? Colors.grey[400]
+                    : Colors.grey[200],
                 size: 28,
               ),
             ],

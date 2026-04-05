@@ -4,7 +4,7 @@ class LoginSocialButton extends StatelessWidget {
   final IconData icon;
   final String text;
   final Color color;
-  final VoidCallback onPressed;
+  final VoidCallback? onPressed;
   final Color textColor;
   final bool border;
 
@@ -20,15 +20,23 @@ class LoginSocialButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final bool isDisabled = onPressed == null;
+
     return SizedBox(
       width: double.infinity,
       height: 56,
       child: ElevatedButton(
         onPressed: onPressed,
         style: ElevatedButton.styleFrom(
-          backgroundColor: color,
+          backgroundColor: isDisabled ? Colors.grey[200] : color,
           elevation: 0,
-          side: border ? BorderSide(color: Colors.grey.shade300) : null,
+          side: border
+              ? BorderSide(
+                  color: isDisabled
+                      ? Colors.grey.shade200
+                      : Colors.grey.shade300,
+                )
+              : null,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),
@@ -36,12 +44,12 @@ class LoginSocialButton extends StatelessWidget {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, color: textColor),
+            Icon(icon, color: isDisabled ? Colors.grey[400] : textColor),
             const SizedBox(width: 10),
             Text(
               text,
               style: TextStyle(
-                color: textColor,
+                color: isDisabled ? Colors.grey[400] : textColor,
                 fontWeight: FontWeight.bold,
                 fontSize: 16,
               ),
