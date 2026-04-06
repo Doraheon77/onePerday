@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:simcap/features/cabinet/presentation/barcode_scan_screen.dart';
 import 'package:simcap/features/chatbot/presentation/chatbot_screen.dart';
 import 'package:simcap/features/home/presentation/home_screen.dart';
 import 'package:simcap/features/cabinet/presentation/cabinet_screen.dart';
@@ -86,6 +87,10 @@ class AppRouter {
               GoRoute(
                 path: 'add',
                 builder: (context, state) => const AddSupplementScreen(),
+              ),
+              GoRoute(
+                path: 'scan',
+                builder: (context, state) => const BarcodeScanScreen(),
               ),
             ],
           ),

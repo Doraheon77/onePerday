@@ -1,8 +1,16 @@
 import 'dart:io';
-import 'package:simcap/core/constant/app_constants.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:simcap/core/constant/app_constants.dart';
 import 'package:simcap/features/cabinet/domain/dataModels/supplement_model.dart';
+import 'package:simcap/features/cabinet/presentation/barcode_scan_screen.dart';
+
+// ── 탭 인덱스 상수 ───────────────────────────────────────────────────────────
+// 0: 라벨 촬영  /  1: 바코드 스캔  /  2: 직접 입력
+const int _tabLabel = 0;
+const int _tabBarcode = 1;
+const int _tabManual = 2;
 
 class AddSupplementScreen extends StatefulWidget {
   const AddSupplementScreen({super.key});
@@ -11,17 +19,23 @@ class AddSupplementScreen extends StatefulWidget {
   State<AddSupplementScreen> createState() => _AddSupplementScreenState();
 }
 
-class _AddSupplementScreenState extends State<AddSupplementScreen> {
-  // 화면 모드 제어 (false: 사진 업로드 대기, true: 입력 폼)
-  bool _isManualInputMode = false;
-  // OCR 분석 중 로딩 상태
-  bool _isLoadingOCR = false;
+class _AddSupplementScreenState extends State<AddSupplementScreen>
+    with SingleTickerProviderStateMixin {
+  // ── 탭 상태 ─────────────────────────────────────────────────────────────
+  late final TabController _tabController;
+  int _selectedTab = _tabLabel; // 초기: 라벨 촬영
 
+  // ── OCR 상태 ─────────────────────────────────────────────────────────────
+  bool _isLoadingOCR = false;
   File? _selectedImage;
   final ImagePicker _picker = ImagePicker();
 
+  // ── 바코드 상태 ──────────────────────────────────────────────────────────
+  String? _scannedBarcode;
+
+  // ── 폼 상태 ─────────────────────────────────────────────────────────────
   bool _showNameError = false;
-  MealTiming _selectedMealTiming = MealTiming.afterMeal; // 기본값: 식후
+  MealTiming _selectedMealTiming = MealTiming.afterMeal;
 
   final _nameController = TextEditingController();
   final _brandController = TextEditingController();
@@ -31,7 +45,18 @@ class _AddSupplementScreenState extends State<AddSupplementScreen> {
   final _remainingController = TextEditingController(text: '30');
 
   @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 3, vsync: this)
+      ..addListener(() {
+        if (_tabController.indexIsChanging) return;
+        setState(() => _selectedTab = _tabController.index);
+      });
+  }
+
+  @override
   void dispose() {
+    _tabController.dispose();
     _nameController.dispose();
     _brandController.dispose();
     _nutrientController.dispose();
@@ -41,62 +66,84 @@ class _AddSupplementScreenState extends State<AddSupplementScreen> {
     super.dispose();
   }
 
-  // OCR 연동 로직
+  // ── OCR 처리 ─────────────────────────────────────────────────────────────
   Future<void> _processOCR(File imageFile) async {
     setState(() => _isLoadingOCR = true);
-
     try {
-      // TODO : 팀원이 만든 OCR 분석 함수를 여기서 호출 필요
-      // 예: final result = await YourTeamMemberOCRService.analyze(imageFile);
+      // TODO: 팀원 OCR 서비스 함수 호출로 교체
+      // final result = await YourTeamMemberOCRService.analyze(imageFile);
+      await Future.delayed(const Duration(seconds: 2)); // 시뮬레이션
 
-      // (가짜 데이터 시뮬레이션 - 2초 대기)
-      await Future.delayed(const Duration(seconds: 2));
-
-      // 가짜 분석 데이터를 화면에 반영 (실제 결과로 교체 필요)
+      if (!mounted) return;
       setState(() {
-        _nameController.text = "멀티비타민 골드"; // result.productName으로 추후 교체
-        _brandController.text = "시뮬레이션 브랜드"; // result.brandName으로 추후 교체
-        _nutrientController.text =
-            "비타민C, 비타민D, 아연"; // result.nutrients.join(', ')
-
+        _nameController.text = '멀티비타민 골드'; // result.productName
+        _brandController.text = '시뮬레이션 브랜드'; // result.brandName
+        _nutrientController.text = '비타민C, 비타민D, 아연'; // result.nutrients
         _isLoadingOCR = false;
-        _isManualInputMode = true; // 분석 완료 후 입력 폼으로 전환
+        // OCR 완료 → 직접 입력 탭으로 자동 이동
+        _tabController.animateTo(_tabManual);
       });
     } catch (e) {
+      if (!mounted) return;
       setState(() => _isLoadingOCR = false);
-      // 에러 발생 시 사용자에게 알리고 수동 모드로 전환
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('OCR 분석에 실패했습니다. 내용을 직접 확인해주세요.')),
       );
-      setState(() => _isManualInputMode = true);
+      _tabController.animateTo(_tabManual);
     }
   }
 
-  // 갤러리에서 사진 선택
-  Future<void> _pickImage() async {
+  // ── 이미지 선택 ──────────────────────────────────────────────────────────
+  Future<void> _pickFromCamera() async {
+    final XFile? image = await _picker.pickImage(
+      source: ImageSource.camera,
+      imageQuality: 90,
+    );
+    if (image != null) _handlePickedImage(File(image.path));
+  }
+
+  Future<void> _pickFromGallery() async {
     final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
-    if (image != null) {
-      final imageFile = File(image.path);
-      setState(() {
-        _selectedImage = imageFile;
-      });
-      // 사진 선택 직후 OCR 프로세스 시작
-      await _processOCR(imageFile);
-    }
+    if (image != null) _handlePickedImage(File(image.path));
   }
 
-  // 수량 조절 로직
+  Future<void> _handlePickedImage(File imageFile) async {
+    setState(() => _selectedImage = imageFile);
+    await _processOCR(imageFile);
+  }
+
+  // ── 바코드 스캔 이동 ─────────────────────────────────────────────────────
+  Future<void> _navigateToScan() async {
+    final result = await context.push<BarcodeScanResult>('/cabinet/scan');
+    if (result == null || !mounted) return;
+
+    // TODO: result.rawValue로 백엔드 상품 조회 후 폼 자동 완성
+    setState(() {
+      _scannedBarcode = result.rawValue;
+      _nameController.text = result.rawValue; // 임시 — API 연동 후 교체
+      // 바코드 결과 수신 → 직접 입력 탭으로 이동
+      _tabController.animateTo(_tabManual);
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('바코드 인식 완료: ${result.rawValue}'),
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: AppColors.primary,
+      ),
+    );
+  }
+
+  // ── 수량 조절 ─────────────────────────────────────────────────────────────
   void _adjustQuantity(TextEditingController controller, int delta) {
-    int currentValue = int.tryParse(controller.text) ?? 0;
-    int newValue = (currentValue + delta).clamp(0, 999);
-    controller.text = newValue.toString();
+    final newVal = ((int.tryParse(controller.text) ?? 0) + delta).clamp(0, 999);
+    controller.text = newVal.toString();
     setState(() {});
   }
 
-  // 등록 버튼 클릭 로직
+  // ── 등록 ─────────────────────────────────────────────────────────────────
   void _onRegister() {
     final name = _nameController.text.trim();
-
     if (name.isEmpty) {
       setState(() => _showNameError = true);
       ScaffoldMessenger.of(context).showSnackBar(
@@ -129,48 +176,37 @@ class _AddSupplementScreenState extends State<AddSupplementScreen> {
     );
 
     FocusManager.instance.primaryFocus?.unfocus();
-
-    if (mounted) {
-      Navigator.pop(context, newSupplement);
-    }
+    if (mounted) Navigator.pop(context, newSupplement);
   }
 
+  // ════════════════════════════════════════════════════════════════════════
+  //  BUILD
+  // ════════════════════════════════════════════════════════════════════════
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.scaffoldBg,
-      appBar: AppBar(
-        title: Text(
-          _isManualInputMode ? '정보 입력' : '영양제 등록',
-          style: const TextStyle(
-            color: Colors.black,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        backgroundColor: Colors.white,
-        elevation: 0,
-        centerTitle: true,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
-          onPressed: () {
-            if (_isManualInputMode && _selectedImage == null) {
-              setState(() => _isManualInputMode = false);
-            } else {
-              Navigator.pop(context);
-            }
-          },
-        ),
-      ),
+      appBar: _buildAppBar(),
       body: GestureDetector(
         onTap: () => FocusScope.of(context).unfocus(),
-        child: AnimatedSwitcher(
-          duration: const Duration(milliseconds: 300),
-          child: _isManualInputMode
-              ? _buildManualInputForm()
-              : _buildAutoUploadView(),
+        child: Column(
+          children: [
+            // ── 상단 탭바 ───────────────────────────────────────────────
+            _buildTabBar(),
+            const Divider(height: 1),
+            // ── 탭 콘텐츠 ───────────────────────────────────────────────
+            Expanded(
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 250),
+                switchInCurve: Curves.easeOut,
+                switchOutCurve: Curves.easeIn,
+                child: _buildTabContent(),
+              ),
+            ),
+          ],
         ),
       ),
-      bottomNavigationBar: _isManualInputMode
+      bottomNavigationBar: _selectedTab == _tabManual
           ? SafeArea(
               child: Padding(
                 padding: const EdgeInsets.symmetric(
@@ -184,117 +220,478 @@ class _AddSupplementScreenState extends State<AddSupplementScreen> {
     );
   }
 
-  // 자동 업로드 (OCR 로딩 포함)
-  Widget _buildAutoUploadView() {
-    return Column(
-      key: const ValueKey('auto'),
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Center(
-          child: GestureDetector(
-            onTap: _isLoadingOCR ? null : _pickImage,
-            child: Container(
-              width: MediaQuery.of(context).size.width * 0.85,
-              height: 350,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(30),
-                border: Border.all(
-                  color: AppColors.primary.withOpacity(0.1),
-                  width: 2,
+  // ── AppBar ──────────────────────────────────────────────────────────────
+  PreferredSizeWidget _buildAppBar() {
+    const titles = ['라벨 촬영', '바코드 스캔', '직접 입력'];
+    return AppBar(
+      title: Text(
+        titles[_selectedTab],
+        style: const TextStyle(
+          color: Colors.black,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+      backgroundColor: Colors.white,
+      elevation: 0,
+      centerTitle: true,
+      leading: IconButton(
+        icon: const Icon(Icons.arrow_back, color: Colors.black),
+        onPressed: () => Navigator.pop(context),
+      ),
+    );
+  }
+
+  // ── 탭바 ────────────────────────────────────────────────────────────────
+  Widget _buildTabBar() {
+    return Container(
+      color: Colors.white,
+      child: TabBar(
+        controller: _tabController,
+        labelColor: AppColors.primary,
+        unselectedLabelColor: Colors.grey,
+        labelStyle: const TextStyle(
+          fontSize: 13,
+          fontWeight: FontWeight.bold,
+          fontFamily: 'Pretendard',
+        ),
+        unselectedLabelStyle: const TextStyle(
+          fontSize: 13,
+          fontFamily: 'Pretendard',
+        ),
+        indicatorColor: AppColors.primary,
+        indicatorWeight: 2.5,
+        tabs: const [
+          Tab(icon: Icon(Icons.camera_alt_rounded, size: 18), text: '라벨 촬영'),
+          Tab(
+            icon: Icon(Icons.qr_code_scanner_rounded, size: 18),
+            text: '바코드 스캔',
+          ),
+          Tab(icon: Icon(Icons.edit_note_rounded, size: 18), text: '직접 입력'),
+        ],
+      ),
+    );
+  }
+
+  // 탭 콘텐츠 분기
+  Widget _buildTabContent() {
+    switch (_selectedTab) {
+      case _tabLabel:
+        return _buildLabelTab();
+      case _tabBarcode:
+        return _buildBarcodeTab();
+      case _tabManual:
+        return _buildManualTab();
+      default:
+        return _buildLabelTab();
+    }
+  }
+
+  //  탭 0 — 라벨 촬영
+  Widget _buildLabelTab() {
+    return SingleChildScrollView(
+      key: const ValueKey('label'),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+        child: Column(
+          children: [
+            // 라벨 프리뷰 / 촬영 유도 카드
+            GestureDetector(
+              onTap: _isLoadingOCR ? null : _pickFromCamera,
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                width: double.infinity,
+                height: 300,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(
+                    color: _isLoadingOCR
+                        ? AppColors.primary
+                        : AppColors.primary.withOpacity(0.2),
+                    width: _isLoadingOCR ? 2 : 1.5,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 16,
+                      offset: const Offset(0, 6),
+                    ),
+                  ],
                 ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
-                    blurRadius: 20,
-                    offset: const Offset(0, 10),
+                child: _isLoadingOCR
+                    ? _buildOCRLoading()
+                    : _selectedImage != null
+                    ? _buildImagePreviewInCard()
+                    : _buildLabelGuide(),
+              ),
+            ),
+            const SizedBox(height: 24),
+
+            // 카메라 / 갤러리 버튼 행
+            if (!_isLoadingOCR) ...[
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildSourceButton(
+                      icon: Icons.camera_alt_rounded,
+                      label: '카메라 촬영',
+                      onTap: _pickFromCamera,
+                      filled: true,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _buildSourceButton(
+                      icon: Icons.photo_library_outlined,
+                      label: '갤러리 선택',
+                      onTap: _pickFromGallery,
+                      filled: false,
+                    ),
                   ),
                 ],
               ),
-              child: _isLoadingOCR
-                  ? Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const CircularProgressIndicator(
-                          color: AppColors.primary,
-                        ),
-                        const SizedBox(height: 24),
-                        const Text(
-                          'AI가 성분을 분석하고 있어요...',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          '잠시만 기다려 주세요',
-                          style: TextStyle(color: Colors.grey[500]),
-                        ),
-                      ],
-                    )
-                  : Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(20),
-                          decoration: const BoxDecoration(
-                            color: AppColors.primaryLight,
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(
-                            Icons.camera_alt_rounded,
-                            size: 60,
-                            color: AppColors.primary,
-                          ),
-                        ),
-                        const SizedBox(height: 24),
-                        const Text(
-                          '라벨 촬영하기',
-                          style: TextStyle(
-                            fontSize: 22,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        Text(
-                          '영양제 라벨을 찍으면\nAI가 정보를 자동으로 입력해요',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            color: Colors.grey[600],
-                            fontSize: 15,
-                            height: 1.5,
-                          ),
-                        ),
-                      ],
-                    ),
-            ),
+              const SizedBox(height: 16),
+              // 선택된 이미지 있을 때 재선택 안내
+              if (_selectedImage != null)
+                TextButton(
+                  onPressed: () => setState(() => _selectedImage = null),
+                  child: Text(
+                    '사진 다시 선택',
+                    style: TextStyle(color: Colors.grey[500], fontSize: 13),
+                  ),
+                ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLabelGuide() {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(20),
+          decoration: const BoxDecoration(
+            color: AppColors.primaryLight,
+            shape: BoxShape.circle,
+          ),
+          child: const Icon(
+            Icons.camera_alt_rounded,
+            size: 52,
+            color: AppColors.primary,
           ),
         ),
-        const SizedBox(height: 40),
-        if (!_isLoadingOCR)
-          TextButton(
-            onPressed: () => setState(() => _isManualInputMode = true),
-            child: const Text(
-              '직접 입력할게요',
-              style: TextStyle(
-                color: Colors.grey,
-                fontSize: 15,
-                decoration: TextDecoration.underline,
-              ),
-            ),
-          ),
+        const SizedBox(height: 20),
+        const Text(
+          '라벨을 촬영해주세요',
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'AI가 성분 정보를 자동으로 분석해요',
+          style: TextStyle(fontSize: 13, color: Colors.grey[500]),
+        ),
+        const SizedBox(height: 16),
+        // 촬영 가이드 힌트
+        _buildHintChip('영양제 라벨이 선명하게 보이도록 촬영하세요'),
       ],
     );
   }
 
-  // 정보 입력 폼
-  Widget _buildManualInputForm() {
+  Widget _buildImagePreviewInCard() {
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        ClipRRect(
+          borderRadius: BorderRadius.circular(22),
+          child: Image.file(_selectedImage!, fit: BoxFit.cover),
+        ),
+        // 어두운 오버레이 + 분석 완료 뱃지
+        Positioned(
+          bottom: 12,
+          left: 12,
+          right: 12,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: AppColors.primary.withOpacity(0.9),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.check_circle_rounded, color: Colors.white, size: 16),
+                SizedBox(width: 6),
+                Text(
+                  '분석 완료 — 직접 입력 탭에서 확인하세요',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildOCRLoading() {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        const CircularProgressIndicator(color: AppColors.primary),
+        const SizedBox(height: 20),
+        const Text(
+          'AI가 성분을 분석하고 있어요...',
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          '잠시만 기다려 주세요',
+          style: TextStyle(fontSize: 13, color: Colors.grey[500]),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSourceButton({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+    required bool filled,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 14),
+        decoration: BoxDecoration(
+          color: filled ? AppColors.primary : Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: filled ? AppColors.primary : AppColors.border,
+          ),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 18, color: filled ? Colors.white : Colors.black87),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+                color: filled ? Colors.white : Colors.black87,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHintChip(String text) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+      decoration: BoxDecoration(
+        color: AppColors.scaffoldBg,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.info_outline, size: 14, color: Colors.grey),
+          const SizedBox(width: 6),
+          Text(text, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+        ],
+      ),
+    );
+  }
+
+  //  탭 1 — 바코드 스캔
+  Widget _buildBarcodeTab() {
+    return SingleChildScrollView(
+      key: const ValueKey('barcode'),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+        child: Column(
+          children: [
+            // 스캔 안내 카드
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(28),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(24),
+                border: Border.all(color: const Color(0xFFE3F2FD)),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 16,
+                    offset: const Offset(0, 6),
+                  ),
+                ],
+              ),
+              child: Column(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: const BoxDecoration(
+                      color: Color(0xFFE3F2FD),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.qr_code_scanner_rounded,
+                      size: 52,
+                      color: Color(0xFF1565C0),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  const Text(
+                    '바코드로 빠르게 등록',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    '영양제 포장의 바코드를 스캔하면\n제품 정보를 자동으로 불러와요',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: Colors.grey[500],
+                      height: 1.6,
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  // 스캔된 바코드 결과 표시
+                  if (_scannedBarcode != null) ...[
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: AppColors.primaryLight,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: AppColors.primary.withOpacity(0.3),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(
+                            Icons.check_circle_rounded,
+                            color: AppColors.primary,
+                            size: 20,
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  '인식된 바코드',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: AppColors.primaryDark,
+                                  ),
+                                ),
+                                Text(
+                                  _scannedBarcode!,
+                                  style: const TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.bold,
+                                    color: AppColors.primaryDark,
+                                    letterSpacing: 1.2,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          // 초기화 버튼
+                          IconButton(
+                            icon: const Icon(
+                              Icons.close,
+                              size: 16,
+                              color: Colors.grey,
+                            ),
+                            onPressed: () =>
+                                setState(() => _scannedBarcode = null),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+                  // 스캔 시작 버튼
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: _navigateToScan,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF1565C0),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                      ),
+                      icon: const Icon(Icons.qr_code_scanner_rounded),
+                      label: Text(
+                        _scannedBarcode != null ? '다시 스캔하기' : '스캔 시작',
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+            // 지원 바코드 안내
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: AppColors.border),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.info_outline, size: 16, color: Colors.grey),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'EAN-13 · UPC-A · QR코드 형식을 지원합니다',
+                      style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  //  탭 2 — 직접 입력
+  Widget _buildManualTab() {
     return ListView(
       key: const ValueKey('manual'),
       padding: const EdgeInsets.all(20),
       children: [
+        // OCR/바코드로 이미지 선택된 경우 미리보기 표시
         if (_selectedImage != null) _buildSelectedImagePreview(),
+
+        // 바코드 인식 결과 뱃지
+        if (_scannedBarcode != null) _buildBarcodeBadge(),
 
         _buildSectionTitle('기본 정보'),
         _buildInputField(
@@ -319,6 +716,86 @@ class _AddSupplementScreenState extends State<AddSupplementScreen> {
         _buildRemainingQuantitySection(),
         const SizedBox(height: 40),
       ],
+    );
+  }
+
+  // 바코드 인식 결과 뱃지 (직접 입력 탭 상단)
+  Widget _buildBarcodeBadge() {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: const Color(0xFFE3F2FD),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFBBDEFB)),
+      ),
+      child: Row(
+        children: [
+          const Icon(
+            Icons.qr_code_scanner_rounded,
+            size: 16,
+            color: Color(0xFF1565C0),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              '바코드 인식됨: $_scannedBarcode',
+              style: const TextStyle(
+                fontSize: 12,
+                color: Color(0xFF1565C0),
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  //  공통 위젯
+
+  Widget _buildSelectedImagePreview() {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 20),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(15),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Row(
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: Image.file(
+              _selectedImage!,
+              width: 60,
+              height: 60,
+              fit: BoxFit.cover,
+            ),
+          ),
+          const SizedBox(width: 12),
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '사진 업로드 완료',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                Text(
+                  '정보가 자동으로 입력되었습니다',
+                  style: TextStyle(fontSize: 12, color: Colors.grey),
+                ),
+              ],
+            ),
+          ),
+          IconButton(
+            onPressed: () => setState(() => _selectedImage = null),
+            icon: const Icon(Icons.close, size: 20, color: Colors.grey),
+          ),
+        ],
+      ),
     );
   }
 
@@ -400,54 +877,6 @@ class _AddSupplementScreenState extends State<AddSupplementScreen> {
       case MealTiming.anytime:
         return Icons.access_time_outlined;
     }
-  }
-
-  Widget _buildSelectedImagePreview() {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 24),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(15),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Row(
-        children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: Image.file(
-              _selectedImage!,
-              width: 60,
-              height: 60,
-              fit: BoxFit.cover,
-            ),
-          ),
-          const SizedBox(width: 12),
-          const Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '사진 업로드 완료',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-                Text(
-                  '정보가 자동으로 입력되었습니다',
-                  style: TextStyle(fontSize: 12, color: Colors.grey),
-                ),
-              ],
-            ),
-          ),
-          IconButton(
-            onPressed: () => setState(() {
-              _selectedImage = null;
-              // 사진 삭제 시 컨트롤러 값도 지울지 여부는 선택사항입니다.
-            }),
-            icon: const Icon(Icons.close, size: 20, color: Colors.grey),
-          ),
-        ],
-      ),
-    );
   }
 
   Widget _buildInputField(
@@ -544,7 +973,7 @@ class _AddSupplementScreenState extends State<AddSupplementScreen> {
           scrollDirection: Axis.horizontal,
           child: Row(
             children: [30, 60, 90, 120, 180].map((val) {
-              bool isSelected = _remainingController.text == val.toString();
+              final isSelected = _remainingController.text == val.toString();
               return Padding(
                 padding: const EdgeInsets.only(right: 8),
                 child: ChoiceChip(

@@ -392,6 +392,12 @@
       "languageVersion": "3.2"
     },
     {
+      "name": "mobile_scanner",
+      "rootUri": "file:///C:/Users/rch18/AppData/Local/Pub/Cache/hosted/pub.dev/mobile_scanner-7.2.0",
+      "packageUri": "lib/",
+      "languageVersion": "3.7"
+    },
+    {
       "name": "native_toolchain_c",
       "rootUri": "file:///C:/Users/rch18/AppData/Local/Pub/Cache/hosted/pub.dev/native_toolchain_c-0.17.6",
       "packageUri": "lib/",

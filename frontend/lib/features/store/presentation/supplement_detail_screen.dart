@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:simcap/core/constant/app_constants.dart';
+import 'package:simcap/features/cabinet/domain/dataModels/supplement_model.dart';
+import 'package:simcap/providers/supplement_provider.dart';
 
 // 스토어 상품 데이터 모델
 // TODO: 백엔드 연동 후 API 응답 모델로 교체
@@ -12,6 +15,7 @@ class StoreProduct {
   final List<NutrientInfo> nutrients;
   final List<String> contraindications;
   final List<StoreProduct> similarProducts;
+  final String? purchaseUrl;
 
   const StoreProduct({
     required this.id,
@@ -22,14 +26,42 @@ class StoreProduct {
     required this.nutrients,
     this.contraindications = const [],
     this.similarProducts = const [],
+    this.purchaseUrl,
   });
+
+  /// StoreProduct → Supplement 변환
+  /// 스토어 상품을 캐비닛에 추가할 때 사용
+  Supplement toSupplement() {
+    return Supplement(
+      name: name,
+      brand: brand,
+      remaining: 0, // 등록 직후 수량은 0 — 사용자가 add_supplement에서 직접 입력
+      total: 0,
+      dailyDose: 1,
+      mealTiming: MealTiming.anytime,
+      nutrients: nutrients
+          .map(
+            (n) => Nutrient(
+              name: n.name,
+              value: n.amount,
+              unit: n.unit,
+              percent: n.dailyPercent,
+            ),
+          )
+          .toList(),
+      analysisGuide: description.isNotEmpty
+          ? description
+          : '이 영양제는 정해진 시간에 복용하는 것이 좋습니다.',
+      aiSummary: '리뷰를 분석 중입니다.',
+    );
+  }
 }
 
 class NutrientInfo {
   final String name;
   final double amount;
   final String unit;
-  final double dailyPercent;
+  final double dailyPercent; // 일일 권장량 대비 %
 
   const NutrientInfo({
     required this.name,
@@ -101,13 +133,68 @@ class SupplementDetailScreen extends StatefulWidget {
 
 class _SupplementDetailScreenState extends State<SupplementDetailScreen> {
   bool _contraExpanded = false;
+  bool _isPurchaseLoading = false;
+
+  /// 이미 캐비닛에 등록된 영양제인지 여부 (이름 기준 비교)
+  bool _isAlreadyInCabinet(BuildContext context) {
+    final supplements = SupplementProvider.of(context).supplements;
+    return supplements.any((s) => s.name == widget.product.name);
+  }
+
+  /// 캐비닛에 추가
+  void _addToCabinet(BuildContext context) {
+    final notifier = SupplementProvider.of(context);
+
+    // 이미 있으면 추가 안 함
+    if (_isAlreadyInCabinet(context)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('${widget.product.name}은(는) 이미 캐비닛에 있습니다.'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    notifier.addSupplement(widget.product.toSupplement());
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('${widget.product.name}을(를) 캐비닛에 추가했습니다!'),
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: AppColors.primary,
+        action: SnackBarAction(
+          label: '캐비닛 보기',
+          textColor: Colors.white,
+          onPressed: () => context.go('/cabinet'),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _launchPurchaseUrl(String url) async {
+    // TODO: url_launcher 패키지 연동
+    // final uri = Uri.tryParse(url);
+    // if (uri != null) await launchUrl(uri, mode: LaunchMode.externalApplication);
+    _showErrorSnackBar('구매 페이지 연결 기능 준비 중입니다.');
+  }
+
+  void _showErrorSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: AppColors.danger,
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     final p = widget.product;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF9FAFB),
+      backgroundColor: AppColors.scaffoldBg,
       body: CustomScrollView(
         slivers: [
           _buildAppBar(p),
@@ -132,7 +219,7 @@ class _SupplementDetailScreenState extends State<SupplementDetailScreen> {
     );
   }
 
-  // AppBar
+  // AppBar (이미지 영역 포함
   Widget _buildAppBar(StoreProduct p) {
     return SliverAppBar(
       expandedHeight: 260,
@@ -150,12 +237,12 @@ class _SupplementDetailScreenState extends State<SupplementDetailScreen> {
       ],
       flexibleSpace: FlexibleSpaceBar(
         background: Container(
-          color: const Color(0xFFF1F8E9),
+          color: AppColors.primaryFaint,
           child: const Center(
             child: Icon(
               Icons.medication_rounded,
               size: 100,
-              color: Color(0xFF4CAF50),
+              color: AppColors.primary,
             ),
           ),
         ),
@@ -184,7 +271,7 @@ class _SupplementDetailScreenState extends State<SupplementDetailScreen> {
             style: const TextStyle(
               fontSize: 22,
               fontWeight: FontWeight.bold,
-              color: Color(0xFF4CAF50),
+              color: AppColors.primary,
             ),
           ),
           const SizedBox(height: 16),
@@ -226,7 +313,7 @@ class _SupplementDetailScreenState extends State<SupplementDetailScreen> {
     // 100% 초과 시 바를 빨간색으로
     final isOver = n.dailyPercent > 1.0;
     final clampedPercent = n.dailyPercent.clamp(0.0, 1.5);
-    final barColor = isOver ? const Color(0xFFFF6B6B) : const Color(0xFF4CAF50);
+    final barColor = isOver ? AppColors.danger : AppColors.primary;
     final percentLabel = '${(n.dailyPercent * 100).toStringAsFixed(0)}%';
 
     return Padding(
@@ -257,8 +344,8 @@ class _SupplementDetailScreenState extends State<SupplementDetailScreen> {
                     ),
                     decoration: BoxDecoration(
                       color: isOver
-                          ? const Color(0xFFFFEBEB)
-                          : const Color(0xFFE8F5E9),
+                          ? AppColors.dangerBg
+                          : AppColors.primaryLight,
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: Text(
@@ -266,9 +353,7 @@ class _SupplementDetailScreenState extends State<SupplementDetailScreen> {
                       style: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.bold,
-                        color: isOver
-                            ? const Color(0xFFFF6B6B)
-                            : const Color(0xFF4CAF50),
+                        color: isOver ? AppColors.danger : AppColors.primary,
                       ),
                     ),
                   ),
@@ -357,7 +442,7 @@ class _SupplementDetailScreenState extends State<SupplementDetailScreen> {
                       _contraExpanded ? '접기' : '${items.length - 1}개 더 보기',
                       style: const TextStyle(
                         fontSize: 13,
-                        color: Color(0xFF4CAF50),
+                        color: AppColors.primary,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -366,7 +451,7 @@ class _SupplementDetailScreenState extends State<SupplementDetailScreen> {
                           ? Icons.keyboard_arrow_up
                           : Icons.keyboard_arrow_down,
                       size: 18,
-                      color: const Color(0xFF4CAF50),
+                      color: AppColors.primary,
                     ),
                   ],
                 ),
@@ -386,7 +471,7 @@ class _SupplementDetailScreenState extends State<SupplementDetailScreen> {
         children: [
           const Padding(
             padding: EdgeInsets.only(top: 3),
-            child: Icon(Icons.block, size: 15, color: Color(0xFFFF6B6B)),
+            child: Icon(Icons.block, size: 15, color: AppColors.danger),
           ),
           const SizedBox(width: 8),
           Expanded(
@@ -418,7 +503,14 @@ class _SupplementDetailScreenState extends State<SupplementDetailScreen> {
               itemBuilder: (context, index) {
                 final sp = products[index];
                 return GestureDetector(
-                  onTap: () => context.push('/store/detail', extra: sp),
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => SupplementDetailScreen(product: sp),
+                      ),
+                    );
+                  },
                   child: Container(
                     width: 120,
                     decoration: BoxDecoration(
@@ -433,12 +525,12 @@ class _SupplementDetailScreenState extends State<SupplementDetailScreen> {
                           width: 56,
                           height: 56,
                           decoration: const BoxDecoration(
-                            color: Color(0xFFF1F8E9),
+                            color: AppColors.primaryFaint,
                             shape: BoxShape.circle,
                           ),
                           child: const Icon(
                             Icons.medication_rounded,
-                            color: Color(0xFF4CAF50),
+                            color: AppColors.primary,
                             size: 28,
                           ),
                         ),
@@ -461,7 +553,7 @@ class _SupplementDetailScreenState extends State<SupplementDetailScreen> {
                           '${_formatPrice(sp.price)}원',
                           style: const TextStyle(
                             fontSize: 12,
-                            color: Color(0xFF4CAF50),
+                            color: AppColors.primary,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
@@ -478,6 +570,8 @@ class _SupplementDetailScreenState extends State<SupplementDetailScreen> {
   }
 
   Widget _buildBottomBar(StoreProduct p) {
+    final bool alreadyAdded = _isAlreadyInCabinet(context);
+
     return Container(
       padding: EdgeInsets.only(
         left: 16,
@@ -497,50 +591,110 @@ class _SupplementDetailScreenState extends State<SupplementDetailScreen> {
       ),
       child: Row(
         children: [
-          // 장바구니 담기
+          // ── 장바구니 ───────────────────────────────────────
           Expanded(
             child: OutlinedButton(
               style: OutlinedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(vertical: 16),
-                side: const BorderSide(color: Color(0xFF4CAF50)),
+                side: const BorderSide(color: AppColors.primary),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(14),
                 ),
               ),
-              onPressed: () {
-                context.push('/store/basket');
-              },
+              onPressed: () => context.push('/store/basket'),
               child: const Text(
                 '장바구니',
                 style: TextStyle(
-                  color: Color(0xFF4CAF50),
+                  color: AppColors.primary,
                   fontWeight: FontWeight.bold,
-                  fontSize: 16,
+                  fontSize: 14,
                 ),
               ),
             ),
           ),
-          const SizedBox(width: 10),
-          // 바로 구매
+          const SizedBox(width: 8),
+
+          // ── 캐비닛에 추가 ──────────────────────────────────
           Expanded(
-            flex: 2,
+            child: OutlinedButton(
+              style: OutlinedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                backgroundColor: alreadyAdded
+                    ? AppColors.primaryLight
+                    : Colors.white,
+                side: BorderSide(
+                  color: alreadyAdded
+                      ? AppColors.primary
+                      : Colors.grey.shade300,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+              onPressed: () => _addToCabinet(context),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    alreadyAdded
+                        ? Icons.check_circle_rounded
+                        : Icons.add_circle_outline_rounded,
+                    size: 16,
+                    color: alreadyAdded
+                        ? AppColors.primary
+                        : Colors.grey.shade500,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    alreadyAdded ? '추가됨' : '내 캐비닛',
+                    style: TextStyle(
+                      color: alreadyAdded
+                          ? AppColors.primary
+                          : Colors.grey.shade600,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+
+          // ── 바로 구매 ──────────────────────────────────────
+          Expanded(
             child: ElevatedButton(
               style: ElevatedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(vertical: 16),
-                backgroundColor: const Color(0xFF4CAF50),
+                backgroundColor: p.purchaseUrl != null
+                    ? AppColors.primary
+                    : Colors.grey[300],
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(14),
                 ),
                 elevation: 0,
               ),
-              onPressed: () {
-                // TODO: 네이버 스토어 등 외부 구매 페이지 연동
-              },
-              child: const Text(
-                '바로 구매',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-              ),
+              onPressed: p.purchaseUrl != null && !_isPurchaseLoading
+                  ? () => _launchPurchaseUrl(p.purchaseUrl!)
+                  : null,
+              child: _isPurchaseLoading
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : Text(
+                      p.purchaseUrl != null ? '바로 구매' : '구매 링크\n없음',
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                      ),
+                    ),
             ),
           ),
         ],
@@ -570,7 +724,7 @@ class _SupplementDetailScreenState extends State<SupplementDetailScreen> {
   Widget _sectionTitle(String title, {required IconData icon}) {
     return Row(
       children: [
-        Icon(icon, size: 20, color: const Color(0xFF4CAF50)),
+        Icon(icon, size: 20, color: AppColors.primary),
         const SizedBox(width: 8),
         Text(
           title,
