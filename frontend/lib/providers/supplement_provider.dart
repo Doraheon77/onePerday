@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:simcap/core/constant/app_constants.dart';
 import 'package:simcap/features/cabinet/domain/dataModels/supplement_model.dart';
 
 // 복용 기록 모델
@@ -8,6 +9,72 @@ class DoseRecord {
   final DateTime date; // 복용한 날짜 (시간은 무시, 날짜만 비교)
 
   const DoseRecord({required this.supplementName, required this.date});
+}
+
+// 구매 기록 아이템
+class PurchaseItem {
+  final String name; // 상품명
+  final String brand; // 브랜드
+  final int price; // 단가
+  final int count; // 수량
+
+  const PurchaseItem({
+    required this.name,
+    required this.brand,
+    required this.price,
+    required this.count,
+  });
+
+  int get totalPrice => price * count;
+}
+
+// 구매 기록 모델
+enum PurchaseStatus {
+  ordered, // 주문 완료
+  shipping, // 배송 중
+  delivered, // 배송 완료
+  cancelled, // 취소
+}
+
+extension PurchaseStatusExtension on PurchaseStatus {
+  String get label {
+    switch (this) {
+      case PurchaseStatus.ordered:
+        return '주문 완료';
+      case PurchaseStatus.shipping:
+        return '배송 중';
+      case PurchaseStatus.delivered:
+        return '배송 완료';
+      case PurchaseStatus.cancelled:
+        return '취소됨';
+    }
+  }
+
+  bool get isActive =>
+      this == PurchaseStatus.ordered || this == PurchaseStatus.shipping;
+}
+
+class PurchaseRecord {
+  final String id; // 주문 ID (타임스탬프 기반)
+  final List<PurchaseItem> items; // 주문 상품 목록
+  final int totalPrice;
+  final DateTime orderedAt;
+  PurchaseStatus status;
+
+  PurchaseRecord({
+    required this.id,
+    required this.items,
+    required this.totalPrice,
+    required this.orderedAt,
+    this.status = PurchaseStatus.ordered,
+  });
+
+  /// 주문 내 대표 상품명 (첫 번째 상품명 + 외 N건)
+  String get displayTitle {
+    if (items.isEmpty) return '상품 없음';
+    if (items.length == 1) return items.first.name;
+    return '${items.first.name} 외 ${items.length - 1}건';
+  }
 }
 
 // SupplementProvider — 앱 전역 영양제 상태 관리
@@ -72,10 +139,18 @@ class SupplementNotifier extends ChangeNotifier {
   // 날짜별 복용 기록 (오늘 복용 여부 판단에 사용)
   final List<DoseRecord> _doseHistory = [];
 
+  // ── 구매 기록 ─────────────────────────────────────────────────────────
+  // TODO: 백엔드 연동 후 API 응답으로 초기화
+  final List<PurchaseRecord> _purchases = [];
+
   List<Supplement> get supplements => List.unmodifiable(_supplements);
 
   /// 오늘 복용해야 할 영양제 목록 (전체)
   List<Supplement> get todaySupplements => List.unmodifiable(_supplements);
+
+  /// 구매 기록 목록 (최신순)
+  List<PurchaseRecord> get purchases =>
+      List.unmodifiable(_purchases.reversed.toList());
 
   // 복용 여부 조회
   int get undoneCount => _supplements.where((s) => !isDoneToday(s.name)).length;
@@ -162,6 +237,31 @@ class SupplementNotifier extends ChangeNotifier {
   void removeSupplement(String name) {
     _supplements.removeWhere((s) => s.name == name);
     _doseHistory.removeWhere((r) => r.supplementName == name);
+    notifyListeners();
+  }
+
+  // ── 구매 기록 CRUD ────────────────────────────────────────────────────
+
+  /// 장바구니 아이템으로 구매 기록 생성 및 저장
+  /// basket_screen의 "주문하기" 버튼에서 호출
+  PurchaseRecord addPurchase(List<PurchaseItem> items) {
+    final record = PurchaseRecord(
+      id: 'ORD-${DateTime.now().millisecondsSinceEpoch}',
+      items: items,
+      totalPrice: items.fold(0, (sum, i) => sum + i.totalPrice),
+      orderedAt: DateTime.now(),
+      status: PurchaseStatus.ordered,
+    );
+    _purchases.add(record);
+    notifyListeners();
+    return record;
+  }
+
+  /// 구매 상태 업데이트 (백엔드 연동 후 폴링/웹소켓으로 교체)
+  void updatePurchaseStatus(String orderId, PurchaseStatus status) {
+    final idx = _purchases.indexWhere((p) => p.id == orderId);
+    if (idx == -1) return;
+    _purchases[idx].status = status;
     notifyListeners();
   }
 

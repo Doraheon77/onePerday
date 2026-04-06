@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:simcap/core/constant/app_constants.dart';
+import 'package:simcap/providers/supplement_provider.dart';
 
-// ── 검사 결과 데이터 모델 ────────────────────────────────────────────────────
+// 검사 결과 데이터 모델
 
 enum _CheckStatus { safe, warning, danger }
 
@@ -71,9 +73,174 @@ class _BasketScreenState extends State<BasketScreen> {
   bool _isContraLoading = false;
   bool _isOverdoseLoading = false;
 
+  // 주문 처리 중 중복 탭 방지
+  bool _isOrdering = false;
+
   // 검사 결과 (null = 아직 검사 안 함)
   List<_ContraindicationResult>? _contraResults;
   List<_OverdoseResult>? _overdoseResults;
+
+  // 주문하기
+  Future<void> _placeOrder(BuildContext context) async {
+    if (_isOrdering) return;
+
+    final checkedItems = _cartItems.where((i) => i['checked'] == true).toList();
+    if (checkedItems.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('주문할 상품을 선택해주세요.'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    setState(() => _isOrdering = true);
+
+    // 장바구니 아이템 → PurchaseItem 변환
+    final purchaseItems = checkedItems
+        .map(
+          (i) => PurchaseItem(
+            name: i['name'] as String,
+            brand: i['brand'] as String,
+            price: i['price'] as int,
+            count: i['count'] as int,
+          ),
+        )
+        .toList();
+
+    // Provider에 구매 기록 저장
+    final record = SupplementProvider.of(context).addPurchase(purchaseItems);
+
+    setState(() => _isOrdering = false);
+
+    if (mounted) _showOrderCompleteDialog(context, record);
+  }
+
+  void _showOrderCompleteDialog(BuildContext context, PurchaseRecord record) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        contentPadding: const EdgeInsets.fromLTRB(24, 28, 24, 20),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 64,
+              height: 64,
+              decoration: const BoxDecoration(
+                color: AppColors.primaryLight,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.check_circle_rounded,
+                color: AppColors.primary,
+                size: 36,
+              ),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              '주문이 완료되었습니다!',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              record.id,
+              style: TextStyle(
+                fontSize: 11,
+                color: Colors.grey[400],
+                fontFamily: 'monospace',
+              ),
+            ),
+            const SizedBox(height: 16),
+            // 주문 요약 카드
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: AppColors.scaffoldBg,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppColors.border),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  ...record.items.map(
+                    (item) => Padding(
+                      padding: const EdgeInsets.only(bottom: 6),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            child: Text(
+                              '${item.name} × ${item.count}',
+                              style: const TextStyle(fontSize: 13),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          Text(
+                            '${_formatPrice(item.totalPrice)}원',
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const Divider(height: 16),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        '총 결제',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      Text(
+                        '${_formatPrice(record.totalPrice)}원',
+                        style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              context.go('/profile');
+            },
+            child: const Text('구매 기록 보기', style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+              elevation: 0,
+            ),
+            onPressed: () {
+              Navigator.pop(context);
+              context.pop();
+            },
+            child: const Text('확인'),
+          ),
+        ],
+      ),
+    );
+  }
 
   // 더미 검사 로직 (백엔드 연동 전)
   Future<void> _runContraCheck() async {
@@ -676,11 +843,23 @@ class _BasketScreenState extends State<BasketScreen> {
                     borderRadius: BorderRadius.circular(16),
                   ),
                 ),
-                onPressed: () {},
-                child: const Text(
-                  '주문하기',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
+                onPressed: _isOrdering ? null : () => _placeOrder(context),
+                child: _isOrdering
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Text(
+                        '주문하기',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
               ),
             ),
           ],
