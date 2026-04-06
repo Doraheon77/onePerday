@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:simcap/core/constant/app_constants.dart';
+import 'package:simcap/features/store/data/store_product_data.dart';
 import 'package:simcap/features/store/presentation/supplement_detail_screen.dart';
 
 class StoreScreen extends StatefulWidget {
@@ -19,7 +21,7 @@ class _StoreScreenState extends State<StoreScreen> {
   Timer? _bannerTimer;
 
   final List<Map<String, dynamic>> _banners = [
-    {'title': '신규 브랜드 입점\n전품목 20% 할인', 'color': const Color(0xFF2E7D32)},
+    {'title': '신규 브랜드 입점\n전품목 20% 할인', 'color': AppColors.primaryDark},
     {'title': '환절기 면역력 강화\n비타민D 특별전', 'color': const Color(0xFF1976D2)},
     {'title': '첫 구매 고객님께 드리는\n무료 배송 쿠폰', 'color': const Color(0xFFF57C00)},
   ];
@@ -159,9 +161,7 @@ class _StoreScreenState extends State<StoreScreen> {
               height: 6,
               width: isCurrent ? 18 : 6,
               decoration: BoxDecoration(
-                color: isCurrent
-                    ? const Color(0xFF4CAF50)
-                    : Colors.grey.shade300,
+                color: isCurrent ? AppColors.primary : Colors.grey.shade300,
                 borderRadius: BorderRadius.circular(3),
               ),
             );
@@ -177,10 +177,11 @@ class _StoreScreenState extends State<StoreScreen> {
       child: ListView.builder(
         padding: const EdgeInsets.symmetric(horizontal: 12),
         scrollDirection: Axis.horizontal,
-        itemCount: 5,
+        itemCount: recommendProducts.length,
         itemBuilder: (context, index) {
+          final product = recommendProducts[index];
           return GestureDetector(
-            onTap: () => context.push('/store/detail', extra: dummyProduct),
+            onTap: () => context.push('/store/detail', extra: product),
             child: Container(
               width: 140,
               margin: const EdgeInsets.symmetric(horizontal: 4),
@@ -196,29 +197,35 @@ class _StoreScreenState extends State<StoreScreen> {
                     width: 56,
                     height: 56,
                     decoration: const BoxDecoration(
-                      color: Color(0xFFF1F8E9),
+                      color: AppColors.primaryFaint,
                       shape: BoxShape.circle,
                     ),
                     child: const Icon(
                       Icons.medication_rounded,
-                      color: Color(0xFF4CAF50),
+                      color: AppColors.primary,
                       size: 28,
                     ),
                   ),
                   const SizedBox(height: 8),
-                  Text(
-                    '추천 영양제 ${index + 1}',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    child: Text(
+                      product.name,
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      textAlign: TextAlign.center,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
                   const SizedBox(height: 4),
-                  const Text(
-                    '28,000원',
-                    style: TextStyle(
+                  Text(
+                    '${_formatPrice(product.price)}원',
+                    style: const TextStyle(
                       fontSize: 12,
-                      color: Color(0xFF4CAF50),
+                      color: AppColors.primary,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -249,12 +256,12 @@ class _StoreScreenState extends State<StoreScreen> {
           return Column(
             children: [
               CircleAvatar(
-                backgroundColor: const Color(0xFFE8F5E9),
+                backgroundColor: AppColors.primaryLight,
                 radius: 28,
                 child: const Icon(
                   Icons.card_giftcard,
                   size: 24,
-                  color: Color(0xFF4CAF50),
+                  color: AppColors.primary,
                 ),
               ),
               const SizedBox(height: 8),
@@ -288,7 +295,7 @@ class _StoreScreenState extends State<StoreScreen> {
                   selected: isSelected,
                   onSelected: (val) =>
                       setState(() => _selectedRankCategory = cat),
-                  selectedColor: const Color(0xFF4CAF50),
+                  selectedColor: AppColors.primary,
                   labelStyle: TextStyle(
                     color: isSelected ? Colors.white : Colors.black87,
                     fontWeight: isSelected
@@ -315,8 +322,8 @@ class _StoreScreenState extends State<StoreScreen> {
                   onSelected: (val) =>
                       setState(() => _selectedPriceRange = price),
                   shape: const StadiumBorder(),
-                  selectedColor: const Color(0xFFE8F5E9),
-                  checkmarkColor: const Color(0xFF4CAF50),
+                  selectedColor: AppColors.primaryLight,
+                  checkmarkColor: AppColors.primary,
                 ),
               );
             }).toList(),
@@ -327,33 +334,54 @@ class _StoreScreenState extends State<StoreScreen> {
   }
 
   Widget _buildRankingList() {
+    final products = rankingProducts;
     return ListView.separated(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      itemCount: 3,
+      itemCount: products.length,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      separatorBuilder: (_, __) => const Divider(),
+      separatorBuilder: (_, __) => const Divider(height: 1),
       itemBuilder: (context, index) {
+        final product = products[index];
+        final rank = index + 1;
+        // 상위 3위 강조색
+        final rankColor = rank == 1
+            ? const Color(0xFFFFB300)
+            : rank == 2
+            ? const Color(0xFF9E9E9E)
+            : rank == 3
+            ? const Color(0xFF8D6E63)
+            : AppColors.primary;
+
         return ListTile(
-          contentPadding: EdgeInsets.zero,
-          onTap: () => context.push('/store/detail', extra: dummyProduct),
-          leading: Container(
-            width: 32,
-            alignment: Alignment.center,
-            child: Text(
-              '${index + 1}',
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF4CAF50),
-              ),
+          contentPadding: const EdgeInsets.symmetric(vertical: 6),
+          onTap: () => context.push('/store/detail', extra: product),
+          leading: SizedBox(
+            width: 40,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  '$rank',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: rankColor,
+                  ),
+                ),
+              ],
             ),
           ),
           title: Text(
-            '인기 영양제 ${index + 1}',
-            style: const TextStyle(fontWeight: FontWeight.w600),
+            product.name,
+            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
-          subtitle: const Text('브랜드 이름', style: TextStyle(fontSize: 13)),
+          subtitle: Text(
+            '${product.brand}  ·  ${_formatPrice(product.price)}원',
+            style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+          ),
           trailing: const Icon(
             Icons.arrow_forward_ios,
             size: 14,
@@ -361,6 +389,13 @@ class _StoreScreenState extends State<StoreScreen> {
           ),
         );
       },
+    );
+  }
+
+  String _formatPrice(int price) {
+    return price.toString().replaceAllMapped(
+      RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+      (m) => '${m[1]},',
     );
   }
 }
