@@ -38,7 +38,13 @@ class AppRouter {
             routes: [
               GoRoute(
                 path: 'search',
-                builder: (context, state) => const SearchScreen(),
+                builder: (context, state) {
+                  // extra로 초기 검색어 전달 가능 (선물 카테고리 탭 등)
+                  final keyword = state.extra is String
+                      ? state.extra as String
+                      : '';
+                  return SearchScreen(initialKeyword: keyword);
+                },
               ),
               GoRoute(
                 path: 'basket',

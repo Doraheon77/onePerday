@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:simcap/core/constant/app_constants.dart';
 import 'package:simcap/features/cabinet/domain/dataModels/supplement_model.dart';
 import 'package:simcap/providers/supplement_provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 // 스토어 상품 데이터 모델
 // TODO: 백엔드 연동 후 API 응답 모델로 교체
@@ -204,10 +205,29 @@ class _SupplementDetailScreenState extends State<SupplementDetailScreen> {
   }
 
   Future<void> _launchPurchaseUrl(String url) async {
-    // TODO: url_launcher 패키지 연동
-    // final uri = Uri.tryParse(url);
-    // if (uri != null) await launchUrl(uri, mode: LaunchMode.externalApplication);
-    _showErrorSnackBar('구매 페이지 연결 기능 준비 중입니다.');
+    // URL 파싱
+    final uri = Uri.tryParse(url);
+    if (uri == null) {
+      _showErrorSnackBar('올바르지 않은 URL입니다.');
+      return;
+    }
+
+    setState(() => _isPurchaseLoading = true);
+
+    try {
+      // 앱에서 열 수 있는지 먼저 확인
+      final canLaunch = await canLaunchUrl(uri);
+      if (!canLaunch) {
+        if (mounted) _showErrorSnackBar('구매 페이지를 열 수 없습니다.');
+        return;
+      }
+      // 외부 브라우저(기기 기본 브라우저)로 열기
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } catch (e) {
+      if (mounted) _showErrorSnackBar('구매 페이지 연결에 실패했습니다.');
+    } finally {
+      if (mounted) setState(() => _isPurchaseLoading = false);
+    }
   }
 
   void _showErrorSnackBar(String message) {
@@ -700,7 +720,7 @@ class _SupplementDetailScreenState extends State<SupplementDetailScreen> {
           ),
           const SizedBox(width: 8),
 
-          // 캐비닛에 추가
+          // 캐비닛 추가
           Expanded(
             child: OutlinedButton(
               style: OutlinedButton.styleFrom(
@@ -747,7 +767,6 @@ class _SupplementDetailScreenState extends State<SupplementDetailScreen> {
           ),
           const SizedBox(width: 8),
 
-          // 바로 구매
           Expanded(
             child: ElevatedButton(
               style: ElevatedButton.styleFrom(

@@ -239,7 +239,18 @@ class _StoreScreenState extends State<StoreScreen> {
   }
 
   Widget _buildGiftCategories() {
-    final categories = ['부모님', '수험생', '운동매니아', '직장인'];
+    // 카테고리명과 검색 키워드 매핑
+    final categories = [
+      {'label': '부모님', 'keyword': '관절 눈 건강', 'icon': Icons.favorite_outline},
+      {'label': '수험생', 'keyword': '집중력 비타민B', 'icon': Icons.school_outlined},
+      {
+        'label': '운동매니아',
+        'keyword': '단백질 마그네슘',
+        'icon': Icons.fitness_center_outlined,
+      },
+      {'label': '직장인', 'keyword': '피로 눈 건강', 'icon': Icons.work_outline},
+    ];
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: GridView.builder(
@@ -253,26 +264,33 @@ class _StoreScreenState extends State<StoreScreen> {
         ),
         itemCount: categories.length,
         itemBuilder: (context, index) {
-          return Column(
-            children: [
-              CircleAvatar(
-                backgroundColor: AppColors.primaryLight,
-                radius: 28,
-                child: const Icon(
-                  Icons.card_giftcard,
-                  size: 24,
-                  color: AppColors.primary,
+          final cat = categories[index];
+          return GestureDetector(
+            onTap: () => context.push(
+              '/store/search',
+              extra: cat['keyword'], // 검색어 전달
+            ),
+            child: Column(
+              children: [
+                CircleAvatar(
+                  backgroundColor: AppColors.primaryLight,
+                  radius: 28,
+                  child: Icon(
+                    cat['icon'] as IconData,
+                    size: 24,
+                    color: AppColors.primary,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                categories[index],
-                style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
+                const SizedBox(height: 8),
+                Text(
+                  cat['label'] as String,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           );
         },
       ),

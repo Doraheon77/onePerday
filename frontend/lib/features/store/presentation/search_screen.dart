@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:simcap/core/constant/app_constants.dart';
+import 'package:simcap/features/store/data/store_product_data.dart';
+import 'package:simcap/features/store/presentation/supplement_detail_screen.dart';
 
+// 필터 데이터
 class _FilterOption {
   final String label;
-  final String? icon;
-  const _FilterOption(this.label, {this.icon});
+  const _FilterOption(this.label);
 }
 
 const _categories = [
@@ -41,7 +44,10 @@ const _priceRanges = [
 ];
 
 class SearchScreen extends StatefulWidget {
-  const SearchScreen({super.key});
+  /// 외부에서 진입 시 초기 검색어 설정 (선물 카테고리 탭 등)
+  final String initialKeyword;
+
+  const SearchScreen({super.key, this.initialKeyword = ''});
 
   @override
   State<SearchScreen> createState() => _SearchScreenState();
@@ -49,7 +55,8 @@ class SearchScreen extends StatefulWidget {
 
 class _SearchScreenState extends State<SearchScreen> {
   final TextEditingController _searchController = TextEditingController();
-  bool _isSearching = false; // 검색어 입력 중 여부
+  bool _isSearching = false;
+  String _searchQuery = '';
 
   // 선택된 필터 상태
   final Set<String> _selectedCategories = {};
@@ -71,7 +78,6 @@ class _SearchScreenState extends State<SearchScreen> {
     '남성용 활력제',
   ];
 
-  // 활성 필터 총 개수 (배지용)
   int get _activeFilterCount =>
       _selectedCategories.length +
       _selectedIngredients.length +
@@ -80,10 +86,16 @@ class _SearchScreenState extends State<SearchScreen> {
   @override
   void initState() {
     super.initState();
+    // 초기 검색어가 있으면 진입 즉시 검색 상태로 설정
+    if (widget.initialKeyword.isNotEmpty) {
+      _searchController.text = widget.initialKeyword;
+      _isSearching = true;
+      _searchQuery = widget.initialKeyword;
+    }
     _searchController.addListener(() {
-      final isSearching = _searchController.text.isNotEmpty;
-      if (isSearching != _isSearching) {
-        setState(() => _isSearching = isSearching);
+      final searching = _searchController.text.isNotEmpty;
+      if (searching != _isSearching) {
+        setState(() => _isSearching = searching);
       }
     });
   }
@@ -128,9 +140,7 @@ class _SearchScreenState extends State<SearchScreen> {
             child: _isSearching ? _buildFilterPanel() : const SizedBox.shrink(),
           ),
           Expanded(
-            child: _isSearching
-                ? _buildSearchResultPlaceholder()
-                : _buildDiscoveryView(),
+            child: _isSearching ? _buildSearchResults() : _buildDiscoveryView(),
           ),
         ],
       ),
@@ -152,7 +162,6 @@ class _SearchScreenState extends State<SearchScreen> {
           hintText: '영양제나 브랜드를 검색해 보세요',
           hintStyle: const TextStyle(fontSize: 14, color: Colors.grey),
           border: InputBorder.none,
-          // 활성 필터 개수 배지
           suffixIcon: _activeFilterCount > 0
               ? Padding(
                   padding: const EdgeInsets.only(right: 4),
@@ -161,42 +170,45 @@ class _SearchScreenState extends State<SearchScreen> {
                       '필터 $_activeFilterCount',
                       style: const TextStyle(
                         fontSize: 11,
-                        color: Color(0xFF4CAF50),
+                        color: AppColors.primary,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                    backgroundColor: const Color(0xFFE8F5E9),
+                    backgroundColor: AppColors.primaryLight,
                     side: BorderSide.none,
                     padding: EdgeInsets.zero,
                     deleteIcon: const Icon(
                       Icons.close,
                       size: 13,
-                      color: Color(0xFF4CAF50),
+                      color: AppColors.primary,
                     ),
                     onDeleted: _clearAllFilters,
                   ),
                 )
               : null,
         ),
+        onChanged: (v) => setState(() => _searchQuery = v),
         onSubmitted: _submitSearch,
       ),
       actions: [
         if (_searchController.text.isNotEmpty)
           IconButton(
             icon: const Icon(Icons.close, color: Colors.grey),
-            onPressed: () => setState(() => _searchController.clear()),
+            onPressed: () => setState(() {
+              _searchController.clear();
+              _searchQuery = '';
+            }),
           ),
       ],
     );
   }
 
-  // 필터 패널 (검색어 입력 시 표시)
+  // 필터 패널
   Widget _buildFilterPanel() {
     return Container(
-      color: const Color(0xFFF9FAFB),
+      color: AppColors.scaffoldBg,
       child: Column(
         children: [
-          // 카테고리
           _buildFilterRow(
             label: '카테고리',
             options: _categories,
@@ -208,7 +220,6 @@ class _SearchScreenState extends State<SearchScreen> {
             }),
           ),
           const Divider(height: 1, indent: 16, endIndent: 16),
-          // 주요 성분
           _buildFilterRow(
             label: '주요 성분',
             options: _ingredients,
@@ -220,7 +231,6 @@ class _SearchScreenState extends State<SearchScreen> {
             }),
           ),
           const Divider(height: 1, indent: 16, endIndent: 16),
-          // 가격대 (단일 선택)
           _buildFilterRow(
             label: '가격대',
             options: _priceRanges,
@@ -228,7 +238,6 @@ class _SearchScreenState extends State<SearchScreen> {
             onTap: (label) => setState(() {
               _selectedPriceRange = _selectedPriceRange == label ? null : label;
             }),
-            singleSelect: true,
           ),
         ],
       ),
@@ -240,14 +249,12 @@ class _SearchScreenState extends State<SearchScreen> {
     required List<_FilterOption> options,
     required Set<String> selected,
     required void Function(String) onTap,
-    bool singleSelect = false,
   }) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 10),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          // 라벨
           SizedBox(
             width: 64,
             child: Padding(
@@ -262,7 +269,6 @@ class _SearchScreenState extends State<SearchScreen> {
               ),
             ),
           ),
-          // 칩 스크롤
           Expanded(
             child: SingleChildScrollView(
               scrollDirection: Axis.horizontal,
@@ -281,13 +287,11 @@ class _SearchScreenState extends State<SearchScreen> {
                           vertical: 6,
                         ),
                         decoration: BoxDecoration(
-                          color: isSelected
-                              ? const Color(0xFF4CAF50)
-                              : Colors.white,
+                          color: isSelected ? AppColors.primary : Colors.white,
                           borderRadius: BorderRadius.circular(20),
                           border: Border.all(
                             color: isSelected
-                                ? const Color(0xFF4CAF50)
+                                ? AppColors.primary
                                 : Colors.grey.shade300,
                             width: isSelected ? 1.5 : 1,
                           ),
@@ -314,69 +318,314 @@ class _SearchScreenState extends State<SearchScreen> {
     );
   }
 
-  // 검색 결과 자리 (백엔드 연동 전 플레이스홀더)
-  Widget _buildSearchResultPlaceholder() {
-    final bool hasFilters = _activeFilterCount > 0;
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.search, size: 56, color: Colors.grey[300]),
-          const SizedBox(height: 16),
-          Text(
-            '"${_searchController.text}" 검색',
-            style: const TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.w600,
-              color: Colors.black54,
-            ),
+  // 상품 카드
+  Widget _buildSearchResults() {
+    // 이름·브랜드·성분 기준 필터링
+    final results = filterByKeyword(_searchQuery);
+
+    // 활성 필터 헤더 (필터 선택 시 표시)
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // 결과 카운트 + 활성 필터 칩 행
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+          child: Row(
+            children: [
+              Text(
+                '총 ${results.length}개',
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                ),
+              ),
+              const SizedBox(width: 8),
+              // 활성 필터 칩
+              Expanded(
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children:
+                        [
+                              ..._selectedCategories,
+                              ..._selectedIngredients,
+                              if (_selectedPriceRange != null)
+                                _selectedPriceRange!,
+                            ]
+                            .map(
+                              (f) => Padding(
+                                padding: const EdgeInsets.only(right: 6),
+                                child: GestureDetector(
+                                  onTap: () => setState(() {
+                                    _selectedCategories.remove(f);
+                                    _selectedIngredients.remove(f);
+                                    if (_selectedPriceRange == f) {
+                                      _selectedPriceRange = null;
+                                    }
+                                  }),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 10,
+                                      vertical: 4,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.primaryLight,
+                                      borderRadius: BorderRadius.circular(99),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Text(
+                                          f,
+                                          style: const TextStyle(
+                                            fontSize: 11,
+                                            color: AppColors.primary,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 4),
+                                        const Icon(
+                                          Icons.close,
+                                          size: 11,
+                                          color: AppColors.primary,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            )
+                            .toList(),
+                  ),
+                ),
+              ),
+            ],
           ),
-          if (hasFilters) ...[
-            const SizedBox(height: 8),
-            Wrap(
-              alignment: WrapAlignment.center,
-              spacing: 6,
-              runSpacing: 4,
-              children:
-                  [
-                        ..._selectedCategories,
-                        ..._selectedIngredients,
-                        if (_selectedPriceRange != null) _selectedPriceRange!,
-                      ]
-                      .map(
-                        (f) => Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 3,
-                          ),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFE8F5E9),
-                            borderRadius: BorderRadius.circular(99),
-                          ),
-                          child: Text(
-                            f,
-                            style: const TextStyle(
-                              fontSize: 11,
-                              color: Color(0xFF4CAF50),
-                              fontWeight: FontWeight.w600,
+        ),
+        const Divider(height: 1),
+        // 결과 목록
+        Expanded(
+          child: results.isEmpty
+              ? _buildEmptyResult()
+              : ListView.separated(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  itemCount: results.length,
+                  separatorBuilder: (_, __) =>
+                      const Divider(height: 1, indent: 80),
+                  itemBuilder: (context, index) =>
+                      _buildProductCard(results[index]),
+                ),
+        ),
+      ],
+    );
+  }
+
+  // 상품 카드
+  Widget _buildProductCard(StoreProduct product) {
+    return InkWell(
+      onTap: () => context.push('/store/detail', extra: product),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Row(
+          children: [
+            // 상품 이미지
+            Container(
+              width: 60,
+              height: 60,
+              decoration: BoxDecoration(
+                color: AppColors.primaryFaint,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(
+                Icons.medication_rounded,
+                color: AppColors.primary,
+                size: 30,
+              ),
+            ),
+            const SizedBox(width: 14),
+            // 상품 정보
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    product.brand,
+                    style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+                  ),
+                  const SizedBox(height: 2),
+                  // 검색어 하이라이트
+                  _buildHighlightedText(product.name, _searchQuery),
+                  const SizedBox(height: 4),
+                  // 성분 태그 (최대 3개)
+                  if (product.nutrients.isNotEmpty)
+                    Wrap(
+                      spacing: 4,
+                      children: product.nutrients
+                          .take(3)
+                          .map(
+                            (n) => Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: AppColors.scaffoldBg,
+                                borderRadius: BorderRadius.circular(4),
+                                border: Border.all(color: AppColors.border),
+                              ),
+                              child: Text(
+                                n.name,
+                                style: const TextStyle(
+                                  fontSize: 10,
+                                  color: Colors.black54,
+                                ),
+                              ),
                             ),
-                          ),
-                        ),
-                      )
-                      .toList(),
+                          )
+                          .toList(),
+                    ),
+                ],
+              ),
+            ),
+            // 가격
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  '${_formatPrice(product.price)}원',
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.primary,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                const Icon(
+                  Icons.arrow_forward_ios,
+                  size: 12,
+                  color: Colors.grey,
+                ),
+              ],
             ),
           ],
-          const SizedBox(height: 12),
-          Text(
-            '검색 결과는 백엔드 연동 후 표시됩니다',
-            style: TextStyle(fontSize: 13, color: Colors.grey[400]),
+        ),
+      ),
+    );
+  }
+
+  // 검색어 하이라이트 텍스트
+  Widget _buildHighlightedText(String text, String query) {
+    if (query.isEmpty) {
+      return Text(
+        text,
+        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+      );
+    }
+
+    final lower = text.toLowerCase();
+    final queryLow = query.toLowerCase();
+    final matchIdx = lower.indexOf(queryLow);
+
+    if (matchIdx == -1) {
+      return Text(
+        text,
+        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+      );
+    }
+
+    return RichText(
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      text: TextSpan(
+        style: const TextStyle(
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+          color: Colors.black87,
+        ),
+        children: [
+          // 매칭 앞 부분
+          if (matchIdx > 0) TextSpan(text: text.substring(0, matchIdx)),
+          // 하이라이트 구간
+          TextSpan(
+            text: text.substring(matchIdx, matchIdx + query.length),
+            style: const TextStyle(
+              color: AppColors.primary,
+              fontWeight: FontWeight.bold,
+              backgroundColor: AppColors.primaryLight,
+            ),
           ),
+          // 매칭 뒤 부분
+          if (matchIdx + query.length < text.length)
+            TextSpan(text: text.substring(matchIdx + query.length)),
         ],
       ),
     );
   }
 
-  // 검색어 없을 때 - 최근 · 인기 검색어
+  // 검색 결과 없음
+  Widget _buildEmptyResult() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.search_off_rounded, size: 56, color: Colors.grey[300]),
+          const SizedBox(height: 16),
+          Text(
+            '"$_searchQuery" 검색 결과 없음',
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+              color: Colors.grey[400],
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            '다른 검색어를 입력하거나\n필터를 조정해보세요',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 13, color: Colors.grey[400]),
+          ),
+          if (_activeFilterCount > 0) ...[
+            const SizedBox(height: 16),
+            OutlinedButton.icon(
+              onPressed: _clearAllFilters,
+              style: OutlinedButton.styleFrom(
+                side: const BorderSide(color: AppColors.primary),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                ),
+              ),
+              icon: const Icon(
+                Icons.filter_alt_off_outlined,
+                size: 16,
+                color: AppColors.primary,
+              ),
+              label: const Text(
+                '필터 초기화',
+                style: TextStyle(
+                  color: AppColors.primary,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  String _formatPrice(int price) {
+    return price.toString().replaceAllMapped(
+      RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+      (m) => '${m[1]},',
+    );
+  }
+
+  // 검색어 없을 때 (최근 · 인기 검색어)
   Widget _buildDiscoveryView() {
     return SingleChildScrollView(
       child: Column(
@@ -471,7 +720,7 @@ class _SearchScreenState extends State<SearchScreen> {
                   '${index + 1}',
                   style: const TextStyle(
                     fontWeight: FontWeight.bold,
-                    color: Color(0xFF4CAF50),
+                    color: AppColors.primary,
                     fontSize: 15,
                   ),
                 ),
