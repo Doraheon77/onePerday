@@ -12,6 +12,8 @@ class AuthService {
 
   final GoogleSignIn _googleSignIn = GoogleSignIn(
     scopes: ['email'],
+    serverClientId:
+        '897685041022-b7bm315o2j3bqkq2thqm5j8mf5vcigkl.apps.googleusercontent.com',
   );
 
   Future<Map<String, dynamic>> signInWithGoogle() async {

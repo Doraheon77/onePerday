@@ -58,7 +58,7 @@ class MyApp extends StatelessWidget {
 final GoRouter _router = GoRouter(
   initialLocation: '/login',
   routes: [
-    GoRoute(path: '/login', builder: (context, state) => const LoginScreen()),
+    GoRoute(path: '/login', builder: (context, state) => LoginScreen()),
     GoRoute(
       path: '/onboarding',
       builder: (context, state) => const OnboardingSurveyScreen(),

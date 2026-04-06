@@ -1,0 +1,11 @@
+# Flutter (frontend)
+frontend/.dart_tool/
+frontend/build/
+
+# Node (backend)
+backend/node_modules/
+backend/.env
+
+# 공통
+.DS_Store
+*.log
