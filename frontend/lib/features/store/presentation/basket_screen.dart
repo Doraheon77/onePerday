@@ -48,23 +48,6 @@ class BasketScreen extends StatefulWidget {
 }
 
 class _BasketScreenState extends State<BasketScreen> {
-  final List<Map<String, dynamic>> _cartItems = [
-    {
-      'name': '멀티비타민 포 맨',
-      'brand': '심캡푸드',
-      'price': 25000,
-      'count': 1,
-      'checked': true,
-    },
-    {
-      'name': '고함량 오메가3',
-      'brand': '내추럴라이프',
-      'price': 32000,
-      'count': 2,
-      'checked': true,
-    },
-  ];
-
   // 검사 패널 표시 여부
   bool _showContraPanel = false;
   bool _showOverdosePanel = false;
@@ -84,7 +67,8 @@ class _BasketScreenState extends State<BasketScreen> {
   Future<void> _placeOrder(BuildContext context) async {
     if (_isOrdering) return;
 
-    final checkedItems = _cartItems.where((i) => i['checked'] == true).toList();
+    final notifier = SupplementProvider.of(context);
+    final checkedItems = notifier.cartItems.where((i) => i.checked).toList();
     if (checkedItems.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -98,19 +82,11 @@ class _BasketScreenState extends State<BasketScreen> {
     setState(() => _isOrdering = true);
 
     // 장바구니 아이템 → PurchaseItem 변환
-    final purchaseItems = checkedItems
-        .map(
-          (i) => PurchaseItem(
-            name: i['name'] as String,
-            brand: i['brand'] as String,
-            price: i['price'] as int,
-            count: i['count'] as int,
-          ),
-        )
-        .toList();
+    final purchaseItems = checkedItems.map((i) => i.toPurchaseItem()).toList();
 
     // Provider에 구매 기록 저장
-    final record = SupplementProvider.of(context).addPurchase(purchaseItems);
+    final record = notifier.addPurchase(purchaseItems);
+    notifier.clearCheckedCartItems(); // 주문된 항목 장바구니에서 제거
 
     setState(() => _isOrdering = false);
 
@@ -315,60 +291,77 @@ class _BasketScreenState extends State<BasketScreen> {
     });
   }
 
-  int get _checkedCount => _cartItems.where((i) => i['checked'] == true).length;
-
-  int get _totalPrice => _cartItems
-      .where((i) => i['checked'])
-      .fold(0, (sum, i) => sum + (i['price'] as int) * (i['count'] as int));
+  // _checkedCount / _totalPrice는 build() 안에서 notifier를 통해 직접 접근
 
   @override
   Widget build(BuildContext context) {
+    final notifier = SupplementProvider.of(context);
+    final cartItems = notifier.cartItems;
+
     return Scaffold(
-      backgroundColor: const Color(0xFFF9FAFB),
+      backgroundColor: AppColors.scaffoldBg,
       appBar: AppBar(
-        title: const Text(
-          '장바구니',
-          style: TextStyle(fontWeight: FontWeight.bold),
+        title: Text(
+          '장바구니${cartItems.isEmpty ? '' : ' (${cartItems.length})'}',
+          style: const TextStyle(fontWeight: FontWeight.bold),
         ),
         centerTitle: true,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => context.pop(),
         ),
+        actions: cartItems.isNotEmpty
+            ? [
+                TextButton(
+                  onPressed: () => notifier.setAllCartChecked(
+                    !cartItems.every((i) => i.checked),
+                  ),
+                  child: Text(
+                    cartItems.every((i) => i.checked) ? '전체 해제' : '전체 선택',
+                    style: const TextStyle(
+                      color: AppColors.primary,
+                      fontSize: 13,
+                    ),
+                  ),
+                ),
+              ]
+            : null,
       ),
       body: Column(
         children: [
           Expanded(
-            child: ListView(
-              children: [
-                // 장바구니 상품 목록
-                ..._cartItems.asMap().entries.map(
-                  (e) => _buildCartItem(e.value, e.key),
-                ),
+            child: cartItems.isEmpty
+                ? _buildEmptyCart()
+                : ListView(
+                    children: [
+                      // 장바구니 상품 목록
+                      ...cartItems.asMap().entries.map(
+                        (e) => _buildCartItem(e.value, e.key, notifier),
+                      ),
 
-                // 안전성 검사 섹션
-                if (_cartItems.isNotEmpty) ...[
-                  _buildCheckButtons(),
-                  // 병용금지 결과 패널
-                  AnimatedSize(
-                    duration: const Duration(milliseconds: 280),
-                    curve: Curves.easeOut,
-                    child: _showContraPanel
-                        ? _buildContraPanel()
-                        : const SizedBox.shrink(),
+                      // 안전성 검사 섹션
+                      if (cartItems.isNotEmpty) ...[
+                        _buildCheckButtons(),
+                        // 병용금지 결과 패널
+                        AnimatedSize(
+                          duration: const Duration(milliseconds: 280),
+                          curve: Curves.easeOut,
+                          child: _showContraPanel
+                              ? _buildContraPanel()
+                              : const SizedBox.shrink(),
+                        ),
+                        // 과다섭취 결과 패널
+                        AnimatedSize(
+                          duration: const Duration(milliseconds: 280),
+                          curve: Curves.easeOut,
+                          child: _showOverdosePanel
+                              ? _buildOverdosePanel()
+                              : const SizedBox.shrink(),
+                        ),
+                        const SizedBox(height: 16),
+                      ],
+                    ],
                   ),
-                  // 과다섭취 결과 패널
-                  AnimatedSize(
-                    duration: const Duration(milliseconds: 280),
-                    curve: Curves.easeOut,
-                    child: _showOverdosePanel
-                        ? _buildOverdosePanel()
-                        : const SizedBox.shrink(),
-                  ),
-                  const SizedBox(height: 16),
-                ],
-              ],
-            ),
           ),
           _buildPaymentSummary(),
         ],
@@ -377,7 +370,55 @@ class _BasketScreenState extends State<BasketScreen> {
   }
 
   // 장바구니 상품 카드
-  Widget _buildCartItem(Map<String, dynamic> item, int index) {
+  Widget _buildEmptyCart() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.shopping_cart_outlined, size: 64, color: Colors.grey[300]),
+          const SizedBox(height: 16),
+          Text(
+            '장바구니가 비어있습니다',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: Colors.grey[400],
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            '스토어에서 영양제를 담아보세요',
+            style: TextStyle(fontSize: 13, color: Colors.grey[400]),
+          ),
+          const SizedBox(height: 24),
+          OutlinedButton.icon(
+            onPressed: () => context.go('/store'),
+            style: OutlinedButton.styleFrom(
+              side: const BorderSide(color: AppColors.primary),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+            ),
+            icon: const Icon(
+              Icons.storefront_outlined,
+              size: 16,
+              color: AppColors.primary,
+            ),
+            label: const Text(
+              '스토어 보러가기',
+              style: TextStyle(
+                color: AppColors.primary,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCartItem(CartItem item, int index, SupplementNotifier notifier) {
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 8, 16, 8),
       padding: const EdgeInsets.all(12),
@@ -391,9 +432,9 @@ class _BasketScreenState extends State<BasketScreen> {
       child: Row(
         children: [
           Checkbox(
-            value: item['checked'],
-            activeColor: const Color(0xFF4CAF50),
-            onChanged: (val) => setState(() => item['checked'] = val),
+            value: item.checked,
+            activeColor: AppColors.primary,
+            onChanged: (_) => notifier.toggleCartChecked(item.productId),
           ),
           Container(
             width: 70,
@@ -410,16 +451,16 @@ class _BasketScreenState extends State<BasketScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  item['brand'],
+                  item.brand,
                   style: const TextStyle(fontSize: 12, color: Colors.grey),
                 ),
                 Text(
-                  item['name'],
+                  item.name,
                   style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  '${_formatPrice(item['price'] as int)}원',
+                  '${_formatPrice(item.price)}원',
                   style: const TextStyle(
                     fontWeight: FontWeight.bold,
                     color: Color(0xFF4CAF50),
@@ -428,25 +469,23 @@ class _BasketScreenState extends State<BasketScreen> {
               ],
             ),
           ),
-          _buildCountController(index),
+          _buildCountController(item, notifier),
         ],
       ),
     );
   }
 
-  Widget _buildCountController(int index) {
+  Widget _buildCountController(CartItem item, SupplementNotifier notifier) {
     return Row(
       children: [
         IconButton(
           icon: const Icon(Icons.remove_circle_outline, size: 20),
-          onPressed: () => setState(() {
-            if (_cartItems[index]['count'] > 1) _cartItems[index]['count']--;
-          }),
+          onPressed: () => notifier.updateCartCount(item.productId, -1),
         ),
-        Text('${_cartItems[index]['count']}'),
+        Text('${item.count}'),
         IconButton(
           icon: const Icon(Icons.add_circle_outline, size: 20),
-          onPressed: () => setState(() => _cartItems[index]['count']++),
+          onPressed: () => notifier.updateCartCount(item.productId, 1),
         ),
       ],
     );
@@ -477,7 +516,7 @@ class _BasketScreenState extends State<BasketScreen> {
                   bgColor: const Color(0xFFFFF0F0),
                   isActive: _showContraPanel,
                   isLoading: _isContraLoading,
-                  onTap: _checkedCount >= 2
+                  onTap: SupplementProvider.of(context).cartCheckedCount >= 2
                       ? () => _showContraPanel && !_isContraLoading
                             ? setState(() => _showContraPanel = false)
                             : _runContraCheck()
@@ -496,7 +535,7 @@ class _BasketScreenState extends State<BasketScreen> {
                   bgColor: const Color(0xFFFFFDE7),
                   isActive: _showOverdosePanel,
                   isLoading: _isOverdoseLoading,
-                  onTap: _checkedCount >= 1
+                  onTap: SupplementProvider.of(context).cartCheckedCount >= 1
                       ? () => _showOverdosePanel && !_isOverdoseLoading
                             ? setState(() => _showOverdosePanel = false)
                             : _runOverdoseCheck()
@@ -822,7 +861,7 @@ class _BasketScreenState extends State<BasketScreen> {
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                 ),
                 Text(
-                  '${_formatPrice(_totalPrice)}원',
+                  '${_formatPrice(SupplementProvider.of(context).cartTotalPrice)}원',
                   style: const TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,

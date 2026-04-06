@@ -141,6 +141,37 @@ class _SupplementDetailScreenState extends State<SupplementDetailScreen> {
     return supplements.any((s) => s.name == widget.product.name);
   }
 
+  /// 이미 장바구니에 있는지 여부
+  bool _isInCart(BuildContext context) =>
+      SupplementProvider.of(context).isInCart(widget.product.id);
+
+  /// 장바구니에 추가 / 이미 있으면 수량 +1
+  void _addToCart(BuildContext context) {
+    final notifier = SupplementProvider.of(context);
+    final p = widget.product;
+
+    notifier.addToCart(
+      CartItem(productId: p.id, name: p.name, brand: p.brand, price: p.price),
+    );
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          notifier.isInCart(p.id)
+              ? '${p.name} 수량을 추가했습니다.'
+              : '${p.name}을(를) 장바구니에 담았습니다!',
+        ),
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: AppColors.primary,
+        action: SnackBarAction(
+          label: '장바구니 보기',
+          textColor: Colors.white,
+          onPressed: () => context.push('/store/basket'),
+        ),
+      ),
+    );
+  }
+
   /// 캐비닛에 추가
   void _addToCabinet(BuildContext context) {
     final notifier = SupplementProvider.of(context);
@@ -215,7 +246,7 @@ class _SupplementDetailScreenState extends State<SupplementDetailScreen> {
           ),
         ],
       ),
-      bottomNavigationBar: _buildBottomBar(p),
+      bottomNavigationBar: _buildBottomBar(context, p),
     );
   }
 
@@ -230,9 +261,48 @@ class _SupplementDetailScreenState extends State<SupplementDetailScreen> {
         onPressed: () => context.pop(),
       ),
       actions: [
-        IconButton(
-          icon: const Icon(Icons.shopping_basket_outlined, color: Colors.black),
-          onPressed: () => context.push('/store/basket'),
+        Padding(
+          padding: const EdgeInsets.only(right: 4),
+          child: GestureDetector(
+            onTap: () => context.push('/store/basket'),
+            child: SizedBox(
+              width: 48,
+              height: 48,
+              child: Stack(
+                clipBehavior: Clip.none,
+                alignment: Alignment.center,
+                children: [
+                  const Icon(
+                    Icons.shopping_basket_outlined,
+                    color: Colors.black,
+                  ),
+                  if (SupplementProvider.of(context).cartItems.isNotEmpty)
+                    Positioned(
+                      top: 6,
+                      right: 6,
+                      child: Container(
+                        width: 14,
+                        height: 14,
+                        decoration: const BoxDecoration(
+                          color: AppColors.danger,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Center(
+                          child: Text(
+                            '${SupplementProvider.of(context).cartItems.length}',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 9,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
         ),
       ],
       flexibleSpace: FlexibleSpaceBar(
@@ -569,7 +639,7 @@ class _SupplementDetailScreenState extends State<SupplementDetailScreen> {
     );
   }
 
-  Widget _buildBottomBar(StoreProduct p) {
+  Widget _buildBottomBar(BuildContext context, StoreProduct p) {
     final bool alreadyAdded = _isAlreadyInCabinet(context);
 
     return Container(
@@ -591,30 +661,46 @@ class _SupplementDetailScreenState extends State<SupplementDetailScreen> {
       ),
       child: Row(
         children: [
-          // ── 장바구니 ───────────────────────────────────────
+          // 장바구니
           Expanded(
             child: OutlinedButton(
               style: OutlinedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(vertical: 16),
+                backgroundColor: _isInCart(context)
+                    ? AppColors.primaryLight
+                    : Colors.white,
                 side: const BorderSide(color: AppColors.primary),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(14),
                 ),
               ),
-              onPressed: () => context.push('/store/basket'),
-              child: const Text(
-                '장바구니',
-                style: TextStyle(
-                  color: AppColors.primary,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 14,
-                ),
+              onPressed: () => _addToCart(context),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    _isInCart(context)
+                        ? Icons.shopping_cart_rounded
+                        : Icons.shopping_cart_outlined,
+                    size: 16,
+                    color: AppColors.primary,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    _isInCart(context) ? '담김' : '장바구니',
+                    style: const TextStyle(
+                      color: AppColors.primary,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
           const SizedBox(width: 8),
 
-          // ── 캐비닛에 추가 ──────────────────────────────────
+          // 캐비닛에 추가
           Expanded(
             child: OutlinedButton(
               style: OutlinedButton.styleFrom(
@@ -661,7 +747,7 @@ class _SupplementDetailScreenState extends State<SupplementDetailScreen> {
           ),
           const SizedBox(width: 8),
 
-          // ── 바로 구매 ──────────────────────────────────────
+          // 바로 구매
           Expanded(
             child: ElevatedButton(
               style: ElevatedButton.styleFrom(

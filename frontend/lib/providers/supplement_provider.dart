@@ -11,6 +11,31 @@ class DoseRecord {
   const DoseRecord({required this.supplementName, required this.date});
 }
 
+// 장바구니 아이템 모델
+class CartItem {
+  final String productId; // StoreProduct.id
+  final String name;
+  final String brand;
+  final int price; // 단가
+  int count; // 수량 (mutable — 수량 변경 지원)
+  bool checked; // 선택 여부 (결제 대상 포함/제외)
+
+  CartItem({
+    required this.productId,
+    required this.name,
+    required this.brand,
+    required this.price,
+    this.count = 1,
+    this.checked = true,
+  });
+
+  int get totalPrice => price * count;
+
+  /// CartItem → PurchaseItem 변환 (주문 시 사용)
+  PurchaseItem toPurchaseItem() =>
+      PurchaseItem(name: name, brand: brand, price: price, count: count);
+}
+
 // 구매 기록 아이템
 class PurchaseItem {
   final String name; // 상품명
@@ -139,7 +164,7 @@ class SupplementNotifier extends ChangeNotifier {
   // 날짜별 복용 기록 (오늘 복용 여부 판단에 사용)
   final List<DoseRecord> _doseHistory = [];
 
-  // ── 구매 기록 ─────────────────────────────────────────────────────────
+  // 구매 기록
   // TODO: 백엔드 연동 후 API 응답으로 초기화
   final List<PurchaseRecord> _purchases = [];
 
@@ -241,6 +266,82 @@ class SupplementNotifier extends ChangeNotifier {
   }
 
   // ── 구매 기록 CRUD ────────────────────────────────────────────────────
+
+  // ── 장바구니 상태 ─────────────────────────────────────────────────────
+  final List<CartItem> _cartItems = [];
+
+  /// 장바구니 아이템 목록 (불변)
+  List<CartItem> get cartItems => List.unmodifiable(_cartItems);
+
+  /// 선택된 아이템 수
+  int get cartCheckedCount => _cartItems.where((i) => i.checked).length;
+
+  /// 선택된 아이템 총액
+  int get cartTotalPrice => _cartItems
+      .where((i) => i.checked)
+      .fold(0, (sum, i) => sum + i.totalPrice);
+
+  /// 이미 장바구니에 있는지 여부 (productId 기준)
+  bool isInCart(String productId) =>
+      _cartItems.any((i) => i.productId == productId);
+
+  /// 장바구니에 추가. 이미 있으면 수량만 +1
+  void addToCart(CartItem item) {
+    final idx = _cartItems.indexWhere((i) => i.productId == item.productId);
+    if (idx != -1) {
+      _cartItems[idx].count++;
+    } else {
+      _cartItems.add(item);
+    }
+    notifyListeners();
+  }
+
+  /// 장바구니에서 제거 (productId 기준)
+  void removeFromCart(String productId) {
+    _cartItems.removeWhere((i) => i.productId == productId);
+    notifyListeners();
+  }
+
+  /// 수량 변경 (0 이하면 자동 제거)
+  void updateCartCount(String productId, int delta) {
+    final idx = _cartItems.indexWhere((i) => i.productId == productId);
+    if (idx == -1) return;
+    final newCount = _cartItems[idx].count + delta;
+    if (newCount <= 0) {
+      _cartItems.removeAt(idx);
+    } else {
+      _cartItems[idx].count = newCount;
+    }
+    notifyListeners();
+  }
+
+  /// 선택 토글 (체크박스)
+  void toggleCartChecked(String productId) {
+    final idx = _cartItems.indexWhere((i) => i.productId == productId);
+    if (idx == -1) return;
+    _cartItems[idx].checked = !_cartItems[idx].checked;
+    notifyListeners();
+  }
+
+  /// 전체 선택 / 해제
+  void setAllCartChecked(bool checked) {
+    for (final item in _cartItems) {
+      item.checked = checked;
+    }
+    notifyListeners();
+  }
+
+  /// 주문 완료 후 선택된 항목 장바구니에서 제거
+  void clearCheckedCartItems() {
+    _cartItems.removeWhere((i) => i.checked);
+    notifyListeners();
+  }
+
+  /// 장바구니 전체 비우기
+  void clearCart() {
+    _cartItems.clear();
+    notifyListeners();
+  }
 
   /// 장바구니 아이템으로 구매 기록 생성 및 저장
   /// basket_screen의 "주문하기" 버튼에서 호출
