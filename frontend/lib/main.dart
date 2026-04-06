@@ -21,7 +21,7 @@ void main() async {
   await initializeDateFormatting('ko_KR', null);
 
   KakaoSdk.init(
-    nativeAppKey: '여기에_카카오_네이티브_앱키',
+    nativeAppKey: '51c74822ab20f50d91b299e82055229d',
   );
 
   runApp(const ProviderScope(
