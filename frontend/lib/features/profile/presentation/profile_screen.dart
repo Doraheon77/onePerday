@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:go_router/go_router.dart';
 import 'package:simcap/core/constant/app_constants.dart';
+import 'package:simcap/core/constant/app_constants.dart';
+import 'package:simcap/providers/supplement_provider.dart';
 import 'package:simcap/features/profile/widgets/survey_chip_group.dart';
 import 'package:simcap/features/profile/data/survey_data.dart';
 
@@ -531,11 +533,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  // 구매 기록 섹션
+  // 구매 기록 섹션 — Provider 데이터 연동
   Widget _buildPurchaseHistorySection() {
-    // TODO: 백엔드 연동 후 실제 구매 기록 데이터로 교체
-    // 예: final List<PurchaseRecord> _purchases = await PurchaseApi.getHistory();
-    const bool hasData = false;
+    final purchases = SupplementProvider.of(context).purchases;
+    final recentPurchases = purchases.take(2).toList();
+    final hasData = recentPurchases.isNotEmpty;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -547,13 +549,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
               '구매 기록',
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
-            // 전체보기 버튼 — 백엔드 연동 후 활성화
             TextButton(
-              onPressed: null, // TODO: 전체 구매 기록 페이지로 이동
+              onPressed: hasData
+                  ? () => context.push('/profile/purchases')
+                  : null,
               child: Text(
                 '전체보기',
                 style: TextStyle(
-                  color: Colors.grey[400],
+                  color: hasData ? AppColors.primary : Colors.grey[400],
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -562,18 +565,143 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
         const SizedBox(height: 12),
         if (hasData)
-          // 데이터 있을 때 — 백엔드 연동 후 실제 아이템으로 교체
-          _buildPurchaseItem(
-            productName: '예시 영양제',
-            brand: '브랜드명',
-            price: 28000,
-            date: DateTime(2026, 3, 15),
-            status: '배송 완료',
-          )
+          ...recentPurchases.map((r) => _buildPurchaseItemFromRecord(r))
         else
           _buildPurchaseEmptyState(),
       ],
     );
+  }
+
+  // Provider 데이터 기반 구매 아이템 카드
+  Widget _buildPurchaseItemFromRecord(PurchaseRecord record) {
+    Color badgeBg, badgeFg;
+    switch (record.status) {
+      case PurchaseStatus.ordered:
+        badgeBg = const Color(0xFFFFF3CD);
+        badgeFg = const Color(0xFF8a6200);
+        break;
+      case PurchaseStatus.shipping:
+        badgeBg = const Color(0xFFE3F2FD);
+        badgeFg = const Color(0xFF1565C0);
+        break;
+      case PurchaseStatus.delivered:
+        badgeBg = AppColors.primaryLight;
+        badgeFg = AppColors.primaryDark;
+        break;
+      case PurchaseStatus.cancelled:
+        badgeBg = AppColors.dangerBg;
+        badgeFg = AppColors.danger;
+        break;
+    }
+    final isCancelled = record.status == PurchaseStatus.cancelled;
+
+    return GestureDetector(
+      onTap: () => context.push('/profile/purchases'),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 10),
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: isCancelled ? Colors.grey.shade50 : Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: Colors.grey.shade200),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: isCancelled
+                    ? Colors.grey.shade100
+                    : AppColors.primaryFaint,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(
+                Icons.medication_rounded,
+                color: isCancelled ? Colors.grey[400] : AppColors.primary,
+                size: 24,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    record.displayTitle,
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                      color: isCancelled ? Colors.grey : Colors.black87,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 3),
+                  Row(
+                    children: [
+                      Text(
+                        _pfmt(record.totalPrice),
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: isCancelled
+                              ? Colors.grey[400]
+                              : AppColors.primary,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        _dlabel(record.orderedAt),
+                        style: TextStyle(fontSize: 12, color: Colors.grey[400]),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: badgeBg,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(
+                record.status.label,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
+                  color: badgeFg,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _dlabel(DateTime dt) {
+    final now = DateTime.now();
+    final diff = DateTime(
+      now.year,
+      now.month,
+      now.day,
+    ).difference(DateTime(dt.year, dt.month, dt.day)).inDays;
+    if (diff == 0) return '오늘';
+    if (diff == 1) return '어제';
+    if (diff < 7) return '$diff일 전';
+    return '${dt.month}.${dt.day}';
+  }
+
+  String _pfmt(int price) {
+    String s = price.toString();
+    final buf = StringBuffer();
+    for (int i = 0; i < s.length; i++) {
+      if (i > 0 && (s.length - i) % 3 == 0) buf.write(',');
+      buf.write(s[i]);
+    }
+    return '${buf.toString()}원';
   }
 
   // 구매 기록 — 빈 상태 플레이스홀더

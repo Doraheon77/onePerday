@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:simcap/features/cabinet/presentation/barcode_scan_screen.dart';
 import 'package:simcap/features/chatbot/presentation/chatbot_screen.dart';
 import 'package:simcap/features/home/presentation/home_screen.dart';
 import 'package:simcap/features/cabinet/presentation/cabinet_screen.dart';
@@ -10,6 +9,7 @@ import 'package:simcap/features/cabinet/domain/dataModels/supplement_model.dart'
 import 'package:simcap/features/profile/presentation/login_screen.dart';
 import 'package:simcap/features/profile/presentation/onboarding_survey_screen.dart';
 import 'package:simcap/features/profile/presentation/profile_screen.dart';
+import 'package:simcap/features/profile/presentation/purchase_history_screen.dart';
 import 'package:simcap/features/store/presentation/store_screen.dart';
 import 'package:simcap/features/store/presentation/search_screen.dart';
 import 'package:simcap/features/store/presentation/basket_screen.dart';
@@ -88,15 +88,17 @@ class AppRouter {
                 path: 'add',
                 builder: (context, state) => const AddSupplementScreen(),
               ),
-              GoRoute(
-                path: 'scan',
-                builder: (context, state) => const BarcodeScanScreen(),
-              ),
             ],
           ),
           GoRoute(
             path: '/profile',
             builder: (context, state) => const ProfileScreen(),
+            routes: [
+              GoRoute(
+                path: 'purchases',
+                builder: (context, state) => const PurchaseHistoryScreen(),
+              ),
+            ],
           ),
         ],
       ),

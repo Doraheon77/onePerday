@@ -1,6 +1,6 @@
 {
-    "name": "simcap",
-    "short_name": "simcap",
+    "name": "OnePerDay",
+    "short_name": "OnePerDay",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
