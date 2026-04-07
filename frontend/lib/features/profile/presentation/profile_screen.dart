@@ -302,6 +302,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     onTap: () => context.go('/onboarding'),
                   ),
                   _buildMenuButton('앱 설정', Icons.settings, onTap: () {}),
+                  const SizedBox(height: 24),
+                  // 로그아웃
+                  _buildLogoutButton(),
                 ],
               ),
             ),
@@ -923,6 +926,77 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   // 메뉴 버튼 공통 위젯
+  // ── 로그아웃 ────────────────────────────────────────────────────────────
+  Future<void> _logout() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text(
+          '로그아웃',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        content: const Text('로그아웃하면 저장된 설문 정보가 초기화됩니다.\n계속하시겠습니까?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('취소', style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.danger,
+              foregroundColor: Colors.white,
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+            child: const Text('로그아웃'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+
+    // SharedPreferences 전체 초기화
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.clear();
+
+    if (!mounted) return;
+    // 로그인 화면으로 이동 (스택 전체 교체)
+    context.go('/login');
+  }
+
+  Widget _buildLogoutButton() {
+    return SizedBox(
+      width: double.infinity,
+      child: OutlinedButton.icon(
+        onPressed: _logout,
+        style: OutlinedButton.styleFrom(
+          padding: const EdgeInsets.symmetric(vertical: 14),
+          side: const BorderSide(color: AppColors.danger),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
+        ),
+        icon: const Icon(
+          Icons.logout_rounded,
+          size: 18,
+          color: AppColors.danger,
+        ),
+        label: const Text(
+          '로그아웃',
+          style: TextStyle(
+            color: AppColors.danger,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildMenuButton(
     String title,
     IconData icon, {

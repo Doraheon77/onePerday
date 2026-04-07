@@ -1,29 +1,37 @@
 /// 복용 시점
 enum MealTiming {
-  beforeMeal,   // 식전
-  afterMeal,    // 식후
-  beforeSleep,  // 취침 전
-  anytime,      // 무관
+  beforeMeal, // 식전
+  afterMeal, // 식후
+  beforeSleep, // 취침 전
+  anytime, // 무관
 }
 
 extension MealTimingExtension on MealTiming {
   /// DB 저장 / API 송수신용 문자열
   String get value {
     switch (this) {
-      case MealTiming.beforeMeal:  return 'before_meal';
-      case MealTiming.afterMeal:   return 'after_meal';
-      case MealTiming.beforeSleep: return 'before_sleep';
-      case MealTiming.anytime:     return 'anytime';
+      case MealTiming.beforeMeal:
+        return 'before_meal';
+      case MealTiming.afterMeal:
+        return 'after_meal';
+      case MealTiming.beforeSleep:
+        return 'before_sleep';
+      case MealTiming.anytime:
+        return 'anytime';
     }
   }
 
   /// UI 표시용 한국어 라벨
   String get label {
     switch (this) {
-      case MealTiming.beforeMeal:  return '식전';
-      case MealTiming.afterMeal:   return '식후';
-      case MealTiming.beforeSleep: return '취침 전';
-      case MealTiming.anytime:     return '무관';
+      case MealTiming.beforeMeal:
+        return '식전';
+      case MealTiming.afterMeal:
+        return '식후';
+      case MealTiming.beforeSleep:
+        return '취침 전';
+      case MealTiming.anytime:
+        return '무관';
     }
   }
 
@@ -50,17 +58,17 @@ class Nutrient {
 
   factory Nutrient.fromJson(Map<String, dynamic> json) {
     return Nutrient(
-      name:    json['name'] ?? '',
-      value:   (json['value'] ?? 0).toDouble(),
-      unit:    json['unit'] ?? '',
+      name: json['name'] ?? '',
+      value: (json['value'] ?? 0).toDouble(),
+      unit: json['unit'] ?? '',
       percent: (json['percent'] ?? 0.0).toDouble(),
     );
   }
 
   Map<String, dynamic> toJson() => {
-    'name':    name,
-    'value':   value,
-    'unit':    unit,
+    'name': name,
+    'value': value,
+    'unit': unit,
     'percent': percent,
   };
 }
@@ -82,6 +90,9 @@ class Supplement {
   /// 하루 복용량 (정 수). 기본값 1.
   final int dailyDose;
 
+  /// 하루 복용 횟수. 기본값 1.
+  final int dailyFrequency;
+
   /// 복용 시점 (식전 / 식후 / 취침 전 / 무관). 기본값 anytime.
   final MealTiming mealTiming;
 
@@ -97,6 +108,7 @@ class Supplement {
     required this.remaining,
     required this.total,
     this.dailyDose = 1,
+    this.dailyFrequency = 1,
     this.mealTiming = MealTiming.anytime,
     required this.nutrients,
     this.analysisGuide = '이 영양제는 정해진 시간에 복용하는 것이 좋습니다.',
@@ -121,61 +133,65 @@ class Supplement {
 
   factory Supplement.fromJson(Map<String, dynamic> json) {
     return Supplement(
-      name:          json['name'] ?? '',
-      brand:         json['brand'] ?? '',
-      imagePath:     json['imagePath'] as String?,
-      imageUrl:      json['imageUrl'] as String?,
-      remaining:     json['remaining'] ?? 0,
-      total:         json['total'] ?? 0,
-      dailyDose:     json['dailyDose'] ?? 1,
-      mealTiming:    MealTimingExtension.fromValue(json['mealTiming'] as String?),
-      nutrients:     (json['nutrients'] as List? ?? [])
-                         .map((n) => Nutrient.fromJson(n as Map<String, dynamic>))
-                         .toList(),
+      name: json['name'] ?? '',
+      brand: json['brand'] ?? '',
+      imagePath: json['imagePath'] as String?,
+      imageUrl: json['imageUrl'] as String?,
+      remaining: json['remaining'] ?? 0,
+      total: json['total'] ?? 0,
+      dailyDose: json['dailyDose'] ?? 1,
+      dailyFrequency: json['dailyFrequency'] ?? 1,
+      mealTiming: MealTimingExtension.fromValue(json['mealTiming'] as String?),
+      nutrients: (json['nutrients'] as List? ?? [])
+          .map((n) => Nutrient.fromJson(n as Map<String, dynamic>))
+          .toList(),
       analysisGuide: json['analysisGuide'] ?? '이 영양제는 복합 성분 설계로 흡수율을 높였습니다.',
-      aiSummary:     json['aiSummary'] ?? '리뷰를 분석 중입니다.',
+      aiSummary: json['aiSummary'] ?? '리뷰를 분석 중입니다.',
     );
   }
 
   Map<String, dynamic> toJson() => {
-    'name':          name,
-    'brand':         brand,
+    'name': name,
+    'brand': brand,
     if (imagePath != null) 'imagePath': imagePath,
-    if (imageUrl  != null) 'imageUrl':  imageUrl,
-    'remaining':     remaining,
-    'total':         total,
-    'dailyDose':     dailyDose,
-    'mealTiming':    mealTiming.value,
-    'nutrients':     nutrients.map((n) => n.toJson()).toList(),
+    if (imageUrl != null) 'imageUrl': imageUrl,
+    'remaining': remaining,
+    'total': total,
+    'dailyDose': dailyDose,
+    'dailyFrequency': dailyFrequency,
+    'mealTiming': mealTiming.value,
+    'nutrients': nutrients.map((n) => n.toJson()).toList(),
     'analysisGuide': analysisGuide,
-    'aiSummary':     aiSummary,
+    'aiSummary': aiSummary,
   };
 
   Supplement copyWith({
-    String?         name,
-    String?         brand,
-    String?         imagePath,
-    String?         imageUrl,
-    int?            remaining,
-    int?            total,
-    int?            dailyDose,
-    MealTiming?     mealTiming,
+    String? name,
+    String? brand,
+    String? imagePath,
+    String? imageUrl,
+    int? remaining,
+    int? total,
+    int? dailyDose,
+    int? dailyFrequency,
+    MealTiming? mealTiming,
     List<Nutrient>? nutrients,
-    String?         analysisGuide,
-    String?         aiSummary,
+    String? analysisGuide,
+    String? aiSummary,
   }) {
     return Supplement(
-      name:          name          ?? this.name,
-      brand:         brand         ?? this.brand,
-      imagePath:     imagePath     ?? this.imagePath,
-      imageUrl:      imageUrl      ?? this.imageUrl,
-      remaining:     remaining     ?? this.remaining,
-      total:         total         ?? this.total,
-      dailyDose:     dailyDose     ?? this.dailyDose,
-      mealTiming:    mealTiming    ?? this.mealTiming,
-      nutrients:     nutrients     ?? this.nutrients,
+      name: name ?? this.name,
+      brand: brand ?? this.brand,
+      imagePath: imagePath ?? this.imagePath,
+      imageUrl: imageUrl ?? this.imageUrl,
+      remaining: remaining ?? this.remaining,
+      total: total ?? this.total,
+      dailyDose: dailyDose ?? this.dailyDose,
+      dailyFrequency: dailyFrequency ?? this.dailyFrequency,
+      mealTiming: mealTiming ?? this.mealTiming,
+      nutrients: nutrients ?? this.nutrients,
       analysisGuide: analysisGuide ?? this.analysisGuide,
-      aiSummary:     aiSummary     ?? this.aiSummary,
+      aiSummary: aiSummary ?? this.aiSummary,
     );
   }
 }

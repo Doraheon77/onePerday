@@ -244,6 +244,11 @@ class _CabinetDetailScreenState extends State<CabinetDetailScreen> {
             '1일 복용량',
             '${item.dailyDose}정',
           ),
+          _buildInfoRow(
+            Icons.repeat_rounded,
+            '하루 복용 횟수',
+            '${item.dailyFrequency}회',
+          ),
           _buildInfoRow(Icons.inventory_2_outlined, '전체 용량', '${item.total}정'),
           _buildInfoRow(
             Icons.notifications_active_outlined,

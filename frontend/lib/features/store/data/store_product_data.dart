@@ -1,12 +1,12 @@
 import 'package:simcap/features/store/presentation/supplement_detail_screen.dart';
 
-// 스토어 더미 상품 데이터
+// ── 스토어 더미 상품 데이터 ────────────────────────────────────────────────────
 // TODO: 백엔드 연동 후 API 응답으로 교체
 // 사용처:
 //   - store_screen.dart: 추천 카드(recommendProducts), 인기 랭킹(rankingProducts)
 //   - search_screen.dart: 검색 결과 필터링(allProducts)
 
-// 전체 상품 목록 (10개) 
+// ── 전체 상품 목록 (10개) ─────────────────────────────────────────────────────
 final List<StoreProduct> allProducts = [
   StoreProduct(
     id: 'p01',
@@ -154,7 +154,7 @@ final List<StoreProduct> allProducts = [
   ),
 ];
 
-// 섹션별 편의 접근자 
+// ── 섹션별 편의 접근자 ─────────────────────────────────────────────────────────
 
 /// 홈/스토어 추천 카드 — 앞 5개
 List<StoreProduct> get recommendProducts => allProducts.take(5).toList();

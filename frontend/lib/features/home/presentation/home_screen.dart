@@ -217,39 +217,34 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  /// 등록된 영양제의 nutrients를 집계해 상위 3~5개 성분 bar 표시
   Widget _buildNutritionCard() {
     final supplements = SupplementProvider.of(context).supplements;
-
-    // 1. 동일 성분 percent 합산
     final Map<String, double> totals = {};
     for (final s in supplements) {
       for (final n in s.nutrients) {
-        final key = n.name.trim();
-        totals[key] = (totals[key] ?? 0) + n.percent;
+        totals[n.name.trim()] = (totals[n.name.trim()] ?? 0) + n.percent;
       }
     }
-
-    // 2. percent 내림차순 정렬 후 상위 5개
     final sorted = totals.entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));
     final top = sorted.take(5).toList();
 
-    // 빈 상태 — 등록된 영양제 없음
+    final boxDeco = BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(24),
+      boxShadow: [
+        BoxShadow(
+          color: Colors.black.withOpacity(0.04),
+          blurRadius: 15,
+          offset: const Offset(0, 4),
+        ),
+      ],
+    );
+
     if (top.isEmpty) {
       return Container(
         padding: const EdgeInsets.all(24),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(24),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.04),
-              blurRadius: 15,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
+        decoration: boxDeco,
         child: Column(
           children: [
             Icon(Icons.bar_chart_outlined, size: 40, color: Colors.grey[300]),
@@ -258,12 +253,6 @@ class _HomeScreenState extends State<HomeScreen> {
               '등록된 영양제가 없습니다',
               style: TextStyle(fontSize: 14, color: Colors.grey[400]),
             ),
-            const SizedBox(height: 4),
-            Text(
-              '캐비닛에 영양제를 추가하면 성분을 분석해 드려요',
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 12, color: Colors.grey[400]),
-            ),
           ],
         ),
       );
@@ -271,17 +260,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return Container(
       padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 15,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
+      decoration: boxDeco,
       child: Column(
         children: [
           ...top.map((e) => _buildBarGraph(e.key, e.value)),
@@ -317,22 +296,14 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  /// ratio: 일일 권장량 대비 합산 비율 (1.0 = 100%)
   Widget _buildBarGraph(String label, double ratio) {
-    // 100% 초과 → 빨강 / 70~100% → 초록 / 70% 미만 → 주황
     final Color barColor = ratio > 1.0
         ? AppColors.danger
         : ratio >= 0.7
         ? AppColors.primary
         : AppColors.warning;
-
-    // 표시 퍼센트 — 100% 초과는 별도 표기
-    final String percentLabel = ratio > 1.0
-        ? '${(ratio * 100).round()}% ⚠️'
-        : '${(ratio * 100).round()}%';
-
-    // 상태 메모
-    final String statusNote = ratio > 1.5
+    final pct = '${(ratio * 100).round()}%';
+    final statusNote = ratio > 1.5
         ? '과다 섭취 주의'
         : ratio > 1.0
         ? '권장량 초과'
@@ -360,7 +331,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               const SizedBox(width: 8),
               Text(
-                percentLabel,
+                pct,
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.bold,
@@ -421,85 +392,129 @@ class _HomeScreenState extends State<HomeScreen> {
     final isDone = notifier.isDoneOn(supplement.name, _selectedDate);
     final isToday = _dateOnly(_selectedDate) == _dateOnly(DateTime.now());
 
-    return GestureDetector(
-      onTap: isToday
-          ? () => notifier.toggleDose(supplement.name, date: _selectedDate)
-          : null,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 250),
+    if (!isToday) {
+      return GestureDetector(
+        onTap: null,
+        child: _buildMedicationCard(supplement, isDone, false),
+      );
+    }
+
+    return Dismissible(
+      key: ValueKey('${supplement.name}_${_selectedDate.toIso8601String()}'),
+      direction: DismissDirection.startToEnd,
+      confirmDismiss: (_) async {
+        notifier.toggleDose(supplement.name, date: _selectedDate);
+        return false;
+      },
+      background: Container(
         margin: const EdgeInsets.only(bottom: 12),
         decoration: BoxDecoration(
-          color: isDone ? AppColors.primaryFaint : Colors.white,
+          color: isDone ? AppColors.dangerBg : AppColors.primaryLight,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: isDone
-                ? AppColors.primary.withOpacity(0.5)
-                : Colors.grey.withOpacity(0.1),
+        ),
+        alignment: Alignment.centerLeft,
+        padding: const EdgeInsets.only(left: 24),
+        child: Row(
+          children: [
+            Icon(
+              isDone ? Icons.close_rounded : Icons.check_rounded,
+              color: isDone ? AppColors.danger : AppColors.primary,
+              size: 28,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              isDone ? '복용 취소' : '복용 완료',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: isDone ? AppColors.danger : AppColors.primary,
+              ),
+            ),
+          ],
+        ),
+      ),
+      child: GestureDetector(
+        onTap: () => notifier.toggleDose(supplement.name, date: _selectedDate),
+        child: _buildMedicationCard(supplement, isDone, true),
+      ),
+    );
+  }
+
+  Widget _buildMedicationCard(
+    Supplement supplement,
+    bool isDone,
+    bool isToday,
+  ) {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 250),
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: isDone ? AppColors.primaryFaint : Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: isDone
+              ? AppColors.primary.withOpacity(0.5)
+              : Colors.grey.withOpacity(0.1),
+        ),
+      ),
+      child: ListTile(
+        leading: CircleAvatar(
+          backgroundColor: isDone
+              ? AppColors.primary
+              : isToday
+              ? AppColors.dangerBg
+              : Colors.grey.shade200,
+          child: Icon(
+            isDone ? Icons.check : Icons.priority_high,
+            color: Colors.white,
+            size: 20,
           ),
         ),
-        child: ListTile(
-          leading: CircleAvatar(
-            backgroundColor: isDone
-                ? AppColors.primary
-                : isToday
-                ? AppColors.dangerBg
-                : Colors.grey.shade200,
-            child: Icon(
-              isDone ? Icons.check : Icons.priority_high,
-              color: Colors.white,
-              size: 20,
-            ),
+        title: Text(
+          supplement.name,
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            decoration: isDone ? TextDecoration.lineThrough : null,
+            color: isDone ? Colors.grey : Colors.black87,
           ),
-          title: Text(
-            supplement.name,
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              decoration: isDone ? TextDecoration.lineThrough : null,
-              color: isDone ? Colors.grey : Colors.black87,
-            ),
-          ),
-          subtitle: Text(
-            isDone
-                ? '복용 완료 · ${supplement.remaining}정 남음'
-                : '${supplement.mealTiming.label} · ${supplement.remaining}정 남음',
-          ),
-          trailing: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // 재고가 부족할 때 표시되는 D-day 배지
-              if (!isDone && supplement.remaining <= 7)
-                Container(
-                  margin: const EdgeInsets.only(right: 8),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 6,
-                    vertical: 2,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AppColors.dangerBg,
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Text(
-                    'D-${supplement.remaining}',
-                    style: const TextStyle(
-                      fontSize: 10,
-                      color: AppColors.danger,
-                      fontWeight: FontWeight.bold,
-                    ),
+        ),
+        subtitle: Text(
+          isDone
+              ? '복용 완료 · ${supplement.remaining}정 남음'
+              : '${supplement.mealTiming.label} · ${supplement.remaining}정 남음',
+        ),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // 재고가 부족할 때 표시되는 D-day 배지
+            if (!isDone && supplement.remaining <= 7)
+              Container(
+                margin: const EdgeInsets.only(right: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: AppColors.dangerBg,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  'D-${supplement.remaining}',
+                  style: const TextStyle(
+                    fontSize: 10,
+                    color: AppColors.danger,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
-              Icon(
-                isDone
-                    ? Icons.check_box_rounded
-                    : Icons.check_box_outline_blank_rounded,
-                color: isDone
-                    ? AppColors.primary
-                    : isToday
-                    ? Colors.grey[400]
-                    : Colors.grey[200],
-                size: 28,
               ),
-            ],
-          ),
+            Icon(
+              isDone
+                  ? Icons.check_box_rounded
+                  : Icons.check_box_outline_blank_rounded,
+              color: isDone
+                  ? AppColors.primary
+                  : isToday
+                  ? Colors.grey[400]
+                  : Colors.grey[200],
+              size: 28,
+            ),
+          ],
         ),
       ),
     );

@@ -6,26 +6,26 @@ import 'package:timezone/timezone.dart' as tz;
 import 'package:simcap/core/constant/app_constants.dart';
 import 'package:simcap/features/cabinet/domain/dataModels/supplement_model.dart';
 
-// ── 알림 채널 ID 상수 ─────────────────────────────────────────────────────────
+// 알림 채널 ID 상수
 const _doseChannelId = 'simcap_dose';
 const _doseChannelName = '복용 알림';
 const _stockChannelId = 'simcap_stock';
 const _stockChannelName = '재구매 알림';
 
-// ── 알림 ID 범위 ──────────────────────────────────────────────────────────────
+// 알림 ID 범위
 // 복용 알림: 1000 + supplementIndex (0~999)
 // 재구매 알림: 2000 + supplementIndex (0~999)
 int _doseNotificationId(int idx) => 1000 + idx;
 int _stockNotificationId(int idx) => 2000 + idx;
 
-// ── 알림 시간 데이터 클래스 (flutter_local_notifications Time 대체) ────────────
+// 알림 시간 데이터 클래스 (flutter_local_notifications Time 대체)
 class _NotifTime {
   final int hour;
   final int minute;
   const _NotifTime(this.hour, this.minute);
 }
 
-// ── MealTiming별 기본 복용 시간 ───────────────────────────────────────────────
+// MealTiming별 기본 복용 시간
 _NotifTime _defaultTimeFor(MealTiming timing) {
   switch (timing) {
     case MealTiming.beforeMeal:
@@ -54,7 +54,7 @@ class NotificationService {
   /// 알림 서비스 초기화 완료 여부
   bool get isInitialized => _initialized;
 
-  // ── 초기화 ─────────────────────────────────────────────────────────────────
+  // 초기화
   Future<void> initialize() async {
     if (_initialized) return;
 
@@ -156,7 +156,7 @@ class NotificationService {
     await androidPlugin?.createNotificationChannel(stockChannel);
   }
 
-  // ── 권한 요청 ──────────────────────────────────────────────────────────────
+  // 권한 요청
   Future<bool> requestPermission() async {
     // iOS
     final ios = _plugin
@@ -178,15 +178,13 @@ class NotificationService {
     return iosGranted && androidGranted;
   }
 
-  // ── 알림 탭 핸들러 ─────────────────────────────────────────────────────────
+  // 알림 탭 핸들러
   void _onNotificationTap(NotificationResponse response) {
     // TODO: 알림 탭 시 해당 화면으로 이동 (GoRouter 연동 필요)
     debugPrint('[NotificationService] 알림 탭: id=${response.id}');
   }
 
-  // ════════════════════════════════════════════════════════════════════════════
   //  복용 알림
-  // ════════════════════════════════════════════════════════════════════════════
 
   /// 영양제 목록 전체 복용 알림 재스케줄
   /// 영양제 추가/수정/삭제 시 호출
@@ -247,9 +245,7 @@ class NotificationService {
     _scheduledDoseCount = 0;
   }
 
-  // ════════════════════════════════════════════════════════════════════════════
   //  재구매 알림
-  // ════════════════════════════════════════════════════════════════════════════
 
   /// 영양제 목록 전체 재구매 알림 체크 및 표시
   /// 앱 시작 시 또는 복용 토글 후 호출
@@ -328,13 +324,12 @@ class NotificationService {
     _lastStockCount = 0;
   }
 
-  // ── 모든 알림 취소 ─────────────────────────────────────────────────────────
+  // 모든 알림 취소
   Future<void> cancelAll() async {
     await _plugin.cancelAll();
     debugPrint('[NotificationService] 모든 알림 취소');
   }
 
-  // ── 헬퍼 ──────────────────────────────────────────────────────────────────
   /// 오늘 또는 내일 기준으로 가장 가까운 [hour:minute] TZDateTime 반환
   tz.TZDateTime _nextInstanceOf(int hour, int minute) {
     final now = tz.TZDateTime.now(tz.local);

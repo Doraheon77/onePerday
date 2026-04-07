@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:simcap/core/constant/app_constants.dart';
+import 'package:simcap/features/cabinet/domain/dataModels/supplement_model.dart';
+import 'package:simcap/providers/supplement_provider.dart';
 
 class ChatbotScreen extends StatefulWidget {
   const ChatbotScreen({super.key});
@@ -42,9 +45,25 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
     });
   }
 
+  /// 현재 복용 중인 영양제 목록을 시스템 프롬프트용 텍스트로 변환
+  String _buildSupplementContext(List<Supplement> supplements) {
+    if (supplements.isEmpty) return '현재 등록된 영양제 없음';
+    return supplements
+        .map((s) {
+          final nutrients = s.nutrients.map((n) => n.name).join(', ');
+          return '- ${s.name} (${s.brand}): 잔여 ${s.remaining}정, '
+              '${s.mealTiming.label} 복용, 주요 성분: $nutrients';
+        })
+        .join('\n');
+  }
+
   void _sendMessage() {
     final text = _controller.text.trim();
     if (text.isEmpty || _isLoading) return;
+
+    // 영양제 컨텍스트 수집
+    final supplements = SupplementProvider.of(context).supplements;
+    final supplementCtx = _buildSupplementContext(supplements);
 
     setState(() {
       _messages.add({'role': 'user', 'message': text, 'time': DateTime.now()});
@@ -54,13 +73,24 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
     _scrollToBottom();
 
     // TODO: 실제 AI API 호출로 교체 (Gemini 등)
+    // 아래 supplementCtx를 시스템 프롬프트에 포함:
+    // final systemPrompt = '''
+    // 당신은 OnePerDay 앱의 AI 영양사입니다.
+    // 사용자가 현재 복용 중인 영양제 목록:
+    // $supplementCtx
+    // 이 정보를 바탕으로 개인화된 영양 상담을 제공하세요.
+    // ''';
+    debugPrint('[Chatbot] 시스템 프롬프트에 포함될 영양제 컨텍스트:\n$supplementCtx');
+
     Future.delayed(const Duration(seconds: 1), () {
       if (!mounted) return;
       setState(() {
         _isLoading = false;
         _messages.add({
           'role': 'bot',
-          'message': '문의하신 내용을 분석 중입니다. 잠시만 기다려 주세요!',
+          'message': supplements.isEmpty
+              ? '현재 등록된 영양제가 없네요. 캐비닛에 영양제를 추가하면 맞춤 상담이 가능합니다!'
+              : '문의하신 내용을 분석 중입니다. 현재 복용 중인 ${supplements.length}가지 영양제를 참고해 답변드릴게요!',
           'time': DateTime.now(),
         });
       });
@@ -92,6 +122,34 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
           icon: const Icon(Icons.close, color: Colors.black),
           onPressed: () => context.pop(),
         ),
+        actions: [
+          // 현재 등록된 영양제 수 표시
+          Builder(
+            builder: (ctx) {
+              final count = SupplementProvider.of(ctx).supplements.length;
+              if (count == 0) return const SizedBox.shrink();
+              return Container(
+                margin: const EdgeInsets.only(right: 16),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
+                decoration: BoxDecoration(
+                  color: AppColors.primaryLight,
+                  borderRadius: BorderRadius.circular(99),
+                ),
+                child: Text(
+                  '영양제 $count개 참고 중',
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: AppColors.primary,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              );
+            },
+          ),
+        ],
       ),
       body: Column(
         children: [
@@ -130,18 +188,15 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
       child: Row(
-        mainAxisAlignment:
-            isBot ? MainAxisAlignment.start : MainAxisAlignment.end,
+        mainAxisAlignment: isBot
+            ? MainAxisAlignment.start
+            : MainAxisAlignment.end,
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           if (isBot) ...[
             const CircleAvatar(
               backgroundColor: Color(0xFFE8F5E9),
-              child: Icon(
-                Icons.smart_toy,
-                color: Color(0xFF4CAF50),
-                size: 20,
-              ),
+              child: Icon(Icons.smart_toy, color: Color(0xFF4CAF50), size: 20),
             ),
             const SizedBox(width: 8),
           ],
@@ -156,8 +211,7 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
             ),
           Flexible(
             child: Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               decoration: BoxDecoration(
                 color: isBot ? Colors.white : const Color(0xFF4CAF50),
                 borderRadius: BorderRadius.only(
@@ -282,9 +336,7 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
             child: Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: _isLoading
-                    ? Colors.grey[300]
-                    : const Color(0xFF4CAF50),
+                color: _isLoading ? Colors.grey[300] : const Color(0xFF4CAF50),
                 shape: BoxShape.circle,
               ),
               child: Icon(

@@ -64,6 +64,7 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
       _brandController.text = item.brand;
       _nutrientController.text = item.nutrients.map((n) => n.name).join(', ');
       _dosageController.text = item.dailyDose.toString();
+      _frequencyController.text = item.dailyFrequency.toString();
       _remainingController.text = item.remaining.toString();
       _selectedMealTiming = item.mealTiming;
       // 편집 모드는 직접 입력 탭으로 시작
@@ -182,6 +183,7 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
       remaining: int.tryParse(_remainingController.text) ?? 0,
       total: (int.tryParse(_remainingController.text) ?? 0) + 30,
       dailyDose: int.tryParse(_dosageController.text) ?? 1,
+      dailyFrequency: int.tryParse(_frequencyController.text) ?? 1,
       mealTiming: _selectedMealTiming,
       nutrients: _nutrientController.text
           .split(',')

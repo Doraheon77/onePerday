@@ -6,7 +6,7 @@ import 'package:flutter/material.dart';
 ///   color: AppColors.primary
 ///   backgroundColor: AppColors.scaffoldBg
 abstract class AppColors {
-  // 브랜드 색상 (초록 계열)
+  // ── 브랜드 색상 (초록 계열) ──────────────────────────────
   /// 앱 메인 컬러 — 버튼, 아이콘, 강조 텍스트 등 전반에 사용 (88회)
   static const Color primary = Color(0xFF4CAF50);
 
@@ -19,14 +19,14 @@ abstract class AppColors {
   /// 메인 컬러 더 연한 배경 — 아이콘 원형 배경, 입력 필드 배경 (8회)
   static const Color primaryFaint = Color(0xFFF1F8E9);
 
-  // 상태 색상
+  // ── 상태 색상 ────────────────────────────────────────────
   /// 경고/오류 — 소진 임박, 병용금지, 에러 텍스트 (13회)
   static const Color danger = Color(0xFFFF6B6B);
 
   /// 주의 — 잔여량 중간, D-Day 30일 이하 배지 (7회)
   static const Color warning = Color(0xFFFFC107);
 
-  // 상태 배경 색상
+  // ── 상태 배경 색상 ────────────────────────────────────────
   /// danger 연한 배경 — 경고 카드, 배지 배경 (4회)
   static const Color dangerBg = Color(0xFFFFEBEB);
 
@@ -36,7 +36,7 @@ abstract class AppColors {
   /// 긴급 알림 배경 (2회)
   static const Color urgentBg = Color(0xFFFFF3F3);
 
-  // 배경 색상
+  // ── 배경 색상 ─────────────────────────────────────────────
   /// Scaffold 기본 배경 — 대부분의 화면 배경 (7회)
   static const Color scaffoldBg = Color(0xFFF9FAFB);
 
@@ -49,9 +49,59 @@ abstract class AppColors {
   /// 카드 구분용 중간 배경 (1회)
   static const Color cardDivider = Color(0xFFF3F4F6);
 
-  // 소셜 로그인 색상
+  // ── 소셜 로그인 색상 ──────────────────────────────────────
   /// 카카오 브랜드 색상 (1회)
   static const Color kakao = Color(0xFFFEE500);
+
+  // ── 구매 상태 색상 ────────────────────────────────────────
+  /// 주문완료 배경 (노란 계열)
+  static const Color orderedBg = Color(0xFFFFF3CD);
+
+  /// 주문완료 텍스트
+  static const Color orderedFg = Color(0xFF8a6200);
+
+  /// 배송중 배경 (파랑 계열)
+  static const Color shippingBg = Color(0xFFE3F2FD);
+
+  /// 배송중 텍스트
+  static const Color shippingFg = Color(0xFF1565C0);
+
+  // ── 기타 ──────────────────────────────────────────────────
+  /// danger보다 연한 배경 — 검사 패널 배경 등
+  static const Color dangerSoftBg = Color(0xFFFFF0F0);
+
+  /// warning보다 연한 배경 — 검사 패널 배경 등
+  static const Color warningSoftBg = Color(0xFFFFFDE7);
+
+  // ── 생활 습관 토글 카드 배경 ──────────────────────────────
+  /// 흡연 활성 배경 (주황 연한)
+  static const Color smokingBg = Color(0xFFFFF3E0);
+
+  /// 음주 활성 배경 (보라 연한)
+  static const Color drinkingBg = Color(0xFFF3E5F5);
+
+  /// 임신 활성 배경 (핑크 연한)
+  static const Color pregnancyBg = Color(0xFFFCE4EC);
+
+  // ── 배너 / 랭킹 메달 색상 ────────────────────────────────
+  /// 배너 파랑 (비타민D 특별전)
+  static const Color bannerBlue = Color(0xFF1976D2);
+
+  /// 배너 주황 (쿠폰 배너)
+  static const Color bannerOrange = Color(0xFFF57C00);
+
+  /// 랭킹 금메달
+  static const Color rankGold = Color(0xFFFFB300);
+
+  /// 랭킹 은메달
+  static const Color rankSilver = Color(0xFF9E9E9E);
+
+  /// 랭킹 동메달
+  static const Color rankBronze = Color(0xFF8D6E63);
+
+  // ── 바코드 탭 색상 ────────────────────────────────────────
+  /// 바코드 탭 테두리 연파랑
+  static const Color barcodeBorder = Color(0xFFBBDEFB);
 }
 
 /// 앱 전역 텍스트 스타일 상수
