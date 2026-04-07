@@ -18,11 +18,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
   // 데이터 상태 변수
   String _userName = '사용자';
   String _userAge = '';
-  String _userGender = '미설정';
   List<String> _goals = [];
   List<String> _healthIssues = [];
   List<String> _allergies = [];
   String _smokingStatus = '비흡연자입니다';
+  String _drinkingStatus = '마시지 않음';
+  String _pregnancyStatus = '해당 없음';
+  String _userGender = '';
   bool _isLoading = true;
 
   @override
@@ -47,6 +49,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
       _healthIssues = prefs.getStringList('selectedHealth') ?? [];
       _allergies = prefs.getStringList('selectedAllergies') ?? [];
       _smokingStatus = prefs.getString('smokingStatus') ?? '비흡연자입니다';
+      _drinkingStatus = prefs.getString('drinkingStatus') ?? '마시지 않음';
+      _pregnancyStatus = prefs.getString('pregnancyStatus') ?? '해당 없음';
       _isLoading = false;
     });
   }
@@ -62,6 +66,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _updateSmokingStatus(String status) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('smokingStatus', status);
+    await _loadProfileData();
+  }
+
+  Future<void> _updateDrinkingStatus(String status) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('drinkingStatus', status);
+    await _loadProfileData();
+  }
+
+  Future<void> _updatePregnancyStatus(String status) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('pregnancyStatus', status);
     await _loadProfileData();
   }
 
@@ -478,6 +494,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
   // 생활 습관 섹션
   Widget _buildLifestyleSection() {
     final bool isSmoker = _smokingStatus == '흡연자입니다';
+    final bool isDrinker = _drinkingStatus == '음주 중';
+    final bool isPregnant = _pregnancyStatus == '임신 중';
+    final bool isWoman = _userGender == '여성';
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -486,50 +506,87 @@ class _ProfileScreenState extends State<ProfileScreen> {
           style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 16),
-        InkWell(
-          onTap: () {
-            final newStatus = isSmoker ? '비흡연자입니다' : '흡연자입니다';
-            _updateSmokingStatus(newStatus);
-          },
+
+        // ── 흡연 ────────────────────────────────────────────────────────
+        _buildLifestyleCard(
+          icon: isSmoker ? Icons.smoking_rooms : Icons.smoke_free,
+          label: _smokingStatus,
+          isActive: isSmoker,
+          activeColor: Colors.orange,
+          activeBg: const Color(0xFFFFF3E0),
+          onTap: () => _updateSmokingStatus(isSmoker ? '비흡연자입니다' : '흡연자입니다'),
+        ),
+        const SizedBox(height: 10),
+
+        // ── 음주 ────────────────────────────────────────────────────────
+        _buildLifestyleCard(
+          icon: isDrinker ? Icons.local_bar_rounded : Icons.no_drinks_outlined,
+          label: _drinkingStatus,
+          isActive: isDrinker,
+          activeColor: Colors.purple,
+          activeBg: const Color(0xFFF3E5F5),
+          onTap: () => _updateDrinkingStatus(isDrinker ? '마시지 않음' : '음주 중'),
+        ),
+
+        // ── 임신 (여성만 표시) ──────────────────────────────────────────
+        if (isWoman) ...[
+          const SizedBox(height: 10),
+          _buildLifestyleCard(
+            icon: isPregnant
+                ? Icons.pregnant_woman_rounded
+                : Icons.pregnant_woman_outlined,
+            label: _pregnancyStatus,
+            isActive: isPregnant,
+            activeColor: Colors.pink,
+            activeBg: const Color(0xFFFCE4EC),
+            onTap: () => _updatePregnancyStatus(isPregnant ? '해당 없음' : '임신 중'),
+          ),
+        ],
+      ],
+    );
+  }
+
+  /// 생활 습관 공통 토글 카드
+  Widget _buildLifestyleCard({
+    required IconData icon,
+    required String label,
+    required bool isActive,
+    required Color activeColor,
+    required Color activeBg,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          color: isActive ? activeBg : AppColors.primaryLight,
           borderRadius: BorderRadius.circular(16),
-          child: Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(18),
-            decoration: BoxDecoration(
-              color: isSmoker
-                  ? const Color(0xFFFFF3E0)
-                  : AppColors.primaryLight,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: isSmoker
-                    ? Colors.orange.withOpacity(0.2)
-                    : AppColors.primary.withOpacity(0.2),
-              ),
-            ),
-            child: Row(
-              children: [
-                Icon(
-                  isSmoker ? Icons.smoking_rooms : Icons.smoke_free,
-                  color: isSmoker ? Colors.orange : AppColors.primary,
-                ),
-                const SizedBox(width: 12),
-                Text(
-                  _smokingStatus,
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.bold,
-                    color: isSmoker
-                        ? Colors.orange.shade900
-                        : AppColors.primaryDark,
-                  ),
-                ),
-                const Spacer(),
-                const Icon(Icons.sync, size: 18, color: Colors.grey),
-              ],
-            ),
+          border: Border.all(
+            color: isActive
+                ? activeColor.withOpacity(0.25)
+                : AppColors.primary.withOpacity(0.2),
           ),
         ),
-      ],
+        child: Row(
+          children: [
+            Icon(icon, color: isActive ? activeColor : AppColors.primary),
+            const SizedBox(width: 12),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.bold,
+                color: isActive ? activeColor : AppColors.primaryDark,
+              ),
+            ),
+            const Spacer(),
+            const Icon(Icons.sync, size: 18, color: Colors.grey),
+          ],
+        ),
+      ),
     );
   }
 

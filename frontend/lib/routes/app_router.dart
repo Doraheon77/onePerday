@@ -93,7 +93,13 @@ class AppRouter {
               ),
               GoRoute(
                 path: 'add',
-                builder: (context, state) => const AddSupplementScreen(),
+                builder: (context, state) {
+                  // extra로 Supplement 전달 시 편집 모드
+                  final item = state.extra is Supplement
+                      ? state.extra as Supplement
+                      : null;
+                  return AddSupplementScreen(initialItem: item);
+                },
               ),
               GoRoute(
                 path: 'scan',

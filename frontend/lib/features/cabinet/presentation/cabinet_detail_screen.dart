@@ -1,7 +1,10 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:simcap/core/constant/app_constants.dart';
 import 'package:simcap/features/cabinet/domain/dataModels/supplement_model.dart';
+import 'package:simcap/features/cabinet/presentation/add_supplement_screen.dart';
+import 'package:simcap/providers/supplement_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class CabinetDetailScreen extends StatefulWidget {
@@ -40,6 +43,33 @@ class _CabinetDetailScreenState extends State<CabinetDetailScreen> {
     }
   }
 
+  /// 편집 화면으로 이동 — 수정 완료 시 updateSupplement() 호출
+  Future<void> _navigateToEdit(BuildContext context) async {
+    final notifier = SupplementProvider.of(context);
+    final idx = notifier.supplements.indexWhere((s) => s.name == item.name);
+    if (idx == -1) return;
+
+    final updated = await Navigator.push<Supplement>(
+      context,
+      MaterialPageRoute(builder: (_) => AddSupplementScreen(initialItem: item)),
+    );
+
+    if (updated == null || !context.mounted) return;
+
+    notifier.updateSupplement(idx, updated);
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('${updated.name} 정보가 수정되었습니다.'),
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: AppColors.primary,
+      ),
+    );
+
+    // 상세 화면을 pop해서 캐비닛 목록으로 돌아감 (최신 데이터 반영)
+    if (context.mounted) context.pop();
+  }
+
   // 리뷰 작성 — 백엔드 연동 전 TODO 안내
   void _onWriteReview() {
     _showSnackBar('리뷰 작성 기능은 준비 중입니다.');
@@ -74,6 +104,13 @@ class _CabinetDetailScreenState extends State<CabinetDetailScreen> {
         centerTitle: true,
         elevation: 0,
         backgroundColor: Colors.white,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.edit_outlined, color: Colors.black87),
+            tooltip: '영양제 수정',
+            onPressed: () => _navigateToEdit(context),
+          ),
+        ],
       ),
       body: SingleChildScrollView(
         child: Column(

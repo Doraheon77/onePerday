@@ -13,7 +13,11 @@ const int _tabBarcode = 1;
 const int _tabManual = 2;
 
 class AddSupplementScreen extends StatefulWidget {
-  const AddSupplementScreen({super.key});
+  /// 편집 모드: 기존 영양제 전달 시 폼에 데이터 자동 입력
+  /// null이면 신규 등록 모드
+  final Supplement? initialItem;
+
+  const AddSupplementScreen({super.key, this.initialItem});
 
   @override
   State<AddSupplementScreen> createState() => _AddSupplementScreenState();
@@ -21,15 +25,19 @@ class AddSupplementScreen extends StatefulWidget {
 
 class _AddSupplementScreenState extends State<AddSupplementScreen>
     with SingleTickerProviderStateMixin {
+  // ── 탭 상태 ─────────────────────────────────────────────────────────────
   late final TabController _tabController;
   int _selectedTab = _tabLabel; // 초기: 라벨 촬영
 
+  // ── OCR 상태 ─────────────────────────────────────────────────────────────
   bool _isLoadingOCR = false;
   File? _selectedImage;
   final ImagePicker _picker = ImagePicker();
 
+  // ── 바코드 상태 ──────────────────────────────────────────────────────────
   String? _scannedBarcode;
 
+  // ── 폼 상태 ─────────────────────────────────────────────────────────────
   bool _showNameError = false;
   MealTiming _selectedMealTiming = MealTiming.afterMeal;
 
@@ -48,6 +56,21 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
         if (_tabController.indexIsChanging) return;
         setState(() => _selectedTab = _tabController.index);
       });
+
+    // 편집 모드: 기존 데이터로 폼 초기화 + 직접 입력 탭으로 고정
+    final item = widget.initialItem;
+    if (item != null) {
+      _nameController.text = item.name;
+      _brandController.text = item.brand;
+      _nutrientController.text = item.nutrients.map((n) => n.name).join(', ');
+      _dosageController.text = item.dailyDose.toString();
+      _remainingController.text = item.remaining.toString();
+      _selectedMealTiming = item.mealTiming;
+      // 편집 모드는 직접 입력 탭으로 시작
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _tabController.animateTo(_tabManual);
+      });
+    }
   }
 
   @override
@@ -62,7 +85,7 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
     super.dispose();
   }
 
-  // OCR 처리
+  // ── OCR 처리 ─────────────────────────────────────────────────────────────
   Future<void> _processOCR(File imageFile) async {
     setState(() => _isLoadingOCR = true);
     try {
@@ -89,7 +112,7 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
     }
   }
 
-  // 이미지 선택
+  // ── 이미지 선택 ──────────────────────────────────────────────────────────
   Future<void> _pickFromCamera() async {
     final XFile? image = await _picker.pickImage(
       source: ImageSource.camera,
@@ -108,7 +131,7 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
     await _processOCR(imageFile);
   }
 
-  // 바코드 스캔 이동
+  // ── 바코드 스캔 이동 ─────────────────────────────────────────────────────
   Future<void> _navigateToScan() async {
     final result = await context.push<BarcodeScanResult>('/cabinet/scan');
     if (result == null || !mounted) return;
@@ -130,12 +153,14 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
     );
   }
 
+  // ── 수량 조절 ─────────────────────────────────────────────────────────────
   void _adjustQuantity(TextEditingController controller, int delta) {
     final newVal = ((int.tryParse(controller.text) ?? 0) + delta).clamp(0, 999);
     controller.text = newVal.toString();
     setState(() {});
   }
 
+  // ── 등록 ─────────────────────────────────────────────────────────────────
   void _onRegister() {
     final name = _nameController.text.trim();
     if (name.isEmpty) {
@@ -173,6 +198,9 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
     if (mounted) Navigator.pop(context, newSupplement);
   }
 
+  // ════════════════════════════════════════════════════════════════════════
+  //  BUILD
+  // ════════════════════════════════════════════════════════════════════════
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -182,10 +210,10 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
         onTap: () => FocusScope.of(context).unfocus(),
         child: Column(
           children: [
-            // 상단 탭바
+            // ── 상단 탭바 ───────────────────────────────────────────────
             _buildTabBar(),
             const Divider(height: 1),
-            // 탭 콘텐츠
+            // ── 탭 콘텐츠 ───────────────────────────────────────────────
             Expanded(
               child: AnimatedSwitcher(
                 duration: const Duration(milliseconds: 250),
@@ -211,11 +239,13 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
     );
   }
 
+  // ── AppBar ──────────────────────────────────────────────────────────────
   PreferredSizeWidget _buildAppBar() {
-    const titles = ['라벨 촬영', '바코드 스캔', '직접 입력'];
+    final isEditMode = widget.initialItem != null;
+    const tabTitles = ['라벨 촬영', '바코드 스캔', '직접 입력'];
     return AppBar(
       title: Text(
-        titles[_selectedTab],
+        isEditMode ? '영양제 수정' : tabTitles[_selectedTab],
         style: const TextStyle(
           color: Colors.black,
           fontWeight: FontWeight.bold,
@@ -231,6 +261,7 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
     );
   }
 
+  // ── 탭바 ────────────────────────────────────────────────────────────────
   Widget _buildTabBar() {
     return Container(
       color: Colors.white,
@@ -261,7 +292,7 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
     );
   }
 
-  // 탭 콘텐츠 분기
+  // ── 탭 콘텐츠 분기 ──────────────────────────────────────────────────────
   Widget _buildTabContent() {
     switch (_selectedTab) {
       case _tabLabel:
@@ -275,7 +306,9 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
     }
   }
 
+  // ════════════════════════════════════════════════════════════════════════
   //  탭 0 — 라벨 촬영
+  // ════════════════════════════════════════════════════════════════════════
   Widget _buildLabelTab() {
     return SingleChildScrollView(
       key: const ValueKey('label'),
@@ -503,7 +536,9 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
     );
   }
 
+  // ════════════════════════════════════════════════════════════════════════
   //  탭 1 — 바코드 스캔
+  // ════════════════════════════════════════════════════════════════════════
   Widget _buildBarcodeTab() {
     return SingleChildScrollView(
       key: const ValueKey('barcode'),
@@ -670,7 +705,9 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
     );
   }
 
+  // ════════════════════════════════════════════════════════════════════════
   //  탭 2 — 직접 입력
+  // ════════════════════════════════════════════════════════════════════════
   Widget _buildManualTab() {
     return ListView(
       key: const ValueKey('manual'),
@@ -708,7 +745,7 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
     );
   }
 
-  // 바코드 인식 결과 뱃지
+  // 바코드 인식 결과 뱃지 (직접 입력 탭 상단)
   Widget _buildBarcodeBadge() {
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -741,7 +778,10 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
     );
   }
 
+  // ════════════════════════════════════════════════════════════════════════
   //  공통 위젯
+  // ════════════════════════════════════════════════════════════════════════
+
   Widget _buildSelectedImagePreview() {
     return Container(
       margin: const EdgeInsets.only(bottom: 20),
@@ -1020,9 +1060,9 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
           ),
           elevation: 0,
         ),
-        child: const Text(
-          '캐비닛에 추가하기',
-          style: TextStyle(
+        child: Text(
+          widget.initialItem != null ? '수정 완료' : '캐비닛에 추가하기',
+          style: const TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.bold,
             color: Colors.white,

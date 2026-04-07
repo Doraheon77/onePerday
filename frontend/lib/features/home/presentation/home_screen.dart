@@ -195,7 +195,8 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ),
                   const SizedBox(height: 6),
-                  // 복용 상태 도트
+                  // ── 복용 상태 도트 ──────────────────────────────
+                  // 전체 완료: 초록 채움  /  일부 완료: 초록 테두리  /  없음: 투명
                   Container(
                     width: 5,
                     height: 5,
@@ -216,7 +217,58 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  /// 등록된 영양제의 nutrients를 집계해 상위 3~5개 성분 bar 표시
   Widget _buildNutritionCard() {
+    final supplements = SupplementProvider.of(context).supplements;
+
+    // 1. 동일 성분 percent 합산
+    final Map<String, double> totals = {};
+    for (final s in supplements) {
+      for (final n in s.nutrients) {
+        final key = n.name.trim();
+        totals[key] = (totals[key] ?? 0) + n.percent;
+      }
+    }
+
+    // 2. percent 내림차순 정렬 후 상위 5개
+    final sorted = totals.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    final top = sorted.take(5).toList();
+
+    // 빈 상태 — 등록된 영양제 없음
+    if (top.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.04),
+              blurRadius: 15,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          children: [
+            Icon(Icons.bar_chart_outlined, size: 40, color: Colors.grey[300]),
+            const SizedBox(height: 12),
+            Text(
+              '등록된 영양제가 없습니다',
+              style: TextStyle(fontSize: 14, color: Colors.grey[400]),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              '캐비닛에 영양제를 추가하면 성분을 분석해 드려요',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 12, color: Colors.grey[400]),
+            ),
+          ],
+        ),
+      );
+    }
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -232,9 +284,7 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       child: Column(
         children: [
-          _buildBarGraph('비타민 D', 0.8),
-          _buildBarGraph('마그네슘', 0.4),
-          _buildBarGraph('오메가3', 1.3),
+          ...top.map((e) => _buildBarGraph(e.key, e.value)),
           const SizedBox(height: 12),
           Container(
             padding: const EdgeInsets.all(12),
@@ -252,7 +302,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 SizedBox(width: 8),
                 Text(
-                  "적정 섭취량은 권장량의 70%~100% 사이입니다.",
+                  '적정 섭취량은 권장량의 70%~100% 사이입니다.',
                   style: TextStyle(
                     fontSize: 12,
                     color: AppColors.primaryDark,
@@ -267,44 +317,70 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  /// ratio: 일일 권장량 대비 합산 비율 (1.0 = 100%)
   Widget _buildBarGraph(String label, double ratio) {
-    Color statusColor = ratio > 1.0
-        ? Colors.redAccent
-        : (ratio >= 0.7 ? AppColors.primary : Colors.orangeAccent);
+    // 100% 초과 → 빨강 / 70~100% → 초록 / 70% 미만 → 주황
+    final Color barColor = ratio > 1.0
+        ? AppColors.danger
+        : ratio >= 0.7
+        ? AppColors.primary
+        : AppColors.warning;
+
+    // 표시 퍼센트 — 100% 초과는 별도 표기
+    final String percentLabel = ratio > 1.0
+        ? '${(ratio * 100).round()}% ⚠️'
+        : '${(ratio * 100).round()}%';
+
+    // 상태 메모
+    final String statusNote = ratio > 1.5
+        ? '과다 섭취 주의'
+        : ratio > 1.0
+        ? '권장량 초과'
+        : ratio >= 0.7
+        ? '적정 섭취'
+        : '섭취 부족';
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 18),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                label,
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
+              Expanded(
+                child: Text(
+                  label,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
+              const SizedBox(width: 8),
               Text(
-                "${(ratio * 100).round()}%",
+                percentLabel,
                 style: TextStyle(
-                  fontSize: 14,
+                  fontSize: 13,
                   fontWeight: FontWeight.bold,
-                  color: statusColor,
+                  color: barColor,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
           ClipRRect(
             borderRadius: BorderRadius.circular(10),
             child: LinearProgressIndicator(
               value: ratio.clamp(0.0, 1.0),
               backgroundColor: Colors.grey[100],
-              color: statusColor,
-              minHeight: 12,
+              color: barColor,
+              minHeight: 10,
             ),
           ),
+          const SizedBox(height: 4),
+          Text(statusNote, style: TextStyle(fontSize: 10, color: barColor)),
         ],
       ),
     );
