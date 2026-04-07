@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:simcap/core/constant/app_constants.dart';
 import 'package:simcap/features/cabinet/domain/dataModels/supplement_model.dart';
+import 'package:simcap/features/store/presentation/review_screen.dart';
 import 'package:simcap/providers/supplement_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -258,6 +259,8 @@ class _SupplementDetailScreenState extends State<SupplementDetailScreen> {
                 _buildNutrientChart(p.nutrients),
                 const SizedBox(height: 12),
                 _buildContraindications(p.contraindications),
+                const SizedBox(height: 12),
+                _buildReviewSummary(p),
                 const SizedBox(height: 12),
                 _buildSimilarProducts(p.similarProducts),
                 const SizedBox(height: 100),
@@ -569,6 +572,149 @@ class _SupplementDetailScreenState extends State<SupplementDetailScreen> {
               text,
               style: const TextStyle(fontSize: 14, height: 1.4),
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── 리뷰 요약 섹션 ────────────────────────────────────────────────────
+  Widget _buildReviewSummary(StoreProduct product) {
+    final reviews = getDummyReviews(product.id);
+    final avg = reviews.isEmpty
+        ? 0.0
+        : reviews.map((r) => r.rating).reduce((a, b) => a + b) / reviews.length;
+    final preview = reviews.take(2).toList();
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          // 헤더
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 8, 8),
+            child: Row(
+              children: [
+                const Text(
+                  '리뷰',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(width: 8),
+                // 평균 별점
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.star_rounded,
+                      size: 16,
+                      color: AppColors.warning,
+                    ),
+                    const SizedBox(width: 2),
+                    Text(
+                      avg.toStringAsFixed(1),
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.warning,
+                      ),
+                    ),
+                    Text(
+                      ' (${reviews.length})',
+                      style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+                    ),
+                  ],
+                ),
+                const Spacer(),
+                TextButton(
+                  onPressed: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => ReviewScreen(product: product),
+                    ),
+                  ),
+                  child: const Text(
+                    '전체보기',
+                    style: TextStyle(
+                      color: AppColors.primary,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const Divider(height: 1, color: AppColors.border),
+          // 리뷰 미리보기 2개
+          if (reviews.isEmpty)
+            Padding(
+              padding: const EdgeInsets.all(20),
+              child: Text(
+                '아직 리뷰가 없습니다',
+                style: TextStyle(fontSize: 13, color: Colors.grey[400]),
+              ),
+            )
+          else
+            ...preview.map((r) => _buildReviewPreviewRow(r)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildReviewPreviewRow(ProductReview review) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: List.generate(
+                  5,
+                  (i) => Icon(
+                    i < review.rating
+                        ? Icons.star_rounded
+                        : Icons.star_border_rounded,
+                    size: 13,
+                    color: i < review.rating
+                        ? AppColors.warning
+                        : Colors.grey[300],
+                  ),
+                ),
+              ),
+              const SizedBox(width: 6),
+              Text(
+                review.userName,
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const Spacer(),
+              Text(
+                '${review.createdAt.month}/${review.createdAt.day}',
+                style: TextStyle(fontSize: 11, color: Colors.grey[400]),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            review.content,
+            style: const TextStyle(fontSize: 13, height: 1.4),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
           ),
         ],
       ),

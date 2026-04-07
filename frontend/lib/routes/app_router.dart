@@ -11,6 +11,7 @@ import 'package:simcap/features/profile/presentation/login_screen.dart';
 import 'package:simcap/features/profile/presentation/onboarding_survey_screen.dart';
 import 'package:simcap/features/profile/presentation/profile_screen.dart';
 import 'package:simcap/features/profile/presentation/purchase_history_screen.dart';
+import 'package:simcap/features/store/presentation/my_reviews_screen.dart';
 import 'package:simcap/features/store/presentation/store_screen.dart';
 import 'package:simcap/features/store/presentation/search_screen.dart';
 import 'package:simcap/features/store/presentation/basket_screen.dart';
@@ -114,6 +115,10 @@ class AppRouter {
               GoRoute(
                 path: 'purchases',
                 builder: (context, state) => const PurchaseHistoryScreen(),
+              ),
+              GoRoute(
+                path: 'my-reviews',
+                builder: (context, state) => const MyReviewsScreen(),
               ),
             ],
           ),

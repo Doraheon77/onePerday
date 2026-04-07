@@ -45,22 +45,57 @@ class CabinetScreen extends StatefulWidget {
 
 class _CabinetScreenState extends State<CabinetScreen> {
   _SortOption _sortOption = _SortOption.registeredDesc;
+  bool _isSearching = false;
+  String _searchQuery = '';
+  final TextEditingController _searchController = TextEditingController();
 
-  /// 정렬 적용
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
   List<Supplement> _sorted(List<Supplement> all) {
-    final list = List<Supplement>.from(all);
+    // 검색 필터 먼저 적용
+    final filtered = _searchQuery.isEmpty
+        ? all
+        : all
+              .where(
+                (s) =>
+                    s.name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
+                    s.brand.toLowerCase().contains(
+                      _searchQuery.toLowerCase(),
+                    ) ||
+                    s.nutrients.any(
+                      (n) => n.name.toLowerCase().contains(
+                        _searchQuery.toLowerCase(),
+                      ),
+                    ),
+              )
+              .toList();
+
     switch (_sortOption) {
       case _SortOption.registeredDesc:
-        return list; // Provider 저장 순서 유지
+        return filtered;
       case _SortOption.nameAsc:
-        return list..sort((a, b) => a.name.compareTo(b.name));
+        return filtered..sort((a, b) => a.name.compareTo(b.name));
       case _SortOption.stockAsc:
-        return list..sort((a, b) {
+        return filtered..sort((a, b) {
           final dA = a.daysUntilEmpty ?? 9999;
           final dB = b.daysUntilEmpty ?? 9999;
           return dA.compareTo(dB);
         });
     }
+  }
+
+  void _toggleSearch() {
+    setState(() {
+      _isSearching = !_isSearching;
+      if (!_isSearching) {
+        _searchQuery = '';
+        _searchController.clear();
+      }
+    });
   }
 
   /// 정렬 옵션 선택 바텀시트
@@ -137,44 +172,63 @@ class _CabinetScreenState extends State<CabinetScreen> {
     return Scaffold(
       backgroundColor: AppColors.scaffoldBg,
       appBar: AppBar(
-        title: const Text(
-          '내 영양제 캐비닛',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
+        title: _isSearching
+            ? TextField(
+                controller: _searchController,
+                autofocus: true,
+                decoration: const InputDecoration(
+                  hintText: '영양제 이름, 브랜드, 성분 검색',
+                  border: InputBorder.none,
+                  hintStyle: TextStyle(color: Colors.grey),
+                ),
+                style: const TextStyle(fontSize: 16),
+                onChanged: (v) => setState(() => _searchQuery = v),
+              )
+            : const Text(
+                '내 영양제 캐비닛',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
         centerTitle: false,
         backgroundColor: Colors.white,
         elevation: 0,
         actions: [
-          // 현재 정렬 기준 칩
-          GestureDetector(
-            onTap: _showSortSheet,
-            child: Container(
-              margin: const EdgeInsets.only(right: 4),
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(
-                color: AppColors.primaryLight,
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(_sortOption.icon, size: 14, color: AppColors.primary),
-                  const SizedBox(width: 4),
-                  Text(
-                    _sortOption.label,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: AppColors.primary,
-                      fontWeight: FontWeight.bold,
+          // 현재 정렬 기준 칩 (검색 중 숨김)
+          if (!_isSearching)
+            GestureDetector(
+              onTap: _showSortSheet,
+              child: Container(
+                margin: const EdgeInsets.only(right: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: AppColors.primaryLight,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(_sortOption.icon, size: 14, color: AppColors.primary),
+                    const SizedBox(width: 4),
+                    Text(
+                      _sortOption.label,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: AppColors.primary,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
-          ),
           IconButton(
-            icon: const Icon(Icons.search, color: Colors.black87),
-            onPressed: () {},
+            icon: Icon(
+              _isSearching ? Icons.close : Icons.search,
+              color: Colors.black87,
+            ),
+            onPressed: _toggleSearch,
           ),
         ],
       ),
@@ -193,13 +247,17 @@ class _CabinetScreenState extends State<CabinetScreen> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Icon(
-                          Icons.inventory_2_outlined,
+                          _searchQuery.isNotEmpty
+                              ? Icons.search_off_rounded
+                              : Icons.inventory_2_outlined,
                           size: 56,
                           color: Colors.grey[300],
                         ),
                         const SizedBox(height: 12),
                         Text(
-                          '등록된 영양제가 없습니다',
+                          _searchQuery.isNotEmpty
+                              ? "'$_searchQuery' 검색 결과가 없습니다"
+                              : '등록된 영양제가 없습니다',
                           style: TextStyle(
                             fontSize: 15,
                             color: Colors.grey[400],
@@ -208,7 +266,9 @@ class _CabinetScreenState extends State<CabinetScreen> {
                         ),
                         const SizedBox(height: 6),
                         Text(
-                          '아래 버튼으로 영양제를 추가해보세요',
+                          _searchQuery.isNotEmpty
+                              ? '다른 키워드로 검색해보세요'
+                              : '아래 버튼으로 영양제를 추가해보세요',
                           style: TextStyle(
                             fontSize: 13,
                             color: Colors.grey[400],

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:simcap/core/constant/app_constants.dart';
 import 'package:simcap/providers/supplement_provider.dart';
 
@@ -48,6 +49,9 @@ class BasketScreen extends StatefulWidget {
 }
 
 class _BasketScreenState extends State<BasketScreen> {
+  // 장바구니 데이터는 SupplementProvider에서 읽음
+  // _cartItems 하드코딩 제거 → notifier.cartItems 사용
+
   // 검사 패널 표시 여부
   bool _showContraPanel = false;
   bool _showOverdosePanel = false;
@@ -219,30 +223,135 @@ class _BasketScreenState extends State<BasketScreen> {
   }
 
   // 더미 검사 로직 (백엔드 연동 전)
+  /// 성분 및 상호작용 검사
+  /// - 장바구니 상품 이름 기반 중복 성분 확인
+  /// - 사용자 질환/알레르기와 교차 확인 (SharedPreferences)
   Future<void> _runContraCheck() async {
     setState(() {
       _isContraLoading = true;
       _showContraPanel = true;
       _showOverdosePanel = false;
     });
-    await Future.delayed(const Duration(milliseconds: 900));
+
+    final notifier = SupplementProvider.of(context);
+    // CartItem: productId, name, brand, price, count, checked
+    final checkedItems = notifier.cartItems.where((c) => c.checked).toList();
+
+    // SharedPreferences에서 사용자 건강 정보 로드
+    final prefs = await SharedPreferences.getInstance();
+    final userHealth = prefs.getStringList('selectedHealth') ?? [];
+    final userAllergies = prefs.getStringList('selectedAllergies') ?? [];
+
+    await Future.delayed(const Duration(milliseconds: 600));
+
+    final results = <_ContraindicationResult>[];
+
+    // 1. 상품명 기반 중복 성분 검사
+    // CartItem에는 nutrients 필드가 없으므로 상품명으로 성분 추정
+    final dangerousPairs = <(List<String>, String, String)>[
+      (['비타민A', '비타민 A', '레티놀'], '비타민 A', '지용성 비타민 — 합산 시 독성 위험'),
+      (['비타민D', '비타민 D', 'D3'], '비타민 D', '지용성 비타민 — 합산 시 고칼슘혈증 위험'),
+      (['비타민E', '비타민 E', '토코페롤'], '비타민 E', '혈액 응고 억제 중복 — 출혈 위험 증가'),
+      (['칼슘', 'Ca', '탄산칼슘', 'calcium'], '칼슘', '고칼슘혈증 위험'),
+      (['아연', 'Zinc', 'zinc', '징크'], '아연', '면역 독성 위험 — 구리 흡수 방해'),
+      (['철분', '철', 'Iron', 'iron'], '철분', '철 과부하 — 산화 스트레스 증가'),
+      (['오메가3', '오메가-3', 'EPA', 'DHA', '어유'], '오메가3', '혈액 희석 효과 중복 — 출혈 위험'),
+    ];
+
+    for (final pair in dangerousPairs) {
+      final aliases = pair.$1;
+      final nutrientName = pair.$2;
+      final reason = pair.$3;
+
+      // 상품명에 해당 성분 키워드가 포함된 상품 찾기
+      final matching = checkedItems
+          .where(
+            (c) => aliases.any(
+              (a) => c.name.toLowerCase().contains(a.toLowerCase()),
+            ),
+          )
+          .toList();
+
+      if (matching.length >= 2) {
+        results.add(
+          _ContraindicationResult(
+            item1: matching[0].name,
+            item2: matching[1].name,
+            reason: '[$nutrientName 중복] $reason',
+            status: _CheckStatus.warning,
+          ),
+        );
+      }
+    }
+
+    // 2. 사용자 질환과 상품명 교차 검사
+    const healthWarnings = {
+      '당뇨': [('크롬', '혈당 과도 저하 위험'), ('알파리포산', '저혈당 위험')],
+      '고혈압': [('감초', '혈압 상승 가능'), ('나트륨', '혈압 상승 가능')],
+      '갑상선 질환': [
+        ('아이오딘', '갑상선 기능 악화 가능'),
+        ('요오드', '갑상선 기능 악화 가능'),
+        ('켈프', '요오드 과다'),
+      ],
+      '신장 질환': [('마그네슘', '신장 부담 증가'), ('칼륨', '고칼륨혈증 위험')],
+      '빈혈': [('칼슘', '철분 흡수 방해 — 빈혈 악화 가능')],
+      '골다공증': [('알루미늄', '칼슘 흡수 방해')],
+      '통풍': [('비타민C', '고용량 시 요산 증가 가능'), ('퓨린', '요산 수치 상승')],
+    };
+
+    for (final disease in userHealth) {
+      final warnings = healthWarnings[disease];
+      if (warnings == null) continue;
+      for (final w in warnings) {
+        final nutrient = w.$1;
+        final reason = w.$2;
+        for (final item in checkedItems) {
+          if (item.name.toLowerCase().contains(nutrient.toLowerCase())) {
+            results.add(
+              _ContraindicationResult(
+                item1: item.name,
+                item2: '[$disease 보유]',
+                reason: reason,
+                status: _CheckStatus.danger,
+              ),
+            );
+          }
+        }
+      }
+    }
+
+    // 3. 알레르기 성분 교차 검사
+    const allergyMap = {
+      '갑각류': ['크릴', '크릴오일', 'krill', '새우', '게'],
+      '대두': ['대두', '콩', 'soy', '이소플라본'],
+      '우유': ['유청', 'whey', '카세인', '유단백'],
+      '견과류': ['아몬드', '호두', '캐슈', '견과'],
+      '밀': ['밀', '글루텐'],
+      '달걀': ['달걀', '계란', 'egg'],
+      '고등어': ['어유', 'fish oil', '오메가3', '오메가-3'],
+    };
+
+    for (final allergy in userAllergies) {
+      final keywords = allergyMap[allergy];
+      if (keywords == null) continue;
+      for (final item in checkedItems) {
+        final nameLower = item.name.toLowerCase();
+        if (keywords.any((k) => nameLower.contains(k.toLowerCase()))) {
+          results.add(
+            _ContraindicationResult(
+              item1: item.name,
+              item2: '[$allergy 알레르기]',
+              reason: '$allergy 알레르기 유발 성분 포함 가능 — 섭취 전 전문의 상담 권장',
+              status: _CheckStatus.danger,
+            ),
+          );
+        }
+      }
+    }
+
     setState(() {
       _isContraLoading = false;
-      // TODO: 백엔드 API 호출로 교체
-      _contraResults = [
-        const _ContraindicationResult(
-          item1: '멀티비타민 포 맨',
-          item2: '고함량 오메가3',
-          reason: '비타민E 중복 함유 — 합산 시 일일 상한 섭취량 초과 가능',
-          status: _CheckStatus.warning,
-        ),
-        const _ContraindicationResult(
-          item1: '멀티비타민 포 맨',
-          item2: '고함량 오메가3',
-          reason: '혈액 응고 억제 효과 중복 (오메가3 + 비타민K) — 항응고제 복용자 주의',
-          status: _CheckStatus.danger,
-        ),
-      ];
+      _contraResults = results;
     });
   }
 
@@ -463,7 +572,7 @@ class _BasketScreenState extends State<BasketScreen> {
                   '${_formatPrice(item.price)}원',
                   style: const TextStyle(
                     fontWeight: FontWeight.bold,
-                    color: Color(0xFF4CAF50),
+                    color: AppColors.primary,
                   ),
                 ),
               ],
@@ -509,19 +618,19 @@ class _BasketScreenState extends State<BasketScreen> {
               // 병용금지 검사
               Expanded(
                 child: _CheckButton(
-                  icon: Icons.block_outlined,
-                  label: '병용금지 검사',
-                  description: '성분 간 충돌 확인',
-                  color: const Color(0xFFFF6B6B),
-                  bgColor: const Color(0xFFFFF0F0),
+                  icon: Icons.biotech_outlined,
+                  label: '성분 상호작용',
+                  description: '질환·알레르기·중복 확인',
+                  color: AppColors.danger,
+                  bgColor: AppColors.dangerSoftBg,
                   isActive: _showContraPanel,
                   isLoading: _isContraLoading,
-                  onTap: SupplementProvider.of(context).cartCheckedCount >= 2
+                  onTap: SupplementProvider.of(context).cartCheckedCount >= 1
                       ? () => _showContraPanel && !_isContraLoading
                             ? setState(() => _showContraPanel = false)
                             : _runContraCheck()
                       : null,
-                  disabledHint: '2개 이상 선택 필요',
+                  disabledHint: '1개 이상 선택 필요',
                 ),
               ),
               const SizedBox(width: 10),
@@ -531,8 +640,8 @@ class _BasketScreenState extends State<BasketScreen> {
                   icon: Icons.warning_amber_rounded,
                   label: '과다섭취 검사',
                   description: '일일 상한량 초과 확인',
-                  color: const Color(0xFFFFC107),
-                  bgColor: const Color(0xFFFFFDE7),
+                  color: AppColors.warning,
+                  bgColor: AppColors.warningBg,
                   isActive: _showOverdosePanel,
                   isLoading: _isOverdoseLoading,
                   onTap: SupplementProvider.of(context).cartCheckedCount >= 1
@@ -570,9 +679,9 @@ class _BasketScreenState extends State<BasketScreen> {
         children: [
           // 패널 헤더
           _buildPanelHeader(
-            icon: Icons.block_outlined,
-            title: '병용금지 검사 결과',
-            color: const Color(0xFFFF6B6B),
+            icon: Icons.biotech_outlined,
+            title: '성분 상호작용 검사 결과',
+            color: AppColors.danger,
             onClose: () => setState(() => _showContraPanel = false),
           ),
           const Divider(height: 1),
@@ -581,7 +690,7 @@ class _BasketScreenState extends State<BasketScreen> {
             const _LoadingIndicator(message: '성분 간 충돌을 분석하고 있어요...')
           // 결과 없음
           else if (_contraResults == null || _contraResults!.isEmpty)
-            const _EmptyResult(message: '병용금지 성분이 발견되지 않았습니다.')
+            const _EmptyResult(message: '성분 상호작용 문제가 발견되지 않았습니다.')
           // 결과 표시
           else
             Padding(
@@ -597,11 +706,11 @@ class _BasketScreenState extends State<BasketScreen> {
 
   Widget _buildContraRow(_ContraindicationResult r) {
     final color = r.status == _CheckStatus.danger
-        ? const Color(0xFFFF6B6B)
-        : const Color(0xFFFFC107);
+        ? AppColors.danger
+        : AppColors.warning;
     final bgColor = r.status == _CheckStatus.danger
-        ? const Color(0xFFFFF0F0)
-        : const Color(0xFFFFFDE7);
+        ? AppColors.dangerSoftBg
+        : AppColors.warningBg;
     final label = r.status == _CheckStatus.danger ? '주의 필요' : '경고';
 
     return Container(
@@ -698,7 +807,7 @@ class _BasketScreenState extends State<BasketScreen> {
           _buildPanelHeader(
             icon: Icons.warning_amber_rounded,
             title: '과다섭취 검사 결과',
-            color: const Color(0xFFFFC107),
+            color: AppColors.warning,
             onClose: () => setState(() => _showOverdosePanel = false),
           ),
           const Divider(height: 1),
@@ -715,11 +824,11 @@ class _BasketScreenState extends State<BasketScreen> {
                   // 범례
                   Row(
                     children: [
-                      _legend(const Color(0xFF4CAF50), '안전'),
+                      _legend(AppColors.primary, '안전'),
                       const SizedBox(width: 12),
-                      _legend(const Color(0xFFFFC107), '주의 (80% 이상)'),
+                      _legend(AppColors.warning, '주의 (80% 이상)'),
                       const SizedBox(width: 12),
-                      _legend(const Color(0xFFFF6B6B), '초과'),
+                      _legend(AppColors.danger, '초과'),
                     ],
                   ),
                   const SizedBox(height: 14),
@@ -741,18 +850,18 @@ class _BasketScreenState extends State<BasketScreen> {
     String statusLabel;
     switch (r.status) {
       case _CheckStatus.danger:
-        barColor = const Color(0xFFFF6B6B);
-        textColor = const Color(0xFFFF6B6B);
+        barColor = AppColors.danger;
+        textColor = AppColors.danger;
         statusLabel = '초과';
         break;
       case _CheckStatus.warning:
-        barColor = const Color(0xFFFFC107);
-        textColor = const Color(0xFFFFC107);
+        barColor = AppColors.warning;
+        textColor = AppColors.warning;
         statusLabel = '주의';
         break;
       case _CheckStatus.safe:
-        barColor = const Color(0xFF4CAF50);
-        textColor = const Color(0xFF4CAF50);
+        barColor = AppColors.primary;
+        textColor = AppColors.primary;
         statusLabel = '안전';
     }
 
@@ -865,7 +974,7 @@ class _BasketScreenState extends State<BasketScreen> {
                   style: const TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
-                    color: Color(0xFF4CAF50),
+                    color: AppColors.primary,
                   ),
                 ),
               ],
@@ -876,7 +985,7 @@ class _BasketScreenState extends State<BasketScreen> {
               height: 56,
               child: ElevatedButton(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF4CAF50),
+                  backgroundColor: AppColors.primary,
                   foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(16),
@@ -1069,7 +1178,7 @@ class _LoadingIndicator extends StatelessWidget {
       child: Column(
         children: [
           const CircularProgressIndicator(
-            color: Color(0xFF4CAF50),
+            color: AppColors.primary,
             strokeWidth: 2.5,
           ),
           const SizedBox(height: 14),
@@ -1095,7 +1204,7 @@ class _EmptyResult extends StatelessWidget {
         children: [
           const Icon(
             Icons.check_circle_outline,
-            color: Color(0xFF4CAF50),
+            color: AppColors.primary,
             size: 20,
           ),
           const SizedBox(width: 10),

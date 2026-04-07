@@ -392,50 +392,11 @@ class _HomeScreenState extends State<HomeScreen> {
     final isDone = notifier.isDoneOn(supplement.name, _selectedDate);
     final isToday = _dateOnly(_selectedDate) == _dateOnly(DateTime.now());
 
-    if (!isToday) {
-      return GestureDetector(
-        onTap: null,
-        child: _buildMedicationCard(supplement, isDone, false),
-      );
-    }
-
-    return Dismissible(
-      key: ValueKey('${supplement.name}_${_selectedDate.toIso8601String()}'),
-      direction: DismissDirection.startToEnd,
-      confirmDismiss: (_) async {
-        notifier.toggleDose(supplement.name, date: _selectedDate);
-        return false;
-      },
-      background: Container(
-        margin: const EdgeInsets.only(bottom: 12),
-        decoration: BoxDecoration(
-          color: isDone ? AppColors.dangerBg : AppColors.primaryLight,
-          borderRadius: BorderRadius.circular(20),
-        ),
-        alignment: Alignment.centerLeft,
-        padding: const EdgeInsets.only(left: 24),
-        child: Row(
-          children: [
-            Icon(
-              isDone ? Icons.close_rounded : Icons.check_rounded,
-              color: isDone ? AppColors.danger : AppColors.primary,
-              size: 28,
-            ),
-            const SizedBox(width: 8),
-            Text(
-              isDone ? '복용 취소' : '복용 완료',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                color: isDone ? AppColors.danger : AppColors.primary,
-              ),
-            ),
-          ],
-        ),
-      ),
-      child: GestureDetector(
-        onTap: () => notifier.toggleDose(supplement.name, date: _selectedDate),
-        child: _buildMedicationCard(supplement, isDone, true),
-      ),
+    return GestureDetector(
+      onTap: isToday
+          ? () => notifier.toggleDose(supplement.name, date: _selectedDate)
+          : null,
+      child: _buildMedicationCard(supplement, isDone, isToday),
     );
   }
 

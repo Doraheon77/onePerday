@@ -246,7 +246,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   _buildBasicInfoSection(),
                   const SizedBox(height: 32),
 
-                  // 2. 건강 목표 섹션
+                  // 2. 구매 기록 섹션 (위로 이동)
+                  _buildPurchaseHistorySection(),
+                  const SizedBox(height: 32),
+
+                  // 3. 내가 쓴 리뷰 섹션 (위로 이동)
+                  _buildMyReviewsSection(),
+                  const SizedBox(height: 32),
+
+                  // 4. 나의 건강 목표 (아래로 이동)
                   _buildProfileSection(
                     '나의 건강 목표',
                     _goals,
@@ -259,7 +267,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                   ),
 
-                  // 3. 질환 섹션
+                  // 5. 질환 섹션
                   _buildProfileSection(
                     '주의가 필요한 질환',
                     _healthIssues,
@@ -272,7 +280,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                   ),
 
-                  // 4. 알레르기 섹션
+                  // 6. 알레르기 섹션
                   _buildProfileSection(
                     '나의 알레르기',
                     _allergies,
@@ -285,25 +293,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                   ),
 
-                  // 5. 생활 습관 섹션
+                  // 7. 생활 습관 섹션
                   _buildLifestyleSection(),
-
-                  const SizedBox(height: 32),
-
-                  // 6. 구매 기록 섹션
-                  _buildPurchaseHistorySection(),
-
                   const SizedBox(height: 40),
 
-                  // 메뉴 버튼들
-                  _buildMenuButton(
-                    '설문 데이터 다시하기',
-                    Icons.refresh,
-                    onTap: () => context.go('/onboarding'),
-                  ),
+                  // 메뉴 버튼 (설문 다시하기 제거)
                   _buildMenuButton('앱 설정', Icons.settings, onTap: () {}),
                   const SizedBox(height: 24),
-                  // 로그아웃
                   _buildLogoutButton(),
                 ],
               ),
@@ -516,7 +512,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           label: _smokingStatus,
           isActive: isSmoker,
           activeColor: Colors.orange,
-          activeBg: const Color(0xFFFFF3E0),
+          activeBg: AppColors.smokingBg,
           onTap: () => _updateSmokingStatus(isSmoker ? '비흡연자입니다' : '흡연자입니다'),
         ),
         const SizedBox(height: 10),
@@ -527,7 +523,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           label: _drinkingStatus,
           isActive: isDrinker,
           activeColor: Colors.purple,
-          activeBg: const Color(0xFFF3E5F5),
+          activeBg: AppColors.drinkingBg,
           onTap: () => _updateDrinkingStatus(isDrinker ? '마시지 않음' : '음주 중'),
         ),
 
@@ -541,7 +537,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             label: _pregnancyStatus,
             isActive: isPregnant,
             activeColor: Colors.pink,
-            activeBg: const Color(0xFFFCE4EC),
+            activeBg: AppColors.pregnancyBg,
             onTap: () => _updatePregnancyStatus(isPregnant ? '해당 없음' : '임신 중'),
           ),
         ],
@@ -593,6 +589,63 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  // 내가 쓴 리뷰 섹션
+  Widget _buildMyReviewsSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text(
+              '내가 쓴 리뷰',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            TextButton(
+              onPressed: () => context.push('/profile/my-reviews'),
+              child: const Text(
+                '전체보기',
+                style: TextStyle(
+                  color: AppColors.primary,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: AppColors.scaffoldBg,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppColors.border),
+          ),
+          child: Column(
+            children: [
+              Icon(
+                Icons.rate_review_outlined,
+                size: 36,
+                color: Colors.grey[300],
+              ),
+              const SizedBox(height: 8),
+              Text(
+                '아직 작성한 리뷰가 없습니다',
+                style: TextStyle(fontSize: 14, color: Colors.grey[400]),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                '구매한 상품에 리뷰를 남겨보세요',
+                style: TextStyle(fontSize: 12, color: Colors.grey[400]),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
   // 구매 기록 섹션 — Provider 데이터 연동
   Widget _buildPurchaseHistorySection() {
     final purchases = SupplementProvider.of(context).purchases;
@@ -637,12 +690,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
     Color badgeBg, badgeFg;
     switch (record.status) {
       case PurchaseStatus.ordered:
-        badgeBg = const Color(0xFFFFF3CD);
-        badgeFg = const Color(0xFF8a6200);
+        badgeBg = AppColors.orderedBg;
+        badgeFg = AppColors.orderedFg;
         break;
       case PurchaseStatus.shipping:
-        badgeBg = const Color(0xFFE3F2FD);
-        badgeFg = const Color(0xFF1565C0);
+        badgeBg = AppColors.shippingBg;
+        badgeFg = AppColors.shippingFg;
         break;
       case PurchaseStatus.delivered:
         badgeBg = AppColors.primaryLight;
@@ -897,9 +950,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             decoration: BoxDecoration(
-              color: isDelivered
-                  ? AppColors.primaryLight
-                  : const Color(0xFFFFF3CD),
+              color: isDelivered ? AppColors.primaryLight : AppColors.orderedBg,
               borderRadius: BorderRadius.circular(20),
             ),
             child: Text(
@@ -909,7 +960,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 fontWeight: FontWeight.bold,
                 color: isDelivered
                     ? AppColors.primaryDark
-                    : const Color(0xFF8a6200),
+                    : AppColors.orderedFg,
               ),
             ),
           ),

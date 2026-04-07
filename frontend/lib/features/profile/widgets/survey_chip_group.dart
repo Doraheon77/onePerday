@@ -6,11 +6,15 @@ class SurveyChipGroup extends StatelessWidget {
   final List<String> selectedValues;
   final Function(String, bool) onSelected;
 
+  /// 한 줄에 표시할 카드 수. 기본값 4, 성별처럼 2개만 있을 때는 2로 지정
+  final int columns;
+
   const SurveyChipGroup({
     super.key,
     required this.options,
     required this.selectedValues,
     required this.onSelected,
+    this.columns = 4,
   });
 
   @override
@@ -18,11 +22,11 @@ class SurveyChipGroup extends StatelessWidget {
     return GridView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 4, // 한 줄에 4개 배치
-        crossAxisSpacing: 8, // 가로 간격
-        mainAxisSpacing: 8, // 세로 간격
-        childAspectRatio: 0.85, // subLabel이 빠졌으므로 높이를 살짝 줄임
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: columns,
+        crossAxisSpacing: 8,
+        mainAxisSpacing: 8,
+        childAspectRatio: 0.85,
       ),
       itemCount: options.length,
       itemBuilder: (context, index) {
