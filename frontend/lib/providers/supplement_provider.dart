@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:simcap/core/constant/app_constants.dart';
 import 'package:simcap/features/cabinet/domain/dataModels/supplement_model.dart';
+import 'package:simcap/services/notification_service.dart';
 
 // 복용 기록 모델
 // 날짜별로 어떤 영양제를 복용했는지 추적
@@ -244,30 +245,39 @@ class SupplementNotifier extends ChangeNotifier {
     }
 
     notifyListeners();
+
+    // 복용 후 재고 임박 여부 재확인 → 알림 트리거
+    NotificationService.instance.checkAndNotifyLowStock(_supplements);
   }
 
   // 캐비닛 CRUD
 
   void addSupplement(Supplement supplement) {
     _supplements.add(supplement);
+    // 복용 알림 재스케줄 + 재구매 알림 체크
+    NotificationService.instance.scheduleAllDoseAlarms(_supplements);
+    NotificationService.instance.checkAndNotifyLowStock(_supplements);
     notifyListeners();
   }
 
   void updateSupplement(int index, Supplement updated) {
     if (index < 0 || index >= _supplements.length) return;
     _supplements[index] = updated;
+    // 복용 시점이 바뀔 수 있으므로 복용 알림 재스케줄
+    NotificationService.instance.scheduleAllDoseAlarms(_supplements);
+    NotificationService.instance.checkAndNotifyLowStock(_supplements);
     notifyListeners();
   }
 
   void removeSupplement(String name) {
     _supplements.removeWhere((s) => s.name == name);
     _doseHistory.removeWhere((r) => r.supplementName == name);
+    // 삭제된 영양제 알림 정리 후 재스케줄
+    NotificationService.instance.scheduleAllDoseAlarms(_supplements);
     notifyListeners();
   }
 
-  // ── 구매 기록 CRUD ────────────────────────────────────────────────────
-
-  // ── 장바구니 상태 ─────────────────────────────────────────────────────
+  // 장바구니 상태
   final List<CartItem> _cartItems = [];
 
   /// 장바구니 아이템 목록 (불변)

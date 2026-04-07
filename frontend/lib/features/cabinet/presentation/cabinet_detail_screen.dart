@@ -2,11 +2,61 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:simcap/core/constant/app_constants.dart';
 import 'package:simcap/features/cabinet/domain/dataModels/supplement_model.dart';
+import 'package:url_launcher/url_launcher.dart';
 
-class CabinetDetailScreen extends StatelessWidget {
+class CabinetDetailScreen extends StatefulWidget {
   final Supplement item;
 
   const CabinetDetailScreen({super.key, required this.item});
+
+  @override
+  State<CabinetDetailScreen> createState() => _CabinetDetailScreenState();
+}
+
+class _CabinetDetailScreenState extends State<CabinetDetailScreen> {
+  bool _isLaunching = false;
+
+  // 구매처 이동 — 상품명으로 네이버 쇼핑 검색
+  Future<void> _launchPurchaseUrl() async {
+    if (_isLaunching) return;
+    setState(() => _isLaunching = true);
+
+    final query = Uri.encodeComponent(widget.item.name);
+    final uri = Uri.parse(
+      'https://search.shopping.naver.com/search/all?query=$query',
+    );
+
+    try {
+      final canLaunch = await canLaunchUrl(uri);
+      if (!canLaunch) {
+        if (mounted) _showSnackBar('구매 페이지를 열 수 없습니다.', isError: true);
+        return;
+      }
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } catch (e) {
+      if (mounted) _showSnackBar('구매 페이지 연결에 실패했습니다.', isError: true);
+    } finally {
+      if (mounted) setState(() => _isLaunching = false);
+    }
+  }
+
+  // 리뷰 작성 — 백엔드 연동 전 TODO 안내
+  void _onWriteReview() {
+    _showSnackBar('리뷰 작성 기능은 준비 중입니다.');
+  }
+
+  void _showSnackBar(String message, {bool isError = false}) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: isError ? AppColors.danger : Colors.black87,
+      ),
+    );
+  }
+
+  // StatefulWidget이므로 item은 widget.item으로 접근
+  Supplement get item => widget.item;
 
   @override
   Widget build(BuildContext context) {
@@ -441,9 +491,10 @@ class CabinetDetailScreen extends StatelessWidget {
       decoration: const BoxDecoration(color: Colors.white),
       child: Row(
         children: [
+          // 리뷰 작성하기 — 백엔드 연동 전 TODO 스낵바
           Expanded(
             child: OutlinedButton(
-              onPressed: () {},
+              onPressed: _onWriteReview,
               style: OutlinedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 side: const BorderSide(color: AppColors.primary, width: 1.5),
@@ -461,24 +512,35 @@ class CabinetDetailScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 12),
+          // 구매처 이동 — 네이버 쇼핑 검색 연동
           Expanded(
             child: ElevatedButton(
-              onPressed: () {},
+              onPressed: _isLaunching ? null : _launchPurchaseUrl,
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primary,
+                disabledBackgroundColor: Colors.grey[300],
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 elevation: 0,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(14),
                 ),
               ),
-              child: const Text(
-                '구매처 이동',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
+              child: _isLaunching
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : const Text(
+                      '구매처 이동',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
             ),
           ),
         ],

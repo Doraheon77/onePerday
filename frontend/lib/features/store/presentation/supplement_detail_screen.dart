@@ -593,14 +593,7 @@ class _SupplementDetailScreenState extends State<SupplementDetailScreen> {
               itemBuilder: (context, index) {
                 final sp = products[index];
                 return GestureDetector(
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => SupplementDetailScreen(product: sp),
-                      ),
-                    );
-                  },
+                  onTap: () => context.push('/store/detail', extra: sp),
                   child: Container(
                     width: 120,
                     decoration: BoxDecoration(

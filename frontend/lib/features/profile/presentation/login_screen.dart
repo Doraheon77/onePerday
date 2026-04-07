@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:simcap/features/profile/widgets/login_social_button.dart';
+import 'package:simcap/providers/supplement_provider.dart';
+import 'package:simcap/services/notification_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -11,8 +13,24 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  // 로그인 처리 중 버튼 중복 탭 방지
   bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // 이 시점은 MethodChannel이 완전히 준비된 후
+    // flutter_local_notifications 플러그인 초기화 최적 위치
+    _initNotifications();
+  }
+
+  Future<void> _initNotifications() async {
+    await NotificationService.instance.initialize();
+    if (!mounted || !NotificationService.instance.isInitialized) return;
+    final notifier = SupplementProvider.of(context);
+    await NotificationService.instance.checkAndNotifyLowStock(
+      notifier.supplements,
+    );
+  }
 
   // SharedPreferences에서 온보딩 완료 여부 확인 후 라우팅
   Future<void> _handleLogin(BuildContext context) async {

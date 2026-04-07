@@ -392,7 +392,7 @@ class _BarcodeScanScreenState extends State<BarcodeScanScreen> {
   }
 }
 
-// ── 모서리선 CustomPainter ─────────────────────────────────────
+// 모서리선 CustomPainter
 class _CornerPainter extends CustomPainter {
   final Color color;
   final double thick;
@@ -426,7 +426,7 @@ class _CornerPainter extends CustomPainter {
   bool shouldRepaint(_CornerPainter old) => false;
 }
 
-// ── 스캔 라인 애니메이션 ──────────────────────────────────────
+// 스캔 라인 애니메이션
 class _ScanLineAnimation extends StatefulWidget {
   @override
   State<_ScanLineAnimation> createState() => _ScanLineAnimationState();

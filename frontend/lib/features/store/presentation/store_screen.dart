@@ -177,6 +177,9 @@ class _StoreScreenState extends State<StoreScreen> {
       child: ListView.builder(
         padding: const EdgeInsets.symmetric(horizontal: 12),
         scrollDirection: Axis.horizontal,
+        // 세로 ScrollView와 제스처 충돌 방지 — 가로 스크롤 명시적 허용
+        physics: const AlwaysScrollableScrollPhysics(),
+        clipBehavior: Clip.none,
         itemCount: recommendProducts.length,
         itemBuilder: (context, index) {
           final product = recommendProducts[index];
@@ -352,7 +355,41 @@ class _StoreScreenState extends State<StoreScreen> {
   }
 
   Widget _buildRankingList() {
-    final products = rankingProducts;
+    // 전체 상품에서 가격 필터 적용
+    var products = allProducts.where((p) {
+      switch (_selectedPriceRange) {
+        case '1만원 이하':
+          return p.price < 10000;
+        case '1~3만원':
+          return p.price >= 10000 && p.price < 30000;
+        case '3~5만원':
+          return p.price >= 30000 && p.price < 50000;
+        case '5만원 이상':
+          return p.price >= 50000;
+        default:
+          return true; // '전체'
+      }
+    }).toList();
+
+    // 결과 없음
+    if (products.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 32),
+        child: Center(
+          child: Column(
+            children: [
+              Icon(Icons.search_off_rounded, size: 48, color: Colors.grey[300]),
+              const SizedBox(height: 12),
+              Text(
+                '$_selectedPriceRange 해당 상품이 없습니다',
+                style: TextStyle(fontSize: 14, color: Colors.grey[400]),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     return ListView.separated(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
@@ -362,7 +399,6 @@ class _StoreScreenState extends State<StoreScreen> {
       itemBuilder: (context, index) {
         final product = products[index];
         final rank = index + 1;
-        // 상위 3위 강조색
         final rankColor = rank == 1
             ? const Color(0xFFFFB300)
             : rank == 2

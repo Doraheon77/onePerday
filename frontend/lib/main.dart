@@ -6,13 +6,15 @@ import 'package:simcap/core/constant/app_constants.dart';
 import 'package:simcap/core/theme/app_theme.dart';
 import 'package:simcap/providers/supplement_provider.dart';
 import 'package:simcap/routes/app_router.dart';
+import 'package:simcap/services/notification_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await initializeDateFormatting('ko_KR', null);
-  runApp(
-    SupplementProvider(notifier: SupplementNotifier(), child: const MyApp()),
-  );
+
+  final notifier = SupplementNotifier();
+
+  runApp(SupplementProvider(notifier: notifier, child: const MyApp()));
 }
 
 class MyApp extends StatelessWidget {

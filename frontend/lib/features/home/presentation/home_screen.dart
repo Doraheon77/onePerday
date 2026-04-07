@@ -195,8 +195,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ),
                   const SizedBox(height: 6),
-                  // ── 복용 상태 도트 ──────────────────────────────
-                  // 전체 완료: 초록 채움  /  일부 완료: 초록 테두리  /  없음: 투명
+                  // 복용 상태 도트
                   Container(
                     width: 5,
                     height: 5,
