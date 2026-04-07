@@ -1,4 +1,6 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:simcap/core/constant/app_constants.dart';
 import 'package:simcap/features/cabinet/domain/dataModels/supplement_model.dart';
 import 'package:simcap/services/notification_service.dart';
@@ -6,20 +8,30 @@ import 'package:simcap/services/notification_service.dart';
 // 복용 기록 모델
 // 날짜별로 어떤 영양제를 복용했는지 추적
 class DoseRecord {
-  final String supplementName; // Supplement.name을 키로 사용
-  final DateTime date; // 복용한 날짜 (시간은 무시, 날짜만 비교)
+  final String supplementName;
+  final DateTime date;
 
   const DoseRecord({required this.supplementName, required this.date});
+
+  Map<String, dynamic> toJson() => {
+    'supplementName': supplementName,
+    'date': date.toIso8601String(),
+  };
+
+  factory DoseRecord.fromJson(Map<String, dynamic> json) => DoseRecord(
+    supplementName: json['supplementName'] as String,
+    date: DateTime.parse(json['date'] as String),
+  );
 }
 
 // 장바구니 아이템 모델
 class CartItem {
-  final String productId; // StoreProduct.id
+  final String productId;
   final String name;
   final String brand;
-  final int price; // 단가
-  int count; // 수량 (mutable — 수량 변경 지원)
-  bool checked; // 선택 여부 (결제 대상 포함/제외)
+  final int price;
+  int count;
+  bool checked;
 
   CartItem({
     required this.productId,
@@ -32,17 +44,34 @@ class CartItem {
 
   int get totalPrice => price * count;
 
-  /// CartItem → PurchaseItem 변환 (주문 시 사용)
+  Map<String, dynamic> toJson() => {
+    'productId': productId,
+    'name': name,
+    'brand': brand,
+    'price': price,
+    'count': count,
+    'checked': checked,
+  };
+
+  factory CartItem.fromJson(Map<String, dynamic> json) => CartItem(
+    productId: json['productId'] as String,
+    name: json['name'] as String,
+    brand: json['brand'] as String,
+    price: json['price'] as int,
+    count: json['count'] as int? ?? 1,
+    checked: json['checked'] as bool? ?? true,
+  );
+
   PurchaseItem toPurchaseItem() =>
       PurchaseItem(name: name, brand: brand, price: price, count: count);
 }
 
 // 구매 기록 아이템
 class PurchaseItem {
-  final String name; // 상품명
-  final String brand; // 브랜드
-  final int price; // 단가
-  final int count; // 수량
+  final String name;
+  final String brand;
+  final int price;
+  final int count;
 
   const PurchaseItem({
     required this.name,
@@ -52,6 +81,20 @@ class PurchaseItem {
   });
 
   int get totalPrice => price * count;
+
+  Map<String, dynamic> toJson() => {
+    'name': name,
+    'brand': brand,
+    'price': price,
+    'count': count,
+  };
+
+  factory PurchaseItem.fromJson(Map<String, dynamic> json) => PurchaseItem(
+    name: json['name'] as String,
+    brand: json['brand'] as String,
+    price: json['price'] as int,
+    count: json['count'] as int,
+  );
 }
 
 // 구매 기록 모델
@@ -81,8 +124,8 @@ extension PurchaseStatusExtension on PurchaseStatus {
 }
 
 class PurchaseRecord {
-  final String id; // 주문 ID (타임스탬프 기반)
-  final List<PurchaseItem> items; // 주문 상품 목록
+  final String id;
+  final List<PurchaseItem> items;
   final int totalPrice;
   final DateTime orderedAt;
   PurchaseStatus status;
@@ -95,11 +138,35 @@ class PurchaseRecord {
     this.status = PurchaseStatus.ordered,
   });
 
-  /// 주문 내 대표 상품명 (첫 번째 상품명 + 외 N건)
   String get displayTitle {
     if (items.isEmpty) return '상품 없음';
     if (items.length == 1) return items.first.name;
     return '${items.first.name} 외 ${items.length - 1}건';
+  }
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'items': items.map((i) => i.toJson()).toList(),
+    'totalPrice': totalPrice,
+    'orderedAt': orderedAt.toIso8601String(),
+    'status': status.name,
+  };
+
+  factory PurchaseRecord.fromJson(Map<String, dynamic> json) {
+    final statusName = json['status'] as String? ?? 'ordered';
+    final status = PurchaseStatus.values.firstWhere(
+      (s) => s.name == statusName,
+      orElse: () => PurchaseStatus.ordered,
+    );
+    return PurchaseRecord(
+      id: json['id'] as String,
+      items: (json['items'] as List)
+          .map((i) => PurchaseItem.fromJson(i as Map<String, dynamic>))
+          .toList(),
+      totalPrice: json['totalPrice'] as int,
+      orderedAt: DateTime.parse(json['orderedAt'] as String),
+      status: status,
+    );
   }
 }
 
@@ -123,51 +190,106 @@ class SupplementProvider extends InheritedNotifier<SupplementNotifier> {
 
 // SupplementNotifier — 실제 상태 + 비즈니스 로직
 class SupplementNotifier extends ChangeNotifier {
-  // TODO: 백엔드 연동 후 API 응답으로 초기화
-  List<Supplement> _supplements = [
-    Supplement(
-      name: '비타민D 제품',
-      brand: '브랜드 1',
-      remaining: 60,
-      total: 90,
-      dailyDose: 1,
-      mealTiming: MealTiming.afterMeal,
-      analysisGuide: '지용성 비타민이므로 식후에 복용하면 흡수율이 더 높습니다.',
-      nutrients: [
-        Nutrient(name: '비타민 D', value: 1000, unit: 'IU', percent: 0.8),
-      ],
-    ),
-    Supplement(
-      name: '오메가3 제품',
-      brand: '브랜드 2',
-      remaining: 15,
-      total: 60,
-      dailyDose: 1,
-      mealTiming: MealTiming.afterMeal,
-      analysisGuide: '특유의 비린내를 방지하려면 찬물과 함께 복용하세요.',
-      nutrients: [
-        Nutrient(name: 'EPA+DHA', value: 1200, unit: 'mg', percent: 0.95),
-        Nutrient(name: '비타민 E', value: 15, unit: 'mg', percent: 0.4),
-      ],
-    ),
-    Supplement(
-      name: '마그네슘 제품',
-      brand: '브랜드 3',
-      remaining: 3,
-      total: 30,
-      dailyDose: 1,
-      mealTiming: MealTiming.beforeSleep,
-      analysisGuide: '취침 전 복용 시 근육 이완과 숙면에 도움을 줄 수 있습니다.',
-      nutrients: [Nutrient(name: '마그네슘', value: 400, unit: 'mg', percent: 1.1)],
-    ),
-  ];
+  // SharedPreferences 키
+  static const _keySupplements = 'sp_supplements';
+  static const _keyDoseHistory = 'sp_dose_history';
+  static const _keyCartItems = 'sp_cart_items';
+  static const _keyPurchases = 'sp_purchases';
 
-  // 날짜별 복용 기록 (오늘 복용 여부 판단에 사용)
-  final List<DoseRecord> _doseHistory = [];
+  // 상태 (앱 시작 시 _load()로 초기화)
+  List<Supplement> _supplements = [];
+  List<DoseRecord> _doseHistory = [];
+  List<CartItem> _cartItems = [];
+  List<PurchaseRecord> _purchases = [];
 
-  // 구매 기록
-  // TODO: 백엔드 연동 후 API 응답으로 초기화
-  final List<PurchaseRecord> _purchases = [];
+  bool _isLoaded = false;
+
+  // ── 저장 / 로드 ──────────────────────────────────────────────────────────
+
+  /// 앱 시작 시 호출 — 저장된 데이터를 SharedPreferences에서 복원
+  Future<void> loadFromStorage() async {
+    if (_isLoaded) return;
+    final prefs = await SharedPreferences.getInstance();
+
+    try {
+      // 영양제 목록
+      final suppJson = prefs.getString(_keySupplements);
+      if (suppJson != null) {
+        final list = jsonDecode(suppJson) as List;
+        _supplements = list
+            .map((e) => Supplement.fromJson(e as Map<String, dynamic>))
+            .toList();
+      }
+
+      // 복용 기록
+      final doseJson = prefs.getString(_keyDoseHistory);
+      if (doseJson != null) {
+        final list = jsonDecode(doseJson) as List;
+        _doseHistory = list
+            .map((e) => DoseRecord.fromJson(e as Map<String, dynamic>))
+            .toList();
+      }
+
+      // 장바구니
+      final cartJson = prefs.getString(_keyCartItems);
+      if (cartJson != null) {
+        final list = jsonDecode(cartJson) as List;
+        _cartItems = list
+            .map((e) => CartItem.fromJson(e as Map<String, dynamic>))
+            .toList();
+      }
+
+      // 구매 기록
+      final purchaseJson = prefs.getString(_keyPurchases);
+      if (purchaseJson != null) {
+        final list = jsonDecode(purchaseJson) as List;
+        _purchases = list
+            .map((e) => PurchaseRecord.fromJson(e as Map<String, dynamic>))
+            .toList();
+      }
+    } catch (e) {
+      debugPrint('[SupplementNotifier] 데이터 로드 실패: $e');
+    }
+
+    _isLoaded = true;
+    notifyListeners();
+  }
+
+  /// 영양제 목록 저장
+  Future<void> _saveSupplements() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(
+      _keySupplements,
+      jsonEncode(_supplements.map((s) => s.toJson()).toList()),
+    );
+  }
+
+  /// 복용 기록 저장
+  Future<void> _saveDoseHistory() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(
+      _keyDoseHistory,
+      jsonEncode(_doseHistory.map((d) => d.toJson()).toList()),
+    );
+  }
+
+  /// 장바구니 저장
+  Future<void> _saveCartItems() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(
+      _keyCartItems,
+      jsonEncode(_cartItems.map((c) => c.toJson()).toList()),
+    );
+  }
+
+  /// 구매 기록 저장
+  Future<void> _savePurchases() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(
+      _keyPurchases,
+      jsonEncode(_purchases.map((p) => p.toJson()).toList()),
+    );
+  }
 
   List<Supplement> get supplements => List.unmodifiable(_supplements);
 
@@ -245,6 +367,8 @@ class SupplementNotifier extends ChangeNotifier {
     }
 
     notifyListeners();
+    _saveSupplements();
+    _saveDoseHistory();
 
     // 복용 후 재고 임박 여부 재확인 → 알림 트리거
     NotificationService.instance.checkAndNotifyLowStock(_supplements);
@@ -258,6 +382,7 @@ class SupplementNotifier extends ChangeNotifier {
     NotificationService.instance.scheduleAllDoseAlarms(_supplements);
     NotificationService.instance.checkAndNotifyLowStock(_supplements);
     notifyListeners();
+    _saveSupplements();
   }
 
   void updateSupplement(int index, Supplement updated) {
@@ -267,6 +392,7 @@ class SupplementNotifier extends ChangeNotifier {
     NotificationService.instance.scheduleAllDoseAlarms(_supplements);
     NotificationService.instance.checkAndNotifyLowStock(_supplements);
     notifyListeners();
+    _saveSupplements();
   }
 
   void removeSupplement(String name) {
@@ -275,10 +401,13 @@ class SupplementNotifier extends ChangeNotifier {
     // 삭제된 영양제 알림 정리 후 재스케줄
     NotificationService.instance.scheduleAllDoseAlarms(_supplements);
     notifyListeners();
+    _saveSupplements();
+    _saveDoseHistory();
   }
 
-  // 장바구니 상태
-  final List<CartItem> _cartItems = [];
+  // ── 구매 기록 CRUD ────────────────────────────────────────────────────
+
+  // ── 장바구니 상태 ─────────────────────────────────────────────────────
 
   /// 장바구니 아이템 목록 (불변)
   List<CartItem> get cartItems => List.unmodifiable(_cartItems);
@@ -304,12 +433,14 @@ class SupplementNotifier extends ChangeNotifier {
       _cartItems.add(item);
     }
     notifyListeners();
+    _saveCartItems();
   }
 
   /// 장바구니에서 제거 (productId 기준)
   void removeFromCart(String productId) {
     _cartItems.removeWhere((i) => i.productId == productId);
     notifyListeners();
+    _saveCartItems();
   }
 
   /// 수량 변경 (0 이하면 자동 제거)
@@ -323,6 +454,7 @@ class SupplementNotifier extends ChangeNotifier {
       _cartItems[idx].count = newCount;
     }
     notifyListeners();
+    _saveCartItems();
   }
 
   /// 선택 토글 (체크박스)
@@ -345,12 +477,14 @@ class SupplementNotifier extends ChangeNotifier {
   void clearCheckedCartItems() {
     _cartItems.removeWhere((i) => i.checked);
     notifyListeners();
+    _saveCartItems();
   }
 
   /// 장바구니 전체 비우기
   void clearCart() {
     _cartItems.clear();
     notifyListeners();
+    _saveCartItems();
   }
 
   /// 장바구니 아이템으로 구매 기록 생성 및 저장
@@ -365,6 +499,7 @@ class SupplementNotifier extends ChangeNotifier {
     );
     _purchases.add(record);
     notifyListeners();
+    _savePurchases();
     return record;
   }
 
@@ -374,8 +509,19 @@ class SupplementNotifier extends ChangeNotifier {
     if (idx == -1) return;
     _purchases[idx].status = status;
     notifyListeners();
+    _savePurchases();
   }
 
   /// 시간을 제거하고 날짜만 반환 (날짜 비교용)
   DateTime _dateOnly(DateTime dt) => DateTime(dt.year, dt.month, dt.day);
+
+  /// 로그아웃 시 메모리 상태 전체 초기화
+  void clearAll() {
+    _supplements.clear();
+    _doseHistory.clear();
+    _cartItems.clear();
+    _purchases.clear();
+    _isLoaded = false;
+    notifyListeners();
+  }
 }

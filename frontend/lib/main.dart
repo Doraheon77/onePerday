@@ -14,6 +14,9 @@ void main() async {
 
   final notifier = SupplementNotifier();
 
+  // 앱 시작 시 저장된 데이터 복원
+  await notifier.loadFromStorage();
+
   runApp(SupplementProvider(notifier: notifier, child: const MyApp()));
 }
 

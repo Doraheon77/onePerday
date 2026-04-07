@@ -1016,6 +1016,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     await prefs.clear();
 
     if (!mounted) return;
+    // 메모리 상태도 초기화
+    SupplementProvider.of(context).clearAll();
     // 로그인 화면으로 이동 (스택 전체 교체)
     context.go('/login');
   }
