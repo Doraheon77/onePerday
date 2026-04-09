@@ -18,6 +18,11 @@
 
 데이터베이스와 통신하기 위해 가장 먼저 **Prisma Client**를 불러오고 실행해야 합니다.  
 데이터베이스 접근이 필요한 파일의 **최상단**에 작성해 주세요.
+테이블에 추가된 사항이 있다면 새로 데이터를 업데이트 해야합니다.
+```js
+npx prisma db pull
+npx prisma generate
+```
 
 ```js
 import { PrismaClient } from '@prisma/client';
