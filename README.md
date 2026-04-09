@@ -1,98 +1,60 @@
-# onePerday
-2026 AI컴퓨터공학부 심화캡스톤 onePerday팀 프로젝트용 github
+#Prisma 사용법
 
-## 🌿 Branch Strategy
+#0 준비
+import { PrismaClient } from '@prisma/client';
+const prisma = new PrismaClient();
 
-효율적인 협업을 위해 아래와 같은 브랜치 전략을 준수합니다. 모든 작업은 본인의 개별 브랜치에서 수행함을 원칙으로 합니다.
+#1 데이터 추가하기
+- 단일 데이터
+async function addData() {
+  const newSupplement = await prisma.[테이블 이름].create({
+    data: {
+      product_name: "얼라이브 멀티비타민",
+      price: 15000,
+      image_url: "https://example.com/image.jpg",
+    },
+  });
+  
+  console.log("추가된 데이터:", newSupplement);
+  }
 
-| 브랜치 이름 | 설명 |
-| :--- | :--- |
-| **Main** | 항상 배포 가능한 최신 상태를 유지하는 메인 브랜치 |
-| **Release** | 배포 직전 최종 테스트 및 버그 수정을 위한 브랜치 |
-| **Develop** | 다음 버전 출시를 위한 기능을 통합하는 개발 브랜치 |
-| **Feature** | 단위 기능을 개발하는 브랜치 (실질적인 작업 공간) |
-| **HotFix** | Main 브랜치에서 발생한 긴급 버그를 수정하는 브랜치 |
+  - 여러 데이터
+  async function addMultipleData() {
+  const newSupplements = await prisma.[테이블 이름].createMany({
+    data: [
+      { product_name: "비타민A", price: 10000 },
+      { product_name: "비타민B", price: 12000 },
+      { product_name: "비타민C", price: 8000 }
+    ],
+    skipDuplicates: true, // 중복된 데이터가 있으면 에러 없이 건너뛰는 유용한 옵션입니다.
+  });
 
-### 🏷️ Branch Naming Convention
+#2 데이터 가져오기
+- 모든 데이터 가져오기
+async function getAllData() {  
+  const allSupplements = await prisma.[테이블 이름].findMany();
+  console.log(allSupplements);
+}
+- 조건에 맞는 데이터 가져오기
+async function getFilteredData() {
+  const cheapSupplements = await prisma.supplements.findMany({
+    where: {
+      price: {
+        lt: 20000, // lt(less than): 20,000원 '미만'인 데이터만 가져옵니다.
+      },
+      image_url: null, // 이미지가 없는 데이터만 가져옵니다.
+    },
+  });
+}
+- 원하는 속성만 가져오기
+async function getSpecificColumns() {
+  const namesAndPrices = await prisma.supplements.findMany({
+    select: {
+      id: true,
+      product_name: true,
+      price: true,
+      // true로 설정한 3가지만 쏙 뽑아옵니다.
+    },
+  });
+}
 
-브랜치 생성 시 아래의 규칙에 따라 이름을 부여합니다.
-
-> **형식:** `브랜치 종류-브랜치 목적(띄어쓰기 없이)-작성자 이니셜`  
-> **이니셜 목록:** `HJ`, `KB`, `SJ`, `HS`, `CH`, `EJ`
-
-**Example:**
-- `Feature-체크리스트-EJ`
-- `Develop-0.1v개발-HJ`
-- `HotFix-셧다운버그수정-KB`
-
----
-
-## 💬 Commit Convention
-
-코드의 변경 이력을 명확히 하기 위해 아래의 커밋 메시지 규약을 따릅니다.
-
-### 1. Commit Type
-
-| Type | Description |
-| :--- | :--- |
-| **Feat** | 새로운 기능 추가 |
-| **Fix** | 버그 수정 |
-| **Docs** | 문서 수정 (README 등) |
-| **Style** | 코드 의미에 영향이 없는 서식 변경 (들여쓰기, 세미콜론 등) |
-| **Refactor** | 코드 리팩토링 |
-| **Test** | 테스트 코드 추가 및 수정 |
-| **Chore** | 빌드 업무, 패키지 매니저 설정 등 기타 변경 사항 |
-
-### 2. Commit Message Format
-
-커밋 메시지는 제목과 상세 내용을 구분하여 상세하게 작성합니다.
-
-```text
-작성자 이니셜 : [Type] 제목
-
-수정 내용 (최대한 상세하게 작성)
-```
-
-
-**Example:**
-```text
-HJ : [Feat] 회원 가입 기능 구현
-
-이메일 가입, 외부 인증 로그인 기능 및 사용자 특성 입력 페이지 개발
-```
-
-
----
-
-## 🚀 Pull Request (PR) Strategy
-
-코드 리뷰를 활성화하고 코드의 품질을 유지하기 위해 아래의 PR 규칙을 준수합니다.
-
-### 1. PR Title Convention
-
-브랜치 전략과 통일성을 갖추어 제목을 작성합니다.
-
-> **형식:** `[PR 종류(브랜치 종류와 동일)] 기능 명칭 - 작성자 이니셜`
-> 
-> **Example:** `[Feature] 회원가입 API 연동 완료 - HJ`
-
-### 2. PR Body Template
-
-상세한 코드 리뷰를 위해 PR 본문에 아래 항목을 포함하여 작성합니다.
-
-| 항목 | 내용 |
-| :--- | :--- |
-| **개요 (Summary)** | 작업한 내용의 핵심 요약 |
-| **주요 변경 사항** | 구체적인 코드 수정 및 추가 사항 (리스트 형태 권장) |
-| **스크린샷/영상** | UI 변경 사항이 있을 경우 반드시 첨부 (선택 사항) |
-
-### 3. Review & Merge Rules
-
-원활한 병합을 위해 아래 프로세스를 따릅니다.
-
-* **Reviewer 지정:** 작업 완료 후 모든 팀원을 리뷰어로 지정합니다.
-* **Approve 조건:** 팀장 + 팀장 외 2인의 승인(Approve)**이 있어야 `Main` 또는 `Develop` 브랜치로 머지할 수 있습니다.
-* **Merge 방식:** * `Feature` → `Develop`: 코드 이력을 남기기 위해 **Squash and Merge** 혹은 **Merge Commit**을 활용합니다.
-    * 리뷰 중 발견된 수정 사항은 해당 PR 브랜치에서 추가 커밋으로 반영합니다.
-
----
