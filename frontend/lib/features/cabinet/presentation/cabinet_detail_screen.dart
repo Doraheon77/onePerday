@@ -25,9 +25,7 @@ class _CabinetDetailScreenState extends State<CabinetDetailScreen> {
     setState(() => _isLaunching = true);
 
     final query = Uri.encodeComponent(widget.item.name);
-    final uri = Uri.parse(
-      'https://search.shopping.naver.com/search/all?query=$query',
-    );
+    final uri = Uri.parse('https://search.shopping.naver.com/search/all?query=$query');
 
     try {
       final canLaunch = await canLaunchUrl(uri);
@@ -51,7 +49,9 @@ class _CabinetDetailScreenState extends State<CabinetDetailScreen> {
 
     final updated = await Navigator.push<Supplement>(
       context,
-      MaterialPageRoute(builder: (_) => AddSupplementScreen(initialItem: item)),
+      MaterialPageRoute(
+        builder: (_) => AddSupplementScreen(initialItem: item),
+      ),
     );
 
     if (updated == null || !context.mounted) return;
@@ -68,6 +68,55 @@ class _CabinetDetailScreenState extends State<CabinetDetailScreen> {
 
     // 상세 화면을 pop해서 캐비닛 목록으로 돌아감 (최신 데이터 반영)
     if (context.mounted) context.pop();
+  }
+
+  /// 영양제 삭제 — 확인 다이얼로그 후 removeSupplement 호출
+  Future<void> _deleteSupplement(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16)),
+        title: const Text('영양제 삭제',
+            style: TextStyle(fontWeight: FontWeight.bold)),
+        content: Text(
+          '${item.name}을(를) 삭제하시겠습니까?\n복용 기록도 함께 삭제됩니다.',
+          style: const TextStyle(height: 1.5),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('취소',
+                style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.danger,
+              foregroundColor: Colors.white,
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10)),
+            ),
+            child: const Text('삭제'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !context.mounted) return;
+
+    SupplementProvider.of(context).removeSupplement(item.name);
+
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('${item.name}이(가) 삭제되었습니다.'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      context.pop();
+    }
   }
 
   // 리뷰 작성 — 백엔드 연동 전 TODO 안내
@@ -109,6 +158,12 @@ class _CabinetDetailScreenState extends State<CabinetDetailScreen> {
             icon: const Icon(Icons.edit_outlined, color: Colors.black87),
             tooltip: '영양제 수정',
             onPressed: () => _navigateToEdit(context),
+          ),
+          IconButton(
+            icon: const Icon(Icons.delete_outline_rounded,
+                color: AppColors.danger),
+            tooltip: '영양제 삭제',
+            onPressed: () => _deleteSupplement(context),
           ),
         ],
       ),
@@ -569,11 +624,9 @@ class _CabinetDetailScreenState extends State<CabinetDetailScreen> {
               ),
               child: _isLaunching
                   ? const SizedBox(
-                      width: 20,
-                      height: 20,
+                      width: 20, height: 20,
                       child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.white,
+                        strokeWidth: 2, color: Colors.white,
                       ),
                     )
                   : const Text(
