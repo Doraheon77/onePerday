@@ -593,10 +593,9 @@ class _SupplementDetailScreenState extends State<SupplementDetailScreen> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
+              color: Colors.black.withOpacity(0.04),
+              blurRadius: 12,
+              offset: const Offset(0, 4)),
         ],
       ),
       child: Column(
@@ -606,50 +605,37 @@ class _SupplementDetailScreenState extends State<SupplementDetailScreen> {
             padding: const EdgeInsets.fromLTRB(16, 16, 8, 8),
             child: Row(
               children: [
-                const Text(
-                  '리뷰',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                ),
+                const Text('리뷰',
+                    style: TextStyle(
+                        fontSize: 16, fontWeight: FontWeight.bold)),
                 const SizedBox(width: 8),
                 // 평균 별점
                 Row(
                   children: [
-                    const Icon(
-                      Icons.star_rounded,
-                      size: 16,
-                      color: AppColors.warning,
-                    ),
+                    const Icon(Icons.star_rounded,
+                        size: 16, color: AppColors.warning),
                     const SizedBox(width: 2),
-                    Text(
-                      avg.toStringAsFixed(1),
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.warning,
-                      ),
-                    ),
-                    Text(
-                      ' (${reviews.length})',
-                      style: TextStyle(fontSize: 12, color: Colors.grey[500]),
-                    ),
+                    Text(avg.toStringAsFixed(1),
+                        style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.warning)),
+                    Text(' (${reviews.length})',
+                        style: TextStyle(
+                            fontSize: 12, color: Colors.grey[500])),
                   ],
                 ),
                 const Spacer(),
                 TextButton(
-                  onPressed: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => ReviewScreen(product: product),
-                    ),
+                  onPressed: () => context.push(
+                    '/store/review',
+                    extra: product,
                   ),
-                  child: const Text(
-                    '전체보기',
-                    style: TextStyle(
-                      color: AppColors.primary,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 13,
-                    ),
-                  ),
+                  child: const Text('전체보기',
+                      style: TextStyle(
+                          color: AppColors.primary,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13)),
                 ),
               ],
             ),
@@ -659,10 +645,9 @@ class _SupplementDetailScreenState extends State<SupplementDetailScreen> {
           if (reviews.isEmpty)
             Padding(
               padding: const EdgeInsets.all(20),
-              child: Text(
-                '아직 리뷰가 없습니다',
-                style: TextStyle(fontSize: 13, color: Colors.grey[400]),
-              ),
+              child: Text('아직 리뷰가 없습니다',
+                  style: TextStyle(
+                      fontSize: 13, color: Colors.grey[400])),
             )
           else
             ...preview.map((r) => _buildReviewPreviewRow(r)),
@@ -695,27 +680,22 @@ class _SupplementDetailScreenState extends State<SupplementDetailScreen> {
                 ),
               ),
               const SizedBox(width: 6),
-              Text(
-                review.userName,
-                style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
+              Text(review.userName,
+                  style: const TextStyle(
+                      fontSize: 12, fontWeight: FontWeight.w600)),
               const Spacer(),
               Text(
                 '${review.createdAt.month}/${review.createdAt.day}',
-                style: TextStyle(fontSize: 11, color: Colors.grey[400]),
+                style:
+                    TextStyle(fontSize: 11, color: Colors.grey[400]),
               ),
             ],
           ),
           const SizedBox(height: 6),
-          Text(
-            review.content,
-            style: const TextStyle(fontSize: 13, height: 1.4),
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-          ),
+          Text(review.content,
+              style: const TextStyle(fontSize: 13, height: 1.4),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis),
         ],
       ),
     );

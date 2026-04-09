@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:simcap/core/constant/app_constants.dart';
 import 'package:simcap/features/cabinet/domain/dataModels/supplement_model.dart';
-import 'package:simcap/features/cabinet/presentation/add_supplement_screen.dart';
 import 'package:simcap/providers/supplement_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -47,11 +46,9 @@ class _CabinetDetailScreenState extends State<CabinetDetailScreen> {
     final idx = notifier.supplements.indexWhere((s) => s.name == item.name);
     if (idx == -1) return;
 
-    final updated = await Navigator.push<Supplement>(
-      context,
-      MaterialPageRoute(
-        builder: (_) => AddSupplementScreen(initialItem: item),
-      ),
+    final updated = await context.push<Supplement>(
+      '/cabinet/add',
+      extra: item,
     );
 
     if (updated == null || !context.mounted) return;

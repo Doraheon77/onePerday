@@ -34,9 +34,9 @@ class _HomeScreenState extends State<HomeScreen> {
                     children: [
                       _buildStreakCard(),
                       const SizedBox(height: 24),
-                      const Text(
-                        '오늘의 영양 성분 분석',
-                        style: TextStyle(
+                      Text(
+                        _isSelectedToday ? '오늘의 영양 성분 분석' : '영양 성분 분석',
+                        style: const TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
                         ),
@@ -44,9 +44,11 @@ class _HomeScreenState extends State<HomeScreen> {
                       const SizedBox(height: 12),
                       _buildNutritionCard(),
                       const SizedBox(height: 32),
-                      const Text(
-                        '오늘 남은 복용',
-                        style: TextStyle(
+                      Text(
+                        _isSelectedToday
+                            ? '오늘 남은 복용'
+                            : '${_selectedDate.month}월 ${_selectedDate.day}일 복용 현황',
+                        style: const TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
                         ),
@@ -787,6 +789,9 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   DateTime _dateOnly(DateTime dt) => DateTime(dt.year, dt.month, dt.day);
+
+  bool get _isSelectedToday =>
+      _dateOnly(_selectedDate) == _dateOnly(DateTime.now());
 }
 
 // ── 월간 복용 달력 바텀시트 ──────────────────────────────────────────────────
