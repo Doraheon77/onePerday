@@ -1,23 +1,51 @@
-노션(Notion) README에 바로 복사해서 붙여넣기 좋도록, 가독성을 높이고 약간의 추가 정보(수정, 삭제 등)를 더해 완벽한 가이드 문서 형태로 다듬어 보았습니다. 노션의 '콜아웃'이나 '코드 블록' 기능과 찰떡같이 어울리는 마크다운 형식입니다.
+[README.md](https://github.com/user-attachments/files/26583535/README.md)
+# 🗄️ Prisma × Supabase 데이터베이스 조작 가이드
 
-🚀 Prisma x Supabase 데이터베이스 조작 가이드
-이 문서는 Prisma Client를 사용하여 데이터베이스(Supabase)에 접근하고 데이터를 다루는(CRUD) 기본적인 방법을 안내합니다.
+> Prisma Client를 활용한 Supabase 데이터베이스 CRUD 완벽 정리
 
-💡 참고: 아래 예제 코드에서는 supplements라는 영양제 테이블을 기준으로 작성되었습니다. 프로젝트 상황에 맞게 prisma.[테이블 이름] 부분을 수정하여 사용하세요.
+<br>
 
-⚙️ 0. 준비 작업 (Initialization)
-데이터베이스와 통신하기 위해 가장 먼저 Prisma Client를 불러오고 실행해야 합니다. 데이터베이스 접근이 필요한 파일의 최상단에 작성해 주세요.
+## 📌 목차
 
-JavaScript
+- [준비 작업](#-0-준비-작업-initialization)
+- [데이터 추가하기](#-1-데이터-추가하기-create)
+- [데이터 가져오기](#-2-데이터-가져오기-read)
+- [데이터 수정 및 삭제하기](#️-3-데이터-수정-및-삭제하기-update--delete)
+
+<br>
+
+> [!NOTE]
+> 아래 예제 코드에서는 `supplements` (영양제) 테이블을 기준으로 작성되었습니다.
+> 프로젝트 상황에 맞게 `prisma.[테이블 이름]` 부분을 수정하여 사용하세요.
+
+<br>
+
+---
+
+## ⚙️ 0. 준비 작업 (Initialization)
+
+데이터베이스와 통신하기 위해 가장 먼저 **Prisma Client**를 불러오고 실행해야 합니다.  
+데이터베이스 접근이 필요한 파일의 **최상단**에 작성해 주세요.
+
+```js
 import { PrismaClient } from '@prisma/client';
 
 // Prisma Client 인스턴스 생성
 const prisma = new PrismaClient();
-📝 1. 데이터 추가하기 (Create)
-단일 데이터 추가 (create)
-새로운 데이터 한 줄을 테이블에 추가할 때 사용합니다. id나 created_at 같이 데이터베이스에서 자동으로 생성되도록 설정된 값은 생략해도 됩니다.
+```
 
-JavaScript
+<br>
+
+---
+
+## 📝 1. 데이터 추가하기 (Create)
+
+### 단일 데이터 추가 — `create`
+
+새로운 데이터 한 줄을 테이블에 추가할 때 사용합니다.  
+`id`나 `created_at`처럼 DB에서 자동 생성되도록 설정된 값은 생략해도 됩니다.
+
+```js
 async function addData() {
   const newSupplement = await prisma.supplements.create({
     data: {
@@ -26,80 +54,131 @@ async function addData() {
       image_url: "https://example.com/image.jpg",
     },
   });
-  
+
   console.log("✅ 데이터 추가 완료:", newSupplement);
 }
-여러 데이터 한 번에 추가 (createMany)
-배열 형태로 여러 개의 데이터를 한 번에 밀어 넣을 때 사용합니다. 대량의 데이터를 초기화하거나 마이그레이션 할 때 유용합니다.
+```
 
-JavaScript
+<br>
+
+### 여러 데이터 한 번에 추가 — `createMany`
+
+배열 형태로 여러 개의 데이터를 한 번에 밀어 넣을 때 사용합니다.  
+대량의 데이터를 초기화하거나 마이그레이션할 때 유용합니다.
+
+```js
 async function addMultipleData() {
   const newSupplements = await prisma.supplements.createMany({
     data: [
       { product_name: "비타민A", price: 10000 },
       { product_name: "비타민B", price: 12000 },
-      { product_name: "비타민C", price: 8000 }
+      { product_name: "비타민C", price: 8000 },
     ],
-    skipDuplicates: true, // 🌟 꿀팁: 중복된 데이터가 있으면 에러를 띄우지 않고 자연스럽게 건너뜁니다.
+    skipDuplicates: true, // 중복 데이터가 있으면 에러 없이 건너뜁니다
   });
-  
+
   console.log(`✅ ${newSupplements.count}개의 데이터가 추가되었습니다.`);
 }
-🔍 2. 데이터 가져오기 (Read)
-테이블의 모든 데이터 가져오기 (findMany)
-조건 없이 테이블에 있는 모든 데이터를 배열 형태로 가져옵니다.
+```
 
-JavaScript
+> [!TIP]
+> `skipDuplicates: true` 옵션을 사용하면 중복 데이터가 있어도 에러 없이 자연스럽게 건너뜁니다.
+
+<br>
+
+---
+
+## 🔍 2. 데이터 가져오기 (Read)
+
+### 모든 데이터 가져오기 — `findMany`
+
+조건 없이 테이블에 있는 모든 데이터를 **배열** 형태로 가져옵니다.
+
+```js
 async function getAllData() {
   const allSupplements = await prisma.supplements.findMany();
   console.log(allSupplements);
 }
-조건에 맞는 데이터만 필터링해서 가져오기 (where)
+```
+
+<br>
+
+### 조건 필터링 — `where`
+
 특정 조건을 만족하는 데이터만 골라서 가져옵니다.
 
-JavaScript
+```js
 async function getFilteredData() {
   const cheapSupplements = await prisma.supplements.findMany({
     where: {
       price: {
-        lt: 20000, // lt(less than): 20,000원 '미만'인 조건
-        // lte(이하), gt(초과), gte(이상) 등 다양한 연산자 사용 가능
+        lt: 20000,  // lt  : 미만 (less than)
+                    // lte : 이하 (less than or equal)
+                    // gt  : 초과 (greater than)
+                    // gte : 이상 (greater than or equal)
       },
       image_url: null, // 이미지가 없는(null) 데이터만 조회
     },
   });
 }
-원하는 속성(컬럼)만 쏙쏙 뽑아오기 (select)
-데이터베이스 용량과 네트워크 비용을 아끼기 위해, 전체 정보가 아닌 필요한 정보만 선택해서 가져올 수 있습니다.
+```
 
-JavaScript
+| 연산자 | 의미 | 예시 |
+|:------:|:----:|:----:|
+| `lt`  | 미만 | `price < 20000` |
+| `lte` | 이하 | `price <= 20000` |
+| `gt`  | 초과 | `price > 20000` |
+| `gte` | 이상 | `price >= 20000` |
+
+<br>
+
+### 원하는 컬럼만 선택 — `select`
+
+필요한 정보만 선택해서 가져와 **데이터 용량과 네트워크 비용**을 절약할 수 있습니다.
+
+```js
 async function getSpecificColumns() {
   const namesAndPrices = await prisma.supplements.findMany({
     select: {
       id: true,
       product_name: true,
       price: true,
-      // true로 설정한 3가지 속성만 가져옵니다.
+      // true로 설정한 컬럼만 가져옵니다
     },
   });
 }
-🛠️ 3. [추가] 데이터 수정 및 삭제하기 (Update & Delete)
-완벽한 데이터 관리를 위해 수정과 삭제 방법도 함께 알아둡니다.
+```
 
-특정 데이터 수정하기 (update)
-JavaScript
+<br>
+
+---
+
+## 🛠️ 3. 데이터 수정 및 삭제하기 (Update & Delete)
+
+### 특정 데이터 수정 — `update`
+
+`where` 조건으로 대상을 특정하고, `data`에 변경할 값을 입력합니다.
+
+```js
 async function updateData() {
   const updatedSupplement = await prisma.supplements.update({
     where: {
-      id: 1, // 수정할 데이터의 고유 ID
+      id: 1,         // 수정할 데이터의 고유 ID
     },
     data: {
-      price: 16000, // 변경할 값
+      price: 16000,  // 변경할 값
     },
   });
 }
-특정 데이터 삭제하기 (delete)
-JavaScript
+```
+
+<br>
+
+### 특정 데이터 삭제 — `delete`
+
+`where` 조건에 해당하는 데이터를 테이블에서 삭제합니다.
+
+```js
 async function deleteData() {
   const deletedSupplement = await prisma.supplements.delete({
     where: {
@@ -107,3 +186,35 @@ async function deleteData() {
     },
   });
 }
+```
+
+> [!WARNING]
+> `delete`는 되돌릴 수 없습니다. `where` 조건을 꼭 확인한 후 실행하세요.
+
+<br>
+
+---
+
+## 📋 메서드 한눈에 보기
+
+| 작업 | 메서드 | 설명 |
+|:----:|:------:|:-----|
+| **Create** | `create` | 단일 데이터 추가 |
+| **Create** | `createMany` | 다중 데이터 한 번에 추가 |
+| **Read** | `findMany` | 전체 또는 조건부 데이터 조회 |
+| **Read** | `findUnique` | 고유값 기준 단일 데이터 조회 |
+| **Update** | `update` | 특정 데이터 수정 |
+| **Delete** | `delete` | 특정 데이터 삭제 |
+
+<br>
+
+---
+
+<div align="center">
+
+**🔗 참고 링크**
+
+[![Prisma Docs](https://img.shields.io/badge/Prisma-Docs-2D3748?style=for-the-badge&logo=prisma&logoColor=white)](https://www.prisma.io/docs)
+[![Supabase Docs](https://img.shields.io/badge/Supabase-Docs-3ECF8E?style=for-the-badge&logo=supabase&logoColor=white)](https://supabase.com/docs)
+
+</div>
