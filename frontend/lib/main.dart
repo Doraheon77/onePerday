@@ -10,6 +10,7 @@ import 'package:simcap/features/cabinet/domain/dataModels/supplement_model.dart'
 import 'package:simcap/features/profile/presentation/login_screen.dart';
 import 'package:simcap/features/profile/presentation/onboarding_survey_screen.dart';
 import 'package:simcap/features/profile/presentation/profile_screen.dart';
+import 'package:simcap/features/profile/presentation/splash_screen.dart';
 import 'package:simcap/features/store/presentation/store_screen.dart';
 import 'package:simcap/features/store/presentation/search_screen.dart';
 import 'package:simcap/features/store/presentation/basket_screen.dart';
@@ -56,9 +57,16 @@ class MyApp extends StatelessWidget {
 }
 
 final GoRouter _router = GoRouter(
-  initialLocation: '/login',
+  initialLocation: '/splash',
   routes: [
-    GoRoute(path: '/login', builder: (context, state) => LoginScreen()),
+    GoRoute(
+      path: '/splash',
+      builder: (context, state) => const SplashScreen(),
+    ),
+    GoRoute(
+      path: '/login',
+      builder: (context, state) => LoginScreen(),
+    ),
     GoRoute(
       path: '/onboarding',
       builder: (context, state) => const OnboardingSurveyScreen(),
