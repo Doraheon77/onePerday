@@ -21,9 +21,9 @@
     </ProjectConfiguration>
   </ItemGroup>
   <PropertyGroup Label="Globals">
-    <ProjectGuid>{ADD74955-E194-3CF9-963D-76582A3F5337}</ProjectGuid>
+    <ProjectGuid>{7CE3060B-3653-3417-8A4E-99F50A1C7556}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
-    <WindowsTargetPlatformVersion>10.0.26100.0</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformVersion>10.0.22000.0</WindowsTargetPlatformVersion>
     <Platform>x64</Platform>
     <ProjectName>ALL_BUILD</ProjectName>
     <VCProjectUpgraderObjectName>NoUpgrade</VCProjectUpgraderObjectName>
@@ -88,11 +88,11 @@
     </Midl>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <CustomBuild Include="C:\simcap\onePerday\frontend\windows\flutter\ephemeral\.plugin_symlinks\url_launcher_windows\windows\CMakeLists.txt">
+    <CustomBuild Include="C:\Users\cogus\Desktop\심캡\onePerday\frontend\windows\flutter\ephemeral\.plugin_symlinks\url_launcher_windows\windows\CMakeLists.txt">
       <UseUtf8Encoding>Always</UseUtf8Encoding>
-      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Building Custom Rule C:/simcap/onePerday/frontend/windows/flutter/ephemeral/.plugin_symlinks/url_launcher_windows/windows/CMakeLists.txt</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Building Custom Rule C:/Users/cogus/Desktop/심캡/onePerday/frontend/windows/flutter/ephemeral/.plugin_symlinks/url_launcher_windows/windows/CMakeLists.txt</Message>
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">setlocal
-"C:\Program Files\Microsoft Visual Studio\2022\Preview\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe" -SC:/simcap/onePerday/frontend/windows -BC:/simcap/onePerday/frontend/build/windows/x64 --check-stamp-file C:/simcap/onePerday/frontend/build/windows/x64/plugins/url_launcher_windows/CMakeFiles/generate.stamp
+"C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe" -SC:/Users/cogus/Desktop/심캡/onePerday/frontend/windows -BC:/Users/cogus/Desktop/심캡/onePerday/frontend/build/windows/x64 --check-stamp-file C:/Users/cogus/Desktop/심캡/onePerday/frontend/build/windows/x64/plugins/url_launcher_windows/CMakeFiles/generate.stamp
 if %errorlevel% neq 0 goto :cmEnd
 :cmEnd
 endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
@@ -101,11 +101,11 @@ exit /b %1
 :cmDone
 if %errorlevel% neq 0 goto :VCEnd</Command>
       <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">%(AdditionalInputs)</AdditionalInputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">C:\simcap\onePerday\frontend\build\windows\x64\plugins\url_launcher_windows\CMakeFiles\generate.stamp</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">C:\Users\cogus\Desktop\심캡\onePerday\frontend\build\windows\x64\plugins\url_launcher_windows\CMakeFiles\generate.stamp</Outputs>
       <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</LinkObjects>
-      <Message Condition="'$(Configuration)|$(Platform)'=='Profile|x64'">Building Custom Rule C:/simcap/onePerday/frontend/windows/flutter/ephemeral/.plugin_symlinks/url_launcher_windows/windows/CMakeLists.txt</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Profile|x64'">Building Custom Rule C:/Users/cogus/Desktop/심캡/onePerday/frontend/windows/flutter/ephemeral/.plugin_symlinks/url_launcher_windows/windows/CMakeLists.txt</Message>
       <Command Condition="'$(Configuration)|$(Platform)'=='Profile|x64'">setlocal
-"C:\Program Files\Microsoft Visual Studio\2022\Preview\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe" -SC:/simcap/onePerday/frontend/windows -BC:/simcap/onePerday/frontend/build/windows/x64 --check-stamp-file C:/simcap/onePerday/frontend/build/windows/x64/plugins/url_launcher_windows/CMakeFiles/generate.stamp
+"C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe" -SC:/Users/cogus/Desktop/심캡/onePerday/frontend/windows -BC:/Users/cogus/Desktop/심캡/onePerday/frontend/build/windows/x64 --check-stamp-file C:/Users/cogus/Desktop/심캡/onePerday/frontend/build/windows/x64/plugins/url_launcher_windows/CMakeFiles/generate.stamp
 if %errorlevel% neq 0 goto :cmEnd
 :cmEnd
 endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
@@ -114,11 +114,11 @@ exit /b %1
 :cmDone
 if %errorlevel% neq 0 goto :VCEnd</Command>
       <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Profile|x64'">%(AdditionalInputs)</AdditionalInputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Profile|x64'">C:\simcap\onePerday\frontend\build\windows\x64\plugins\url_launcher_windows\CMakeFiles\generate.stamp</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Profile|x64'">C:\Users\cogus\Desktop\심캡\onePerday\frontend\build\windows\x64\plugins\url_launcher_windows\CMakeFiles\generate.stamp</Outputs>
       <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Profile|x64'">false</LinkObjects>
-      <Message Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Building Custom Rule C:/simcap/onePerday/frontend/windows/flutter/ephemeral/.plugin_symlinks/url_launcher_windows/windows/CMakeLists.txt</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Building Custom Rule C:/Users/cogus/Desktop/심캡/onePerday/frontend/windows/flutter/ephemeral/.plugin_symlinks/url_launcher_windows/windows/CMakeLists.txt</Message>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">setlocal
-"C:\Program Files\Microsoft Visual Studio\2022\Preview\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe" -SC:/simcap/onePerday/frontend/windows -BC:/simcap/onePerday/frontend/build/windows/x64 --check-stamp-file C:/simcap/onePerday/frontend/build/windows/x64/plugins/url_launcher_windows/CMakeFiles/generate.stamp
+"C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe" -SC:/Users/cogus/Desktop/심캡/onePerday/frontend/windows -BC:/Users/cogus/Desktop/심캡/onePerday/frontend/build/windows/x64 --check-stamp-file C:/Users/cogus/Desktop/심캡/onePerday/frontend/build/windows/x64/plugins/url_launcher_windows/CMakeFiles/generate.stamp
 if %errorlevel% neq 0 goto :cmEnd
 :cmEnd
 endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
@@ -127,22 +127,21 @@ exit /b %1
 :cmDone
 if %errorlevel% neq 0 goto :VCEnd</Command>
       <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">%(AdditionalInputs)</AdditionalInputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">C:\simcap\onePerday\frontend\build\windows\x64\plugins\url_launcher_windows\CMakeFiles\generate.stamp</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">C:\Users\cogus\Desktop\심캡\onePerday\frontend\build\windows\x64\plugins\url_launcher_windows\CMakeFiles\generate.stamp</Outputs>
       <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</LinkObjects>
     </CustomBuild>
   </ItemGroup>
   <ItemGroup>
   </ItemGroup>
-  <ItemGroup />
   <ItemGroup>
-    <ProjectReference Include="C:\simcap\onePerday\frontend\build\windows\x64\ZERO_CHECK.vcxproj">
-      <Project>{15AE653E-A8D8-329C-A558-923034D9B819}</Project>
+    <ProjectReference Include="C:\Users\cogus\Desktop\심캡\onePerday\frontend\build\windows\x64\ZERO_CHECK.vcxproj">
+      <Project>{1005204F-A402-348B-B4C7-C72B5A56ACBB}</Project>
       <Name>ZERO_CHECK</Name>
       <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
       <CopyToOutputDirectory>Never</CopyToOutputDirectory>
     </ProjectReference>
-    <ProjectReference Include="C:\simcap\onePerday\frontend\build\windows\x64\plugins\url_launcher_windows\url_launcher_windows_plugin.vcxproj">
-      <Project>{9E627823-B001-37CF-83C4-8097DED85C17}</Project>
+    <ProjectReference Include="C:\Users\cogus\Desktop\심캡\onePerday\frontend\build\windows\x64\plugins\url_launcher_windows\url_launcher_windows_plugin.vcxproj">
+      <Project>{C1A18D9C-55D5-3910-BF2E-0B82602E4745}</Project>
       <Name>url_launcher_windows_plugin</Name>
     </ProjectReference>
   </ItemGroup>

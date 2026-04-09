@@ -191,16 +191,16 @@ class SupplementProvider extends InheritedNotifier<SupplementNotifier> {
 // SupplementNotifier — 실제 상태 + 비즈니스 로직
 class SupplementNotifier extends ChangeNotifier {
   // SharedPreferences 키
-  static const _keySupplements = 'sp_supplements';
-  static const _keyDoseHistory = 'sp_dose_history';
-  static const _keyCartItems = 'sp_cart_items';
-  static const _keyPurchases = 'sp_purchases';
+  static const _keySupplements  = 'sp_supplements';
+  static const _keyDoseHistory  = 'sp_dose_history';
+  static const _keyCartItems    = 'sp_cart_items';
+  static const _keyPurchases    = 'sp_purchases';
 
   // 상태 (앱 시작 시 _load()로 초기화)
-  List<Supplement> _supplements = [];
-  List<DoseRecord> _doseHistory = [];
-  List<CartItem> _cartItems = [];
-  List<PurchaseRecord> _purchases = [];
+  List<Supplement>    _supplements = [];
+  List<DoseRecord>    _doseHistory = [];
+  List<CartItem>      _cartItems   = [];
+  List<PurchaseRecord> _purchases  = [];
 
   bool _isLoaded = false;
 
@@ -308,6 +308,79 @@ class SupplementNotifier extends ChangeNotifier {
 
   // 홈 화면 배지에 표시할 전체 알림 개수
   int get totalNotificationCount => undoneCount + lowStockCount;
+
+  // ── 통계 ─────────────────────────────────────────────────────────────────
+
+  /// 오늘 복용 완료 수
+  int get todayDoneCount {
+    if (_supplements.isEmpty) return 0;
+    return _supplements.where((s) => isDoneToday(s.name)).length;
+  }
+
+  /// 오늘 전체 영양제 수 (= supplements.length)
+  int get todayTotalCount => _supplements.length;
+
+  /// 연속 복용 스트릭 (일) — 오늘 포함 연속으로 모든 영양제를 복용한 날 수
+  int get currentStreak {
+    if (_supplements.isEmpty) return 0;
+    int streak = 0;
+    final today = _dateOnly(DateTime.now());
+    for (int i = 0; i <= 365; i++) {
+      final day = today.subtract(Duration(days: i));
+      if (isAllDoneOn(day)) {
+        streak++;
+      } else {
+        if (i == 0) continue; // 오늘은 아직 복용 전일 수 있음
+        break;
+      }
+    }
+    return streak;
+  }
+
+  /// 이번 달 복용률 (0.0 ~ 1.0) — 1일부터 오늘까지 중 완전 복용한 날의 비율
+  double get monthlyComplianceRate {
+    if (_supplements.isEmpty) return 0.0;
+    final now = DateTime.now();
+    final daysElapsed = now.day;
+    if (daysElapsed == 0) return 0.0;
+    int doneDays = 0;
+    for (int i = 1; i <= daysElapsed; i++) {
+      if (isAllDoneOn(DateTime(now.year, now.month, i))) doneDays++;
+    }
+    return doneDays / daysElapsed;
+  }
+
+  /// 총 완전 복용 일수 (누적)
+  int get totalDoneDays {
+    if (_doseHistory.isEmpty) return 0;
+    final uniqueDates = _doseHistory
+        .map((r) => _dateOnly(r.date))
+        .toSet();
+    return uniqueDates.where((day) => isAllDoneOn(day)).length;
+  }
+
+  /// 역대 최장 연속 복용 일수
+  int get bestStreak {
+    if (_supplements.isEmpty || _doseHistory.isEmpty) return 0;
+    final doneDays = _doseHistory
+        .map((r) => _dateOnly(r.date))
+        .toSet()
+        .where((day) => isAllDoneOn(day))
+        .toList()
+      ..sort();
+    if (doneDays.isEmpty) return 0;
+    int best = 1, current = 1;
+    for (int i = 1; i < doneDays.length; i++) {
+      if (doneDays[i].difference(doneDays[i - 1]).inDays == 1) {
+        current++;
+        if (current > best) best = current;
+      } else {
+        current = 1;
+      }
+    }
+    return best;
+  }
+
 
   /// 특정 날짜에 해당 영양제를 복용했는지 여부
   bool isDoneOn(String supplementName, DateTime date) {

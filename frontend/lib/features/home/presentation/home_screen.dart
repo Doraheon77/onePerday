@@ -32,6 +32,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      _buildStreakCard(),
+                      const SizedBox(height: 24),
                       const Text(
                         '오늘의 영양 성분 분석',
                         style: TextStyle(
@@ -89,6 +91,21 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  // ── 월간 복용 달력 바텀시트 ──────────────────────────────────────────────
+  void _showMonthlyCalendar(
+      BuildContext context, SupplementNotifier notifier) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (_) => _MonthlyCalendarSheet(notifier: notifier),
+    );
+  }
+
+  // ── 주간 캘린더 ──────────────────────────────────────────────────────────
   Widget _buildWeeklyCalendar() {
     final notifier = SupplementProvider.of(context);
     final notificationCount = notifier.totalNotificationCount;
@@ -108,7 +125,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: Row(
                     children: [
                       Text(
-                        "${_selectedDate.month}. ${_selectedDate.day} ${DateFormat('E', 'ko_KR').format(_selectedDate)}요일",
+                        "${_selectedDate.month}. ${_selectedDate.day} "
+                        "${DateFormat('E', 'ko_KR').format(_selectedDate)}요일",
                         style: const TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.bold,
@@ -146,23 +164,21 @@ class _HomeScreenState extends State<HomeScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: List.generate(7, (index) {
               final DateTime now = DateTime.now();
-              final DateTime firstDayOfWeek = now.subtract(
-                Duration(days: now.weekday - 1),
-              );
-              final DateTime date = firstDayOfWeek.add(Duration(days: index));
+              final DateTime firstDayOfWeek =
+                  now.subtract(Duration(days: now.weekday - 1));
+              final DateTime date =
+                  firstDayOfWeek.add(Duration(days: index));
 
-              final bool isSelected =
-                  date.day == _selectedDate.day &&
+              final bool isSelected = date.day == _selectedDate.day &&
                   date.month == _selectedDate.month;
-
-              // 미래 날짜는 도트 표시 안 함
               final bool isFuture = date.isAfter(now);
 
-              // Provider에서 복용 기록 조회
               final notifier = SupplementProvider.of(context);
-              final bool allDone = !isFuture && notifier.isAllDoneOn(date);
-              final bool partialDone =
-                  !isFuture && !allDone && notifier.hasDoseRecordOn(date);
+              final bool allDone =
+                  !isFuture && notifier.isAllDoneOn(date);
+              final bool partialDone = !isFuture &&
+                  !allDone &&
+                  notifier.hasDoseRecordOn(date);
 
               return Column(
                 children: [
@@ -189,19 +205,20 @@ class _HomeScreenState extends State<HomeScreen> {
                       child: Text(
                         "${date.day}",
                         style: TextStyle(
-                          color: isSelected ? Colors.white : Colors.black87,
+                          color:
+                              isSelected ? Colors.white : Colors.black87,
                         ),
                       ),
                     ),
                   ),
                   const SizedBox(height: 6),
-                  // ── 복용 상태 도트 ──────────────────────────────
-                  // 전체 완료: 초록 채움  /  일부 완료: 초록 테두리  /  없음: 투명
                   Container(
                     width: 5,
                     height: 5,
                     decoration: BoxDecoration(
-                      color: allDone ? AppColors.primary : Colors.transparent,
+                      color: allDone
+                          ? AppColors.primary
+                          : Colors.transparent,
                       border: partialDone
                           ? Border.all(color: AppColors.primary, width: 1)
                           : null,
@@ -217,6 +234,263 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  // ── 복용 스트릭 & 통계 카드 ──────────────────────────────────────────────
+  Widget _buildStreakCard() {
+    final notifier = SupplementProvider.of(context);
+    final streak = notifier.currentStreak;
+    final best = notifier.bestStreak;
+    final monthly = notifier.monthlyComplianceRate;
+    final total = notifier.totalDoneDays;
+    final done = notifier.todayDoneCount;
+    final supplementTotal = notifier.todayTotalCount;
+
+    // 영양제 미등록 시 안내 카드
+    if (supplementTotal == 0) {
+      return Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [AppColors.primary, AppColors.primaryDark],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.primary.withOpacity(0.3),
+              blurRadius: 16,
+              offset: const Offset(0, 6),
+            ),
+          ],
+        ),
+        child: const Row(
+          children: [
+            Icon(Icons.add_circle_outline, color: Colors.white70, size: 28),
+            SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                '캐비닛에 영양제를 추가하면\n복용 통계를 확인할 수 있어요!',
+                style:
+                    TextStyle(color: Colors.white, fontSize: 14, height: 1.5),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final todayRate = supplementTotal > 0 ? done / supplementTotal : 0.0;
+    final streakMsg = streak == 0
+        ? '오늘 복용을 시작해보세요!'
+        : streak < 3
+            ? '좋은 시작이에요! 계속해봐요 💪'
+            : streak < 7
+                ? '습관이 만들어지고 있어요 🌱'
+                : streak < 30
+                    ? '대단해요! ${streak}일 연속 복용 중 🔥'
+                    : '믿기 어려운 기록이에요! 🏆';
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [AppColors.primary, AppColors.primaryDark],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.primary.withOpacity(0.3),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // 상단: 스트릭 + 오늘 진행도
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text(
+                          '$streak',
+                          style: const TextStyle(
+                            fontSize: 48,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                            height: 1.0,
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        const Padding(
+                          padding: EdgeInsets.only(bottom: 6),
+                          child: Text(
+                            '일 연속',
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: Colors.white70,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      streakMsg,
+                      style: const TextStyle(
+                          fontSize: 13, color: Colors.white70),
+                    ),
+                  ],
+                ),
+              ),
+              _buildCircularProgress(done, supplementTotal, todayRate),
+            ],
+          ),
+          const SizedBox(height: 20),
+          // 하단: 3개 통계 칩
+          Row(
+            children: [
+              _buildStatChip(
+                icon: Icons.calendar_month_outlined,
+                label: '이번 달',
+                value: '${(monthly * 100).round()}%',
+                onTap: () => _showMonthlyCalendar(context, notifier),
+              ),
+              const SizedBox(width: 8),
+              _buildStatChip(
+                icon: Icons.emoji_events_outlined,
+                label: '최고 기록',
+                value: '$best일',
+              ),
+              const SizedBox(width: 8),
+              _buildStatChip(
+                icon: Icons.check_circle_outline,
+                label: '총 복용',
+                value: '$total일',
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── 원형 진행도 ──────────────────────────────────────────────────────────
+  Widget _buildCircularProgress(int done, int total, double rate) {
+    return SizedBox(
+      width: 72,
+      height: 72,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          SizedBox(
+            width: 72,
+            height: 72,
+            child: CircularProgressIndicator(
+              value: 1.0,
+              strokeWidth: 6,
+              color: Colors.white.withOpacity(0.2),
+            ),
+          ),
+          SizedBox(
+            width: 72,
+            height: 72,
+            child: CircularProgressIndicator(
+              value: rate,
+              strokeWidth: 6,
+              color: Colors.white,
+              backgroundColor: Colors.transparent,
+            ),
+          ),
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                '$done/$total',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const Text(
+                '복용',
+                style: TextStyle(color: Colors.white70, fontSize: 10),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── 통계 칩 ──────────────────────────────────────────────────────────────
+  Widget _buildStatChip({
+    required IconData icon,
+    required String label,
+    required String value,
+    VoidCallback? onTap,
+  }) {
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+          decoration: BoxDecoration(
+            color:
+                Colors.white.withOpacity(onTap != null ? 0.22 : 0.15),
+            borderRadius: BorderRadius.circular(14),
+            border: onTap != null
+                ? Border.all(color: Colors.white.withOpacity(0.3))
+                : null,
+          ),
+          child: Column(
+            children: [
+              Icon(icon, color: Colors.white70, size: 16),
+              const SizedBox(height: 4),
+              Text(
+                value,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 15,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    label,
+                    style: const TextStyle(
+                        color: Colors.white60, fontSize: 10),
+                  ),
+                  if (onTap != null)
+                    const Icon(
+                      Icons.chevron_right,
+                      size: 10,
+                      color: Colors.white60,
+                    ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ── 영양 성분 카드 ────────────────────────────────────────────────────────
   Widget _buildNutritionCard() {
     final supplements = SupplementProvider.of(context).supplements;
     final Map<String, double> totals = {};
@@ -243,15 +517,44 @@ class _HomeScreenState extends State<HomeScreen> {
 
     if (top.isEmpty) {
       return Container(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 24),
         decoration: boxDeco,
         child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.bar_chart_outlined, size: 40, color: Colors.grey[300]),
-            const SizedBox(height: 12),
+            Icon(Icons.bar_chart_outlined, size: 64, color: Colors.grey[200]),
+            const SizedBox(height: 16),
             Text(
               '등록된 영양제가 없습니다',
-              style: TextStyle(fontSize: 14, color: Colors.grey[400]),
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: Colors.grey[400],
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              '캐비닛에 영양제를 추가하면\n성분별 섭취량을 분석해 드려요',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                  fontSize: 13, color: Colors.grey[400], height: 1.6),
+            ),
+            const SizedBox(height: 20),
+            OutlinedButton.icon(
+              onPressed: () => context.go('/cabinet'),
+              style: OutlinedButton.styleFrom(
+                side: const BorderSide(color: AppColors.primary),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 20, vertical: 10),
+              ),
+              icon: const Icon(Icons.add, size: 16, color: AppColors.primary),
+              label: const Text(
+                '영양제 추가하기',
+                style: TextStyle(
+                    color: AppColors.primary, fontWeight: FontWeight.bold),
+              ),
             ),
           ],
         ),
@@ -274,11 +577,8 @@ class _HomeScreenState extends State<HomeScreen> {
             child: const Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(
-                  Icons.lightbulb_outline,
-                  size: 16,
-                  color: AppColors.primary,
-                ),
+                Icon(Icons.lightbulb_outline,
+                    size: 16, color: AppColors.primary),
                 SizedBox(width: 8),
                 Text(
                   '적정 섭취량은 권장량의 70%~100% 사이입니다.',
@@ -296,20 +596,21 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  // ── 바 그래프 ─────────────────────────────────────────────────────────────
   Widget _buildBarGraph(String label, double ratio) {
     final Color barColor = ratio > 1.0
         ? AppColors.danger
         : ratio >= 0.7
-        ? AppColors.primary
-        : AppColors.warning;
+            ? AppColors.primary
+            : AppColors.warning;
     final pct = '${(ratio * 100).round()}%';
     final statusNote = ratio > 1.5
         ? '과다 섭취 주의'
         : ratio > 1.0
-        ? '권장량 초과'
-        : ratio >= 0.7
-        ? '적정 섭취'
-        : '섭취 부족';
+            ? '권장량 초과'
+            : ratio >= 0.7
+                ? '적정 섭취'
+                : '섭취 부족';
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 18),
@@ -323,9 +624,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: Text(
                   label,
                   style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                  ),
+                      fontSize: 14, fontWeight: FontWeight.bold),
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
@@ -351,12 +650,16 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
           const SizedBox(height: 4),
-          Text(statusNote, style: TextStyle(fontSize: 10, color: barColor)),
+          Text(
+            statusNote,
+            style: TextStyle(fontSize: 10, color: barColor),
+          ),
         ],
       ),
     );
   }
 
+  // ── 복용 목록 ─────────────────────────────────────────────────────────────
   Widget _buildMedicationList() {
     final notifier = SupplementProvider.of(context);
     final supplements = notifier.todaySupplements;
@@ -390,11 +693,13 @@ class _HomeScreenState extends State<HomeScreen> {
     SupplementNotifier notifier,
   ) {
     final isDone = notifier.isDoneOn(supplement.name, _selectedDate);
-    final isToday = _dateOnly(_selectedDate) == _dateOnly(DateTime.now());
+    final isToday =
+        _dateOnly(_selectedDate) == _dateOnly(DateTime.now());
 
     return GestureDetector(
       onTap: isToday
-          ? () => notifier.toggleDose(supplement.name, date: _selectedDate)
+          ? () => notifier.toggleDose(supplement.name,
+              date: _selectedDate)
           : null,
       child: _buildMedicationCard(supplement, isDone, isToday),
     );
@@ -422,8 +727,8 @@ class _HomeScreenState extends State<HomeScreen> {
           backgroundColor: isDone
               ? AppColors.primary
               : isToday
-              ? AppColors.dangerBg
-              : Colors.grey.shade200,
+                  ? AppColors.dangerBg
+                  : Colors.grey.shade200,
           child: Icon(
             isDone ? Icons.check : Icons.priority_high,
             color: Colors.white,
@@ -446,11 +751,11 @@ class _HomeScreenState extends State<HomeScreen> {
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // 재고가 부족할 때 표시되는 D-day 배지
             if (!isDone && supplement.remaining <= 7)
               Container(
                 margin: const EdgeInsets.only(right: 8),
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 6, vertical: 2),
                 decoration: BoxDecoration(
                   color: AppColors.dangerBg,
                   borderRadius: BorderRadius.circular(6),
@@ -471,8 +776,8 @@ class _HomeScreenState extends State<HomeScreen> {
               color: isDone
                   ? AppColors.primary
                   : isToday
-                  ? Colors.grey[400]
-                  : Colors.grey[200],
+                      ? Colors.grey[400]
+                      : Colors.grey[200],
               size: 28,
             ),
           ],
@@ -482,4 +787,307 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   DateTime _dateOnly(DateTime dt) => DateTime(dt.year, dt.month, dt.day);
+}
+
+// ── 월간 복용 달력 바텀시트 ──────────────────────────────────────────────────
+class _MonthlyCalendarSheet extends StatefulWidget {
+  final SupplementNotifier notifier;
+  const _MonthlyCalendarSheet({required this.notifier});
+
+  @override
+  State<_MonthlyCalendarSheet> createState() =>
+      _MonthlyCalendarSheetState();
+}
+
+class _MonthlyCalendarSheetState extends State<_MonthlyCalendarSheet> {
+  late DateTime _month;
+
+  @override
+  void initState() {
+    super.initState();
+    _month = DateTime(DateTime.now().year, DateTime.now().month);
+  }
+
+  DateTime get _today => DateTime.now();
+
+  List<DateTime?> get _calendarDays {
+    final firstDay = DateTime(_month.year, _month.month, 1);
+    final lastDay = DateTime(_month.year, _month.month + 1, 0);
+    final leadingBlanks = (firstDay.weekday - 1) % 7;
+    return [
+      ...List.filled(leadingBlanks, null),
+      ...List.generate(
+        lastDay.day,
+        (i) => DateTime(_month.year, _month.month, i + 1),
+      ),
+    ];
+  }
+
+  String _dayStatus(DateTime day) {
+    final n = widget.notifier;
+    final today = DateTime(
+        DateTime.now().year, DateTime.now().month, DateTime.now().day);
+    final d = DateTime(day.year, day.month, day.day);
+    if (d.isAfter(today)) return 'future';
+    if (n.supplements.isEmpty) return 'none';
+    if (n.isAllDoneOn(d)) return 'allDone';
+    if (n.hasDoseRecordOn(d)) return 'partial';
+    return 'none';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final now = _today;
+    final days = _calendarDays;
+    final isCurrentMonth =
+        _month.year == now.year && _month.month == now.month;
+    final lastDayOfMonth =
+        DateTime(_month.year, _month.month + 1, 0).day;
+    final countDays = isCurrentMonth ? now.day : lastDayOfMonth;
+
+    int doneDays = 0;
+    for (int i = 1; i <= countDays; i++) {
+      final d = DateTime(_month.year, _month.month, i);
+      if (widget.notifier.isAllDoneOn(d)) doneDays++;
+    }
+    final rate = countDays > 0 ? doneDays / countDays : 0.0;
+
+    return DraggableScrollableSheet(
+      expand: false,
+      initialChildSize: 0.75,
+      minChildSize: 0.5,
+      maxChildSize: 0.92,
+      builder: (_, controller) => ListView(
+        controller: controller,
+        padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
+        children: [
+          // 드래그 핸들
+          Center(
+            child: Container(
+              width: 36,
+              height: 4,
+              margin: const EdgeInsets.only(bottom: 20),
+              decoration: BoxDecoration(
+                color: Colors.grey[300],
+                borderRadius: BorderRadius.circular(99),
+              ),
+            ),
+          ),
+
+          // 헤더: 월 이동
+          Row(
+            children: [
+              IconButton(
+                icon: const Icon(Icons.chevron_left_rounded),
+                onPressed: () => setState(() {
+                  _month = DateTime(_month.year, _month.month - 1);
+                }),
+              ),
+              Expanded(
+                child: Text(
+                  '${_month.year}년 ${_month.month}월',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                      fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.chevron_right_rounded),
+                onPressed:
+                    _month.year == now.year && _month.month == now.month
+                        ? null
+                        : () => setState(() {
+                              _month =
+                                  DateTime(_month.year, _month.month + 1);
+                            }),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+
+          // 월간 요약
+          Container(
+            margin: const EdgeInsets.only(bottom: 16),
+            padding: const EdgeInsets.symmetric(
+                vertical: 12, horizontal: 16),
+            decoration: BoxDecoration(
+              color: AppColors.primaryLight,
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                _summaryItem('복용 완료', '$doneDays일', AppColors.primary),
+                _summaryItem(
+                  '미복용',
+                  '${countDays - doneDays}일',
+                  AppColors.warning,
+                ),
+                _summaryItem(
+                  isCurrentMonth ? '이번 달' : '${_month.month}월',
+                  '${(rate * 100).round()}%',
+                  AppColors.primaryDark,
+                ),
+              ],
+            ),
+          ),
+
+          // 요일 헤더
+          Row(
+            children: ['월', '화', '수', '목', '금', '토', '일']
+                .map((d) => Expanded(
+                      child: Text(
+                        d,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.grey[400],
+                        ),
+                      ),
+                    ))
+                .toList(),
+          ),
+          const SizedBox(height: 8),
+
+          // 날짜 그리드
+          GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            gridDelegate:
+                const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 7,
+              childAspectRatio: 1.0,
+              mainAxisSpacing: 4,
+              crossAxisSpacing: 4,
+            ),
+            itemCount: days.length,
+            itemBuilder: (_, i) {
+              final day = days[i];
+              if (day == null) return const SizedBox.shrink();
+              final status = _dayStatus(day);
+              final isToday = day.year == now.year &&
+                  day.month == now.month &&
+                  day.day == now.day;
+              return _buildDayCell(day, status, isToday);
+            },
+          ),
+          const SizedBox(height: 20),
+
+          // 범례
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              _legendItem(AppColors.primary, '전체 복용'),
+              const SizedBox(width: 16),
+              _legendItem(AppColors.warning, '일부 복용'),
+              const SizedBox(width: 16),
+              _legendItem(Colors.grey[200]!, '미복용'),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDayCell(DateTime day, String status, bool isToday) {
+    Color bg;
+    Color textColor;
+    Widget? badge;
+
+    switch (status) {
+      case 'allDone':
+        bg = AppColors.primary;
+        textColor = Colors.white;
+        badge = const Positioned(
+          top: 2,
+          right: 2,
+          child: Icon(Icons.check_circle, size: 10, color: Colors.white70),
+        );
+        break;
+      case 'partial':
+        bg = AppColors.warning.withOpacity(0.25);
+        textColor = Colors.orange.shade800;
+        badge = Positioned(
+          top: 2,
+          right: 2,
+          child: Icon(Icons.remove_circle,
+              size: 10, color: Colors.orange.shade400),
+        );
+        break;
+      case 'future':
+        bg = Colors.transparent;
+        textColor = Colors.grey[300]!;
+        break;
+      default:
+        bg = Colors.grey[100]!;
+        textColor = Colors.grey[500]!;
+    }
+
+    return Stack(
+      children: [
+        Container(
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: bg,
+            borderRadius: BorderRadius.circular(10),
+            border: isToday
+                ? Border.all(color: AppColors.primary, width: 2)
+                : null,
+          ),
+          child: Text(
+            '${day.day}',
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: isToday ? FontWeight.bold : FontWeight.w500,
+              color: isToday && status != 'allDone'
+                  ? AppColors.primary
+                  : textColor,
+            ),
+          ),
+        ),
+        if (badge != null) badge,
+      ],
+    );
+  }
+
+  Widget _summaryItem(String label, String value, Color color) {
+    return Column(
+      children: [
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: color,
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          label,
+          style: TextStyle(fontSize: 11, color: Colors.grey[500]),
+        ),
+      ],
+    );
+  }
+
+  Widget _legendItem(Color color, String label) {
+    return Row(
+      children: [
+        Container(
+          width: 12,
+          height: 12,
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: BorderRadius.circular(3),
+          ),
+        ),
+        const SizedBox(width: 4),
+        Text(
+          label,
+          style: TextStyle(fontSize: 11, color: Colors.grey[500]),
+        ),
+      ],
+    );
+  }
 }

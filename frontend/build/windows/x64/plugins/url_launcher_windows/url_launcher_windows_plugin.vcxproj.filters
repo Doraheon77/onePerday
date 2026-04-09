@@ -1,42 +1,42 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="17.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <ClCompile Include="C:\simcap\onePerday\frontend\windows\flutter\ephemeral\.plugin_symlinks\url_launcher_windows\windows\url_launcher_windows.cpp">
+    <ClCompile Include="C:\Users\cogus\Desktop\심캡\onePerday\frontend\windows\flutter\ephemeral\.plugin_symlinks\url_launcher_windows\windows\url_launcher_windows.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="C:\simcap\onePerday\frontend\windows\flutter\ephemeral\.plugin_symlinks\url_launcher_windows\windows\messages.g.cpp">
+    <ClCompile Include="C:\Users\cogus\Desktop\심캡\onePerday\frontend\windows\flutter\ephemeral\.plugin_symlinks\url_launcher_windows\windows\messages.g.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="C:\simcap\onePerday\frontend\windows\flutter\ephemeral\.plugin_symlinks\url_launcher_windows\windows\system_apis.cpp">
+    <ClCompile Include="C:\Users\cogus\Desktop\심캡\onePerday\frontend\windows\flutter\ephemeral\.plugin_symlinks\url_launcher_windows\windows\system_apis.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="C:\simcap\onePerday\frontend\windows\flutter\ephemeral\.plugin_symlinks\url_launcher_windows\windows\url_launcher_plugin.cpp">
+    <ClCompile Include="C:\Users\cogus\Desktop\심캡\onePerday\frontend\windows\flutter\ephemeral\.plugin_symlinks\url_launcher_windows\windows\url_launcher_plugin.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="C:\simcap\onePerday\frontend\windows\flutter\ephemeral\.plugin_symlinks\url_launcher_windows\windows\include\url_launcher_windows\url_launcher_windows.h">
+    <ClInclude Include="C:\Users\cogus\Desktop\심캡\onePerday\frontend\windows\flutter\ephemeral\.plugin_symlinks\url_launcher_windows\windows\include\url_launcher_windows\url_launcher_windows.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="C:\simcap\onePerday\frontend\windows\flutter\ephemeral\.plugin_symlinks\url_launcher_windows\windows\messages.g.h">
+    <ClInclude Include="C:\Users\cogus\Desktop\심캡\onePerday\frontend\windows\flutter\ephemeral\.plugin_symlinks\url_launcher_windows\windows\messages.g.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="C:\simcap\onePerday\frontend\windows\flutter\ephemeral\.plugin_symlinks\url_launcher_windows\windows\system_apis.h">
+    <ClInclude Include="C:\Users\cogus\Desktop\심캡\onePerday\frontend\windows\flutter\ephemeral\.plugin_symlinks\url_launcher_windows\windows\system_apis.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="C:\simcap\onePerday\frontend\windows\flutter\ephemeral\.plugin_symlinks\url_launcher_windows\windows\url_launcher_plugin.h">
+    <ClInclude Include="C:\Users\cogus\Desktop\심캡\onePerday\frontend\windows\flutter\ephemeral\.plugin_symlinks\url_launcher_windows\windows\url_launcher_plugin.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <CustomBuild Include="C:\simcap\onePerday\frontend\windows\flutter\ephemeral\.plugin_symlinks\url_launcher_windows\windows\CMakeLists.txt" />
+    <CustomBuild Include="C:\Users\cogus\Desktop\심캡\onePerday\frontend\windows\flutter\ephemeral\.plugin_symlinks\url_launcher_windows\windows\CMakeLists.txt" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Header Files">
-      <UniqueIdentifier>{770D997A-07C3-3AA4-93CC-2803ECB2219B}</UniqueIdentifier>
+      <UniqueIdentifier>{9DF629D2-7C10-3182-A0E4-1880C360B1DA}</UniqueIdentifier>
     </Filter>
     <Filter Include="Source Files">
-      <UniqueIdentifier>{725B90D1-7F4D-3015-8AE6-352BA235C293}</UniqueIdentifier>
+      <UniqueIdentifier>{3F6DD13C-5FA6-3C77-868E-F2ACF8591810}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
 </Project>
