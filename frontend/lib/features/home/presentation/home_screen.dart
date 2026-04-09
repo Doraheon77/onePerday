@@ -829,8 +829,13 @@ class _MonthlyCalendarSheetState extends State<_MonthlyCalendarSheet> {
         DateTime.now().year, DateTime.now().month, DateTime.now().day);
     final d = DateTime(day.year, day.month, day.day);
     if (d.isAfter(today)) return 'future';
-    if (n.supplements.isEmpty) return 'none';
+    // 현재 등록된 영양제가 없으면 복용 기록만으로 판단
+    if (n.supplements.isEmpty) {
+      return n.hasDoseRecordOn(d) ? 'partial' : 'none';
+    }
+    // 현재 영양제 기준으로 모두 복용했으면 allDone
     if (n.isAllDoneOn(d)) return 'allDone';
+    // 일부라도 복용 기록이 있으면 partial
     if (n.hasDoseRecordOn(d)) return 'partial';
     return 'none';
   }
@@ -845,10 +850,19 @@ class _MonthlyCalendarSheetState extends State<_MonthlyCalendarSheet> {
         DateTime(_month.year, _month.month + 1, 0).day;
     final countDays = isCurrentMonth ? now.day : lastDayOfMonth;
 
+    // 해당 월 복용 일수 계산
+    // - 현재 영양제 모두 복용한 날: allDone (완전 복용)
+    // - 일부라도 복용 기록 있는 날: partial (부분 복용)
+    // 복용률은 완전 복용 기준으로 계산
     int doneDays = 0;
+    int partialDays = 0;
     for (int i = 1; i <= countDays; i++) {
       final d = DateTime(_month.year, _month.month, i);
-      if (widget.notifier.isAllDoneOn(d)) doneDays++;
+      if (widget.notifier.isAllDoneOn(d)) {
+        doneDays++;
+      } else if (widget.notifier.hasDoseRecordOn(d)) {
+        partialDays++;
+      }
     }
     final rate = countDays > 0 ? doneDays / countDays : 0.0;
 
@@ -917,11 +931,16 @@ class _MonthlyCalendarSheetState extends State<_MonthlyCalendarSheet> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
-                _summaryItem('복용 완료', '$doneDays일', AppColors.primary),
+                _summaryItem('완전 복용', '$doneDays일', AppColors.primary),
+                _summaryItem(
+                  '부분 복용',
+                  '$partialDays일',
+                  AppColors.warning,
+                ),
                 _summaryItem(
                   '미복용',
-                  '${countDays - doneDays}일',
-                  AppColors.warning,
+                  '${countDays - doneDays - partialDays}일',
+                  Colors.grey,
                 ),
                 _summaryItem(
                   isCurrentMonth ? '이번 달' : '${_month.month}월',
