@@ -12,14 +12,6 @@
 - [데이터 가져오기](#-2-데이터-가져오기-read)
 - [데이터 수정 및 삭제하기](#️-3-데이터-수정-및-삭제하기-update--delete)
 
-<br>
-
-> [!NOTE]
-> 아래 예제 코드에서는 `supplements` (영양제) 테이블을 기준으로 작성되었습니다.
-> 프로젝트 상황에 맞게 `prisma.[테이블 이름]` 부분을 수정하여 사용하세요.
-
-<br>
-
 ---
 
 ## ⚙️ 0. 준비 작업 (Initialization)
@@ -47,7 +39,7 @@ const prisma = new PrismaClient();
 
 ```js
 async function addData() {
-  const newSupplement = await prisma.supplements.create({
+  const newSupplement = await prisma.[테이블 이름].create({
     data: {
       product_name: "얼라이브 멀티비타민",
       price: 15000,
@@ -68,7 +60,7 @@ async function addData() {
 
 ```js
 async function addMultipleData() {
-  const newSupplements = await prisma.supplements.createMany({
+  const newSupplements = await prisma.[테이블 이름].createMany({
     data: [
       { product_name: "비타민A", price: 10000 },
       { product_name: "비타민B", price: 12000 },
