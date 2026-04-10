@@ -47,39 +47,78 @@ class ScaffoldWithNavBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final bottomPad = MediaQuery.of(context).padding.bottom;
+
     return Scaffold(
       body: child,
-      floatingActionButton: FloatingActionButton(
-        backgroundColor: AppColors.primary,
-        elevation: 4,
-        shape: const CircleBorder(),
-        child: const Icon(Icons.smart_toy_outlined, color: Colors.white),
-        onPressed: () => context.push('/chatbot'),
-      ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-      bottomNavigationBar: BottomAppBar(
-        shape: const CircularNotchedRectangle(),
-        notchMargin: 10,
-        color: Colors.white,
-        height: 70,
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
+      bottomNavigationBar: SizedBox(
+        height: 70 + bottomPad,
+        child: Stack(
+          clipBehavior: Clip.none,
           children: [
-            _buildNavItem(context, Icons.home_filled, '홈', '/home'),
-            _buildNavItem(
-              context,
-              Icons.shopping_bag_outlined,
-              '스토어',
-              '/store',
+            // 네비게이션 바 배경
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.06),
+                    blurRadius: 12,
+                    offset: const Offset(0, -3),
+                  ),
+                ],
+              ),
+              child: SafeArea(
+                top: false,
+                child: SizedBox(
+                  height: 70,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    children: [
+                      _buildNavItem(context, Icons.home_filled, '홈', '/home'),
+                      _buildNavItem(
+                        context,
+                        Icons.shopping_bag_outlined,
+                        '스토어',
+                        '/store',
+                      ),
+                      const SizedBox(width: 64),
+                      _buildNavItem(
+                        context,
+                        Icons.inventory_2_outlined,
+                        '내 영양제',
+                        '/cabinet',
+                      ),
+                      _buildNavItem(
+                        context,
+                        Icons.person_outline,
+                        '프로필',
+                        '/profile',
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             ),
-            const SizedBox(width: 40),
-            _buildNavItem(
-              context,
-              Icons.inventory_2_outlined,
-              '내 영양제',
-              '/cabinet',
+            // FAB — 바 안에 완전히 위치
+            Positioned(
+              top: 0,
+              bottom: MediaQuery.of(context).padding.bottom,
+              left: 0,
+              right: 0,
+              child: Center(
+                child: FloatingActionButton(
+                  backgroundColor: AppColors.primary,
+                  elevation: 4,
+                  shape: const CircleBorder(),
+                  child: const Icon(
+                    Icons.smart_toy_outlined,
+                    color: Colors.white,
+                  ),
+                  onPressed: () => context.push('/chatbot'),
+                ),
+              ),
             ),
-            _buildNavItem(context, Icons.person_outline, '프로필', '/profile'),
           ],
         ),
       ),

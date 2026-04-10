@@ -128,54 +128,62 @@ class _OnboardingSurveyScreenState extends State<OnboardingSurveyScreen> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
-      builder: (context) => Padding(
-        padding: const EdgeInsets.fromLTRB(24, 32, 24, 40),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              '입력하신 정보를 확인해주세요',
-              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 32),
-            _buildSummaryRow(
-              '기본 정보',
-              '${userName ?? "이름 없음"} / ${userAge ?? "0"}세 / ${userGender ?? "미선택"}',
-              0,
-            ),
-            _buildSummaryRow(
-              '복용 목적',
-              selectedGoals.isEmpty ? '없음' : selectedGoals.join(', '),
-              1,
-            ),
-            _buildSummaryRow(
-              '보유 질환',
-              selectedHealth.isEmpty ? '질환 없음' : selectedHealth.join(', '),
-              2,
-            ),
-            _buildSummaryRow(
-              '알레르기',
-              selectedAllergies.isEmpty
-                  ? '알레르기 없음'
-                  : selectedAllergies.join(', '),
-              3,
-            ),
-            _buildSummaryRow('흡연 여부', smokingStatus ?? '미선택', 4),
+      builder: (context) {
+        final bottomPad = MediaQuery.of(context).padding.bottom;
+        return Padding(
+          padding: EdgeInsets.fromLTRB(
+            24,
+            32,
+            24,
+            bottomPad > 0 ? bottomPad + 16 : 40,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                '입력하신 정보를 확인해주세요',
+                style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 32),
+              _buildSummaryRow(
+                '기본 정보',
+                '${userName ?? "이름 없음"} / ${userAge ?? "0"}세 / ${userGender ?? "미선택"}',
+                0,
+              ),
+              _buildSummaryRow(
+                '복용 목적',
+                selectedGoals.isEmpty ? '없음' : selectedGoals.join(', '),
+                1,
+              ),
+              _buildSummaryRow(
+                '보유 질환',
+                selectedHealth.isEmpty ? '질환 없음' : selectedHealth.join(', '),
+                2,
+              ),
+              _buildSummaryRow(
+                '알레르기',
+                selectedAllergies.isEmpty
+                    ? '알레르기 없음'
+                    : selectedAllergies.join(', '),
+                3,
+              ),
+              _buildSummaryRow('흡연 여부', smokingStatus ?? '미선택', 4),
 
-            _buildSummaryRow('음주 여부', drinkingStatus ?? '미선택', 4),
-            if (userGender == '여성')
-              _buildSummaryRow('임신 여부', pregnancyStatus ?? '미선택', 4),
-            const SizedBox(height: 40),
-            _buildFullWidthButton('네, 맞아요! 분석 시작하기', () async {
-              await _saveSurveyData();
-              if (!mounted) return;
-              Navigator.pop(context);
-              _nextPage();
-            }),
-          ],
-        ),
-      ),
+              _buildSummaryRow('음주 여부', drinkingStatus ?? '미선택', 4),
+              if (userGender == '여성')
+                _buildSummaryRow('임신 여부', pregnancyStatus ?? '미선택', 4),
+              const SizedBox(height: 40),
+              _buildFullWidthButton('네, 맞아요! 분석 시작하기', () async {
+                await _saveSurveyData();
+                if (!mounted) return;
+                Navigator.pop(context);
+                _nextPage();
+              }),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -326,7 +334,6 @@ class _OnboardingSurveyScreenState extends State<OnboardingSurveyScreen> {
             selectedValues: userGender != null ? [userGender!] : [],
             onSelected: (val, isSelected) =>
                 setState(() => userGender = isSelected ? val : null),
-            columns: 2,
           ),
         ],
       ),
@@ -603,6 +610,7 @@ class _OnboardingSurveyScreenState extends State<OnboardingSurveyScreen> {
   }
 
   Widget _buildBottomButton() {
+    final bottomPad = MediaQuery.of(context).padding.bottom;
     bool isEnabled = false;
 
     if (_currentPage == 0) {
@@ -623,7 +631,12 @@ class _OnboardingSurveyScreenState extends State<OnboardingSurveyScreen> {
     }
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(24, 10, 24, 40),
+      padding: EdgeInsets.fromLTRB(
+        24,
+        10,
+        24,
+        bottomPad > 0 ? bottomPad + 16 : 40,
+      ),
       child: _buildFullWidthButton(
         _currentPage == 5
             ? 'OnePerDay 시작하기'
