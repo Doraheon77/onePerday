@@ -17,6 +17,7 @@ dependencies:
   riverpod: ^2.5.1
   flutter_riverpod: ^2.5.1
   dio: ^5.6.0
+  http: ^1.2.2
   image_picker: ^1.1.2
   camera: ^0.10.6
   flutter_local_notifications: ^17.2.3
@@ -25,8 +26,13 @@ dependencies:
   google_fonts: ^6.2.1
   flutter_animate: ^4.5.0
   intl: any
+
   url_launcher: ^6.3.2
   mobile_scanner: ^7.2.0
+  flutter_lints: ^5.0.0
+  google_sign_in: ^6.2.1
+  kakao_flutter_sdk_user: ^1.9.5
+  flutter_secure_storage: ^9.2.2
 
 dev_dependencies:
   flutter_test:
