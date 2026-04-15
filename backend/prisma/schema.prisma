@@ -1,0 +1,134 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────
+// 사용자 정보 (auth.users와 연동)
+// ─────────────────────────────────────
+model UsersInfo {
+  id            String    @id @db.Uuid
+  name          String?
+  gender        String?
+  birth_year    Int?      @db.Integer
+  health_status String?
+  symptoms      String[]
+  created_at    DateTime  @default(now()) @db.Timestamptz
+
+  @@map("users_info")
+}
+
+// ─────────────────────────────────────
+// 영양제 정보
+// ─────────────────────────────────────
+model Supplements {
+  product_name     String
+  category         String?
+  brand_name       String?
+  reference_amount String?
+  serving_size     Float?
+  serving_unit     String?
+  serving_weight   String?
+  daily_servings   String?
+  total_weight     String?
+  manufacturer     String?
+  origin           String?
+  id               Int     @id @default(autoincrement()) @db.Integer
+  image_url        String?
+  shop_url         String?
+  price            Int?    @db.Integer
+
+  @@map("supplements")
+}
+
+// ─────────────────────────────────────
+// 영양제 성분
+// ─────────────────────────────────────
+model SupplementsIngredients {
+  product_name    String?
+  ingredient_name String?
+  amount          Float?
+  unit            String?
+  id              Int     @id @default(autoincrement()) @db.Integer
+
+  @@map("supplements_ingredients")
+}
+
+// ─────────────────────────────────────
+// 영양제 테스트 데이터
+// ─────────────────────────────────────
+model SupplementsTest {
+  product_name     String  @id
+  category         String?
+  brand_name       String?
+  reference_amount String?
+  serving_size     Float?
+  serving_unit     String?
+  serving_weight   String?
+  daily_servings   String?
+  total_weight     String?
+  manufacturer     String?
+  origin           String?
+  id               Int?    @db.Integer
+  image_url        String?
+  shop_url         String?
+  price            Int?    @db.Integer
+
+  @@map("supplements_test")
+}
+
+// ─────────────────────────────────────
+// 영양소 기준 (권장량 등)
+// ─────────────────────────────────────
+model NutrientStandards {
+  gender               String?
+  age_min              Int?    @db.SmallInt
+  age_max              Int?    @db.SmallInt
+  state                String?
+  nutrient_name        String?
+  avg_requirement      Float?
+  recommended_intake   Float?
+  adequate_intake      Float?
+  upper_limit          Float?
+  id                   Int     @id @default(autoincrement()) @db.Integer
+
+  @@map("nutrientStandards")
+}
+
+// ─────────────────────────────────────
+// 영양소 가이드
+// ─────────────────────────────────────
+model NutrientGuide {
+  nutrient_name String?
+  target_area   String?
+  source        String?
+  id            Int     @id @default(autoincrement()) @db.Integer
+
+  @@map("nutrient_guide")
+}
+
+// ─────────────────────────────────────
+// 에너지 비율 기준
+// ─────────────────────────────────────
+model EnergyRatioStandards {
+  gender           String?
+  age_min          Int?    @db.SmallInt
+  age_max          Int?    @db.SmallInt
+  carbs_min        Int?    @db.SmallInt
+  carbs_max        Int?    @db.SmallInt
+  protein_min      Int?    @db.SmallInt
+  protein_max      Int?    @db.SmallInt
+  fat_min          Int?    @db.SmallInt
+  fat_max          Int?    @db.SmallInt
+  saturated_fat_min Int?   @db.SmallInt
+  saturated_fat_max Int?   @db.SmallInt
+  trans_fat_min    Int?    @db.SmallInt
+  trans_fat_max    Int?    @db.SmallInt
+  id               Int     @id @default(autoincrement()) @db.Integer
+
+  @@map("energy_ratio_standards")
+}

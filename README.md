@@ -1,98 +1,217 @@
-# onePerday
-2026 AI컴퓨터공학부 심화캡스톤 onePerday팀 프로젝트용 github
+[README.md](https://github.com/user-attachments/files/26583535/README.md)
+# 🗄️ Prisma × Supabase 데이터베이스 조작 가이드
 
-## 🌿 Branch Strategy
+> Prisma Client를 활용한 Supabase 데이터베이스 CRUD 완벽 정리
 
-효율적인 협업을 위해 아래와 같은 브랜치 전략을 준수합니다. 모든 작업은 본인의 개별 브랜치에서 수행함을 원칙으로 합니다.
+<br>
 
-| 브랜치 이름 | 설명 |
-| :--- | :--- |
-| **Main** | 항상 배포 가능한 최신 상태를 유지하는 메인 브랜치 |
-| **Release** | 배포 직전 최종 테스트 및 버그 수정을 위한 브랜치 |
-| **Develop** | 다음 버전 출시를 위한 기능을 통합하는 개발 브랜치 |
-| **Feature** | 단위 기능을 개발하는 브랜치 (실질적인 작업 공간) |
-| **HotFix** | Main 브랜치에서 발생한 긴급 버그를 수정하는 브랜치 |
+## 📌 목차
 
-### 🏷️ Branch Naming Convention
-
-브랜치 생성 시 아래의 규칙에 따라 이름을 부여합니다.
-
-> **형식:** `브랜치 종류-브랜치 목적(띄어쓰기 없이)-작성자 이니셜`  
-> **이니셜 목록:** `HJ`, `KB`, `SJ`, `HS`, `CH`, `EJ`
-
-**Example:**
-- `Feature-체크리스트-EJ`
-- `Develop-0.1v개발-HJ`
-- `HotFix-셧다운버그수정-KB`
+- [준비 작업](#-0-준비-작업-initialization)
+- [데이터 추가하기](#-1-데이터-추가하기-create)
+- [데이터 가져오기](#-2-데이터-가져오기-read)
+- [데이터 수정 및 삭제하기](#️-3-데이터-수정-및-삭제하기-update--delete)
 
 ---
 
-## 💬 Commit Convention
+## ⚙️ 0. 준비 작업 (Initialization)
 
-코드의 변경 이력을 명확히 하기 위해 아래의 커밋 메시지 규약을 따릅니다.
-
-### 1. Commit Type
-
-| Type | Description |
-| :--- | :--- |
-| **Feat** | 새로운 기능 추가 |
-| **Fix** | 버그 수정 |
-| **Docs** | 문서 수정 (README 등) |
-| **Style** | 코드 의미에 영향이 없는 서식 변경 (들여쓰기, 세미콜론 등) |
-| **Refactor** | 코드 리팩토링 |
-| **Test** | 테스트 코드 추가 및 수정 |
-| **Chore** | 빌드 업무, 패키지 매니저 설정 등 기타 변경 사항 |
-
-### 2. Commit Message Format
-
-커밋 메시지는 제목과 상세 내용을 구분하여 상세하게 작성합니다.
-
-```text
-작성자 이니셜 : [Type] 제목
-
-수정 내용 (최대한 상세하게 작성)
+데이터베이스와 통신하기 위해 가장 먼저 **Prisma Client**를 불러오고 실행해야 합니다.  
+데이터베이스 접근이 필요한 파일의 **최상단**에 작성해 주세요.
+테이블에 추가된 사항이 있다면 새로 데이터를 업데이트 해야합니다.
+```js
+npx prisma db pull
+npx prisma generate
 ```
 
+```js
+import { PrismaClient } from '@prisma/client';
 
-**Example:**
-```text
-HJ : [Feat] 회원 가입 기능 구현
-
-이메일 가입, 외부 인증 로그인 기능 및 사용자 특성 입력 페이지 개발
+// Prisma Client 인스턴스 생성
+const prisma = new PrismaClient();
 ```
 
+<br>
 
 ---
 
-## 🚀 Pull Request (PR) Strategy
+## 📝 1. 데이터 추가하기 (Create)
 
-코드 리뷰를 활성화하고 코드의 품질을 유지하기 위해 아래의 PR 규칙을 준수합니다.
+### 단일 데이터 추가 — `create`
 
-### 1. PR Title Convention
+새로운 데이터 한 줄을 테이블에 추가할 때 사용합니다.  
+`id`나 `created_at`처럼 DB에서 자동 생성되도록 설정된 값은 생략해도 됩니다.
 
-브랜치 전략과 통일성을 갖추어 제목을 작성합니다.
+```js
+async function addData() {
+  const newSupplement = await prisma.[테이블 이름].create({
+    data: {
+      product_name: "얼라이브 멀티비타민",
+      price: 15000,
+      image_url: "https://example.com/image.jpg",
+    },
+  });
 
-> **형식:** `[PR 종류(브랜치 종류와 동일)] 기능 명칭 - 작성자 이니셜`
-> 
-> **Example:** `[Feature] 회원가입 API 연동 완료 - HJ`
+  console.log("✅ 데이터 추가 완료:", newSupplement);
+}
+```
 
-### 2. PR Body Template
+<br>
 
-상세한 코드 리뷰를 위해 PR 본문에 아래 항목을 포함하여 작성합니다.
+### 여러 데이터 한 번에 추가 — `createMany`
 
-| 항목 | 내용 |
-| :--- | :--- |
-| **개요 (Summary)** | 작업한 내용의 핵심 요약 |
-| **주요 변경 사항** | 구체적인 코드 수정 및 추가 사항 (리스트 형태 권장) |
-| **스크린샷/영상** | UI 변경 사항이 있을 경우 반드시 첨부 (선택 사항) |
+배열 형태로 여러 개의 데이터를 한 번에 밀어 넣을 때 사용합니다.  
+대량의 데이터를 초기화하거나 마이그레이션할 때 유용합니다.
 
-### 3. Review & Merge Rules
+```js
+async function addMultipleData() {
+  const newSupplements = await prisma.[테이블 이름].createMany({
+    data: [
+      { product_name: "비타민A", price: 10000 },
+      { product_name: "비타민B", price: 12000 },
+      { product_name: "비타민C", price: 8000 },
+    ],
+    skipDuplicates: true, // 중복 데이터가 있으면 에러 없이 건너뜁니다
+  });
 
-원활한 병합을 위해 아래 프로세스를 따릅니다.
+  console.log(`✅ ${newSupplements.count}개의 데이터가 추가되었습니다.`);
+}
+```
 
-* **Reviewer 지정:** 작업 완료 후 모든 팀원을 리뷰어로 지정합니다.
-* **Approve 조건:** 팀장 + 팀장 외 2인의 승인(Approve)**이 있어야 `Main` 또는 `Develop` 브랜치로 머지할 수 있습니다.
-* **Merge 방식:** * `Feature` → `Develop`: 코드 이력을 남기기 위해 **Squash and Merge** 혹은 **Merge Commit**을 활용합니다.
-    * 리뷰 중 발견된 수정 사항은 해당 PR 브랜치에서 추가 커밋으로 반영합니다.
+> [!TIP]
+> `skipDuplicates: true` 옵션을 사용하면 중복 데이터가 있어도 에러 없이 자연스럽게 건너뜁니다.
+
+<br>
 
 ---
+
+## 🔍 2. 데이터 가져오기 (Read)
+
+### 모든 데이터 가져오기 — `findMany`
+
+조건 없이 테이블에 있는 모든 데이터를 **배열** 형태로 가져옵니다.
+
+```js
+async function getAllData() {
+  const allSupplements = await prisma.supplements.findMany();
+  console.log(allSupplements);
+}
+```
+
+<br>
+
+### 조건 필터링 — `where`
+
+특정 조건을 만족하는 데이터만 골라서 가져옵니다.
+
+```js
+async function getFilteredData() {
+  const cheapSupplements = await prisma.supplements.findMany({
+    where: {
+      price: {
+        lt: 20000,  // lt  : 미만 (less than)
+                    // lte : 이하 (less than or equal)
+                    // gt  : 초과 (greater than)
+                    // gte : 이상 (greater than or equal)
+      },
+      image_url: null, // 이미지가 없는(null) 데이터만 조회
+    },
+  });
+}
+```
+
+| 연산자 | 의미 | 예시 |
+|:------:|:----:|:----:|
+| `lt`  | 미만 | `price < 20000` |
+| `lte` | 이하 | `price <= 20000` |
+| `gt`  | 초과 | `price > 20000` |
+| `gte` | 이상 | `price >= 20000` |
+
+<br>
+
+### 원하는 컬럼만 선택 — `select`
+
+필요한 정보만 선택해서 가져와 **데이터 용량과 네트워크 비용**을 절약할 수 있습니다.
+
+```js
+async function getSpecificColumns() {
+  const namesAndPrices = await prisma.supplements.findMany({
+    select: {
+      id: true,
+      product_name: true,
+      price: true,
+      // true로 설정한 컬럼만 가져옵니다
+    },
+  });
+}
+```
+
+<br>
+
+---
+
+## 🛠️ 3. 데이터 수정 및 삭제하기 (Update & Delete)
+
+### 특정 데이터 수정 — `update`
+
+`where` 조건으로 대상을 특정하고, `data`에 변경할 값을 입력합니다.
+
+```js
+async function updateData() {
+  const updatedSupplement = await prisma.supplements.update({
+    where: {
+      id: 1,         // 수정할 데이터의 고유 ID
+    },
+    data: {
+      price: 16000,  // 변경할 값
+    },
+  });
+}
+```
+
+<br>
+
+### 특정 데이터 삭제 — `delete`
+
+`where` 조건에 해당하는 데이터를 테이블에서 삭제합니다.
+
+```js
+async function deleteData() {
+  const deletedSupplement = await prisma.supplements.delete({
+    where: {
+      id: 1, // 삭제할 데이터의 고유 ID
+    },
+  });
+}
+```
+
+> [!WARNING]
+> `delete`는 되돌릴 수 없습니다. `where` 조건을 꼭 확인한 후 실행하세요.
+
+<br>
+
+---
+
+## 📋 메서드 한눈에 보기
+
+| 작업 | 메서드 | 설명 |
+|:----:|:------:|:-----|
+| **Create** | `create` | 단일 데이터 추가 |
+| **Create** | `createMany` | 다중 데이터 한 번에 추가 |
+| **Read** | `findMany` | 전체 또는 조건부 데이터 조회 |
+| **Read** | `findUnique` | 고유값 기준 단일 데이터 조회 |
+| **Update** | `update` | 특정 데이터 수정 |
+| **Delete** | `delete` | 특정 데이터 삭제 |
+
+<br>
+
+---
+
+<div align="center">
+
+**🔗 참고 링크**
+
+[![Prisma Docs](https://img.shields.io/badge/Prisma-Docs-2D3748?style=for-the-badge&logo=prisma&logoColor=white)](https://www.prisma.io/docs)
+[![Supabase Docs](https://img.shields.io/badge/Supabase-Docs-3ECF8E?style=for-the-badge&logo=supabase&logoColor=white)](https://supabase.com/docs)
+
+</div>
