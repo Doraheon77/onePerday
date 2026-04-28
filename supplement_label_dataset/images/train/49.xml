@@ -1,0 +1,26 @@
+<annotation>
+	<folder>train</folder>
+	<filename>49.jpg</filename>
+	<path>C:\tabletYOLO\supplement_label_dataset\images\train\49.jpg</path>
+	<source>
+		<database>Unknown</database>
+	</source>
+	<size>
+		<width>3072</width>
+		<height>4096</height>
+		<depth>3</depth>
+	</size>
+	<segmented>0</segmented>
+	<object>
+		<name>supplement_label</name>
+		<pose>Unspecified</pose>
+		<truncated>0</truncated>
+		<difficult>0</difficult>
+		<bndbox>
+			<xmin>1049</xmin>
+			<ymin>1678</ymin>
+			<xmax>2114</xmax>
+			<ymax>3026</ymax>
+		</bndbox>
+	</object>
+</annotation>
