@@ -1,0 +1,26 @@
+<annotation>
+	<folder>val</folder>
+	<filename>29.jpg</filename>
+	<path>C:\tabletYOLO\supplement_label_dataset\images\val\29.jpg</path>
+	<source>
+		<database>Unknown</database>
+	</source>
+	<size>
+		<width>750</width>
+		<height>1000</height>
+		<depth>3</depth>
+	</size>
+	<segmented>0</segmented>
+	<object>
+		<name>supplement_label</name>
+		<pose>Unspecified</pose>
+		<truncated>0</truncated>
+		<difficult>0</difficult>
+		<bndbox>
+			<xmin>149</xmin>
+			<ymin>344</ymin>
+			<xmax>578</xmax>
+			<ymax>911</ymax>
+		</bndbox>
+	</object>
+</annotation>
