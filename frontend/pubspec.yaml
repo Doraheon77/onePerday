@@ -18,6 +18,7 @@ dependencies:
   flutter_riverpod: ^2.5.1
   dio: ^5.6.0
   http: ^1.2.2
+  provider: ^6.1.2
   image_picker: ^1.1.2
   camera: ^0.10.6
   flutter_local_notifications: ^17.2.3

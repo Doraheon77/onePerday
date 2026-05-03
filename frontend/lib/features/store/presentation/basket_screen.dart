@@ -3,6 +3,8 @@ import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:simcap/core/constant/app_constants.dart';
 import 'package:simcap/providers/supplement_provider.dart';
+import 'package:simcap/features/cabinet/domain/dataModels/supplement_model.dart';
+import 'package:simcap/services/intake_api_service.dart';
 
 // 검사 결과 데이터 모델
 
@@ -26,7 +28,10 @@ class _OverdoseResult {
   final double currentAmount;
   final double upperLimit;
   final String unit;
+
   _CheckStatus get status {
+    if (upperLimit <= 0) return _CheckStatus.safe;
+
     final ratio = currentAmount / upperLimit;
     if (ratio >= 1.0) return _CheckStatus.danger;
     if (ratio >= 0.8) return _CheckStatus.warning;
@@ -356,49 +361,48 @@ class _BasketScreenState extends State<BasketScreen> {
   }
 
   Future<void> _runOverdoseCheck() async {
-    setState(() {
-      _isOverdoseLoading = true;
-      _showOverdosePanel = true;
-      _showContraPanel = false;
-    });
-    await Future.delayed(const Duration(milliseconds: 900));
+  setState(() {
+    _isOverdoseLoading = true;
+    _showOverdosePanel = true;
+    _showContraPanel = false;
+  });
+
+  try {
+    final notifier = SupplementProvider.of(context);
+    final checkedItems = notifier.cartItems.where((c) => c.checked).toList();
+
+    final api = IntakeApiService();
+
+    final results = await api.checkOverdoseByCartItems(
+      cartItems: checkedItems,
+      age: 24,
+      gender: 'female',
+    );
+
     setState(() {
       _isOverdoseLoading = false;
-      // TODO: 백엔드 API 호출로 교체
-      _overdoseResults = [
-        const _OverdoseResult(
-          nutrient: '비타민 A',
-          currentAmount: 700,
-          upperLimit: 3000,
-          unit: 'μg',
-        ),
-        const _OverdoseResult(
-          nutrient: '비타민 D',
-          currentAmount: 4200,
-          upperLimit: 4000,
-          unit: 'IU',
-        ),
-        const _OverdoseResult(
-          nutrient: '비타민 E',
-          currentAmount: 330,
-          upperLimit: 400,
-          unit: 'mg',
-        ),
-        const _OverdoseResult(
-          nutrient: 'EPA+DHA',
-          currentAmount: 1200,
-          upperLimit: 3000,
-          unit: 'mg',
-        ),
-        const _OverdoseResult(
-          nutrient: '아연',
-          currentAmount: 8,
-          upperLimit: 35,
-          unit: 'mg',
-        ),
-      ];
+      _overdoseResults = results.map((r) {
+        return _OverdoseResult(
+          nutrient: r.nutrientName,
+          currentAmount: r.currentTotal,
+          upperLimit: r.upperLimit,
+          unit: r.unit,
+        );
+      }).toList();
     });
+  } catch (e) {
+    setState(() {
+      _isOverdoseLoading = false;
+      _overdoseResults = [];
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('과다섭취 검사 중 오류 발생: $e'),
+      ),
+    );
   }
+}
 
   // _checkedCount / _totalPrice는 build() 안에서 notifier를 통해 직접 접근
 
