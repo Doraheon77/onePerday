@@ -7,8 +7,8 @@ export class IntakeController {
   constructor(private readonly intakeService: IntakeService) {}
 
   @Post('check-safety')
-  checkSafety(@Body() dto: CheckIntakeDto) {
-    const analysis = this.intakeService.checkOverdose(dto);
+  async checkSafety(@Body() dto: CheckIntakeDto) {
+    const analysis = await this.intakeService.checkOverdose(dto);
 
     const hasWarning = analysis.some((item) => item.isExceeded);
 

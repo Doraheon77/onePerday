@@ -1,5 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+import 'package:simcap/core/supabase/supabase_client.dart';
 import 'package:simcap/features/profile/widgets/login_social_button.dart';
 import 'package:simcap/services/auth_service.dart';
 
@@ -14,21 +19,42 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _isLoading = false;
   final AuthService _authService = AuthService();
 
+  StreamSubscription<AuthState>? _authSubscription;
+
+  @override
+  void initState() {
+    super.initState();
+
+    _authSubscription = supabase.auth.onAuthStateChange.listen((data) async {
+      final session = data.session;
+
+      if (session == null) return;
+      if (!mounted) return;
+
+      final hasUserInfo = await _authService.hasUserInfo();
+
+      if (!mounted) return;
+
+      if (hasUserInfo) {
+        context.go('/home');
+      } else {
+        context.go('/onboarding');
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _authSubscription?.cancel();
+    super.dispose();
+  }
+
   Future<void> _handleGoogleLogin(BuildContext context) async {
     if (_isLoading) return;
     setState(() => _isLoading = true);
 
     try {
-      final result = await _authService.signInWithGoogle();
-      final bool isNewUser = result['isNewUser'] as bool? ?? false;
-
-      if (!mounted) return;
-
-      if (isNewUser) {
-        context.go('/onboarding');
-      } else {
-        context.go('/home');
-      }
+      await _authService.signInWithGoogle();
     } catch (e) {
       if (!mounted) return;
 
@@ -45,16 +71,7 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _isLoading = true);
 
     try {
-      final result = await _authService.signInWithKakao();
-      final bool isNewUser = result['isNewUser'] as bool? ?? false;
-
-      if (!mounted) return;
-
-      if (isNewUser) {
-        context.go('/onboarding');
-      } else {
-        context.go('/home');
-      }
+      await _authService.signInWithKakao();
     } catch (e) {
       if (!mounted) return;
 
@@ -96,7 +113,6 @@ class _LoginScreenState extends State<LoginScreen> {
                 style: TextStyle(color: Colors.grey),
               ),
               const Spacer(),
-
               LoginSocialButton(
                 icon: Icons.chat_bubble,
                 text: '카카오로 시작하기',
@@ -105,7 +121,6 @@ class _LoginScreenState extends State<LoginScreen> {
                 onPressed: _isLoading ? null : () => _handleKakaoLogin(context),
               ),
               const SizedBox(height: 12),
-
               LoginSocialButton(
                 icon: Icons.g_mobiledata,
                 text: '구글로 시작하기',
@@ -114,7 +129,6 @@ class _LoginScreenState extends State<LoginScreen> {
                 border: true,
                 onPressed: _isLoading ? null : () => _handleGoogleLogin(context),
               ),
-
               AnimatedSwitcher(
                 duration: const Duration(milliseconds: 200),
                 child: _isLoading
@@ -131,7 +145,6 @@ class _LoginScreenState extends State<LoginScreen> {
                       )
                     : const SizedBox(height: 20),
               ),
-
               const SizedBox(height: 16),
             ],
           ),

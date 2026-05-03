@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../widgets/survey_chip_group.dart';
 import '../data/survey_data.dart';
+import 'package:simcap/services/auth_service.dart';
 
 class OnboardingSurveyScreen extends StatefulWidget {
   const OnboardingSurveyScreen({super.key});
@@ -176,9 +177,18 @@ class _OnboardingSurveyScreenState extends State<OnboardingSurveyScreen> {
               const SizedBox(height: 40),
               _buildFullWidthButton('네, 맞아요! 분석 시작하기', () async {
                 await _saveSurveyData();
+
+                await AuthService().completeOnboarding(
+                  name: userName ?? '',
+                  gender: userGender ?? '',
+                  birthYear: int.tryParse(userAge ?? '0') ?? 0,
+                  healthStatus: selectedHealth.join(','),
+                  symptoms: selectedGoals,
+                );
+
                 if (!mounted) return;
                 Navigator.pop(context);
-                _nextPage();
+                context.go('/home');
               }),
             ],
           ),

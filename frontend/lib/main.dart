@@ -20,24 +20,31 @@ import 'package:simcap/features/store/presentation/store_screen.dart';
 import 'package:simcap/features/store/presentation/search_screen.dart';
 import 'package:simcap/features/store/presentation/basket_screen.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:kakao_flutter_sdk_user/kakao_flutter_sdk_user.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await initializeDateFormatting('ko_KR', null);
+
+  await Supabase.initialize(
+    url: 'https://saibkbyicokuwdgjcmyy.supabase.co',
+    anonKey: 'sb_publishable_exeVSswIS-6R1qiLm4L--Q_9LmesJbM',
+    authOptions: const FlutterAuthClientOptions(
+      authFlowType: AuthFlowType.pkce,
+    ),
+  );
 
   final notifier = SupplementNotifier();
 
   // 앱 시작 시 저장된 데이터 복원
   await notifier.loadFromStorage();
 
-  runApp(SupplementProvider(notifier: notifier, child: const MyApp()));
-  KakaoSdk.init(
-    nativeAppKey: '51c74822ab20f50d91b299e82055229d',
-  );
-
-  runApp(const ProviderScope(
-      child: MyApp(),
+  runApp(
+    ProviderScope(
+      child: SupplementProvider(
+        notifier: notifier,
+        child: const MyApp(),
+      ),
     ),
   );
 }

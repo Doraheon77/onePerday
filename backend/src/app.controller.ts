@@ -1,6 +1,6 @@
 import { Controller, Get, Post, Body } from '@nestjs/common';
 import { AppService } from './app.service';
-import { PrismaService } from './prisma.service';
+import { PrismaService } from './prisma/prisma.service';
 import { SupplementSearchService } from './supplement-search.service';
 import type { LlmExtracted } from './supplement-search.service';
 

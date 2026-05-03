@@ -6,6 +6,7 @@ import 'package:simcap/core/constant/app_constants.dart';
 import 'package:simcap/providers/supplement_provider.dart';
 import 'package:simcap/features/profile/widgets/survey_chip_group.dart';
 import 'package:simcap/features/profile/data/survey_data.dart';
+import 'package:simcap/services/auth_service.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -1010,6 +1011,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
 
     if (confirmed != true || !mounted) return;
+
+    //  Supabase 로그아웃
+    await AuthService().signOut();
 
     // SharedPreferences 전체 초기화
     final prefs = await SharedPreferences.getInstance();
