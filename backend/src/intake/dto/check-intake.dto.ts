@@ -1,16 +1,44 @@
-import { ArrayNotEmpty, IsArray, IsIn, IsInt } from 'class-validator';
+import {
+  ArrayNotEmpty,
+  IsArray,
+  IsIn,
+  IsInt,
+  IsOptional,
+  IsString,
+  ValidateNested,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 
-export class CheckIntakeDto {
-  @IsArray()
-  @ArrayNotEmpty()
-  @IsInt({ each: true })
-  supplementIds: number[];
-
+class CartItemDto {
   @Type(() => Number)
   @IsInt()
-  age: number;
+  productId!: number;
+
+  @IsOptional()
+  @IsString()
+  name?: string;
+
+  @IsOptional()
+  @IsString()
+  brand?: string;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  count?: number;
+}
+
+export class CheckIntakeDto {
+  @Type(() => Number)
+  @IsInt()
+  age!: number;
 
   @IsIn(['male', 'female'])
-  gender: 'male' | 'female';
+  gender!: 'male' | 'female';
+
+  @IsArray()
+  @ArrayNotEmpty()
+  @ValidateNested({ each: true })
+  @Type(() => CartItemDto)
+  cartItems!: CartItemDto[];
 }

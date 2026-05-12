@@ -16,24 +16,22 @@ class AuthNotifier extends StateNotifier<AsyncValue<void>> {
 
   final AuthService _authService;
 
-  Future<bool> loginWithGoogle() async {
+  Future<void> loginWithGoogle() async {
     state = const AsyncValue.loading();
     try {
-      final result = await _authService.signInWithGoogle();
+      await _authService.signInWithGoogle();
       state = const AsyncValue.data(null);
-      return result['isNewUser'] as bool? ?? false;
     } catch (e, st) {
       state = AsyncValue.error(e, st);
       rethrow;
     }
   }
 
-  Future<bool> loginWithKakao() async {
+  Future<void> loginWithKakao() async {
     state = const AsyncValue.loading();
     try {
-      final result = await _authService.signInWithKakao();
+      await _authService.signInWithKakao();
       state = const AsyncValue.data(null);
-      return result['isNewUser'] as bool? ?? false;
     } catch (e, st) {
       state = AsyncValue.error(e, st);
       rethrow;
@@ -43,7 +41,7 @@ class AuthNotifier extends StateNotifier<AsyncValue<void>> {
   Future<void> logout() async {
     state = const AsyncValue.loading();
     try {
-      await _authService.logout();
+      await _authService.signOut();
       state = const AsyncValue.data(null);
     } catch (e, st) {
       state = AsyncValue.error(e, st);

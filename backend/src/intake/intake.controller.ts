@@ -9,8 +9,9 @@ export class IntakeController {
   @Post('check-safety')
   async checkSafety(@Body() dto: CheckIntakeDto) {
     const analysis = await this.intakeService.checkOverdose(dto);
-
-    const hasWarning = analysis.some((item) => item.isExceeded);
+    const hasWarning = analysis.some(
+      (item) => item.status === 'warning' || item.status === 'danger',
+    );
 
     return {
       success: true,
