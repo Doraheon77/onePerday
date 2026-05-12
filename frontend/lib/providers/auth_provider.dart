@@ -5,8 +5,9 @@ final authServiceProvider = Provider<AuthService>((ref) {
   return AuthService();
 });
 
-final authProvider =
-    StateNotifierProvider<AuthNotifier, AsyncValue<void>>((ref) {
+final authProvider = StateNotifierProvider<AuthNotifier, AsyncValue<void>>((
+  ref,
+) {
   final authService = ref.read(authServiceProvider);
   return AuthNotifier(authService);
 });
