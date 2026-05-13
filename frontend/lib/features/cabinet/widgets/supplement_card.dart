@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:simcap/core/constant/app_constants.dart';
+import 'package:go_router/go_router.dart';
 import 'package:simcap/features/cabinet/domain/dataModels/supplement_model.dart';
 
 class SupplementCard extends StatelessWidget {
@@ -59,7 +59,7 @@ class SupplementCard extends StatelessWidget {
                 right: 0,
                 child: Container(
                   width: 10,
-                  color: const Color(0xFFF3F4F6),
+                  color: AppColors.dividerBg,
                   alignment: Alignment.bottomCenter,
                   child: FractionallySizedBox(
                     heightFactor: progress,
@@ -117,11 +117,31 @@ class SupplementCard extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
           ),
           const SizedBox(height: 2),
-          Text(
-            item.brand.isEmpty ? '브랜드 정보 없음' : item.brand,
-            style: TextStyle(color: Colors.grey[600], fontSize: 12),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
+          Row(
+            children: [
+              Text(
+                item.brand.isEmpty ? '브랜드 정보 없음' : item.brand,
+                style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(width: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                decoration: BoxDecoration(
+                  color: AppColors.primaryLight,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Text(
+                  item.mealTiming.label,
+                  style: const TextStyle(
+                    fontSize: 10,
+                    color: AppColors.primary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 8),
           Row(

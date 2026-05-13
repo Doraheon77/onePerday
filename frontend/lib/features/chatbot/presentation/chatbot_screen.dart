@@ -12,6 +12,35 @@ class ChatbotScreen extends StatefulWidget {
 }
 
 class _ChatbotScreenState extends State<ChatbotScreen> {
+  // 추천 질문 목록
+  static const _suggestions = [
+    '비타민D 언제 먹는 게 좋아요?',
+    '오메가3와 같이 먹으면 안 되는 영양제가 있나요?',
+    '영양제 공복에 먹어도 되나요?',
+    '철분제 부작용이 있을 수 있나요?',
+    '종합비타민과 개별 영양제 차이가 뭔가요?',
+  ];
+
+  // 질문 키워드 기반 더미 응답
+  static String _getDummyResponse(String text, int supplementCount) {
+    final t = text.toLowerCase();
+    if (t.contains('비타민d') || t.contains('비타민 d')) {
+      return '비타민D는 지용성 비타민이라 식후 복용이 가장 좋습니다. 특히 지방이 포함된 식사 후에 흡수율이 높아져요. 하루 권장량은 성인 기준 600~800IU이지만 결핍이 있다면 의사 상담 후 고용량을 복용하기도 합니다.';
+    } else if (t.contains('오메가') || t.contains('omega')) {
+      return '오메가3는 혈액 희석 효과가 있어 항응고제(아스피린 등)와 함께 복용 시 출혈 위험이 높아질 수 있습니다. 또한 비타민E와 함께 복용하면 산화 방지에 도움이 돼요. 식후 복용을 권장합니다.';
+    } else if (t.contains('공복')) {
+      return '공복 복용이 좋은 영양제: 철분(흡수율↑), 프로바이오틱스\n식후 복용이 좋은 영양제: 지용성 비타민(A·D·E·K), 오메가3, 마그네슘\n\n대부분의 영양제는 위장 자극을 줄이기 위해 식후 복용을 권장합니다.';
+    } else if (t.contains('철분')) {
+      return '철분제의 흔한 부작용으로는 변비, 복통, 검은 변이 있습니다. 공복 복용 시 흡수율이 높지만 위장 자극이 심할 수 있어요. 비타민C와 함께 복용하면 흡수율이 올라가고, 칼슘·카페인은 흡수를 방해하니 2시간 간격을 두세요.';
+    } else if (t.contains('종합비타민') || t.contains('멀티')) {
+      return '종합비타민은 여러 영양소를 한 번에 섭취할 수 있어 편리하지만, 특정 영양소가 결핍된 경우 개별 보충제가 더 효과적입니다. 예를 들어 비타민D 결핍이 심하다면 종합비타민의 함량만으로는 부족할 수 있어요.';
+    } else if (supplementCount > 0) {
+      return '현재 등록하신 ${supplementCount}가지 영양제를 참고해 답변드리겠습니다. 구체적으로 어떤 점이 궁금하신가요? 복용 시간, 상호작용, 부작용 등에 대해 도움드릴 수 있어요.';
+    } else {
+      return '좋은 질문이에요! 영양제 복용에 관한 더 정확한 답변을 위해 캐비닛에 복용 중인 영양제를 등록해 주시면 맞춤 상담이 가능합니다. 다른 궁금한 점이 있으시면 언제든지 물어보세요.';
+    }
+  }
+
   final TextEditingController _controller = TextEditingController();
   final ScrollController _scrollController = ScrollController();
 
@@ -82,7 +111,7 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
     // ''';
     debugPrint('[Chatbot] 시스템 프롬프트에 포함될 영양제 컨텍스트:\n$supplementCtx');
 
-    Future.delayed(const Duration(seconds: 1), () {
+    Future.delayed(const Duration(milliseconds: 1200), () {
       if (!mounted) return;
       setState(() {
         _isLoading = false;
@@ -90,7 +119,7 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
           'role': 'bot',
           'message': supplements.isEmpty
               ? '현재 등록된 영양제가 없네요. 캐비닛에 영양제를 추가하면 맞춤 상담이 가능합니다!'
-              : '문의하신 내용을 분석 중입니다. 현재 복용 중인 ${supplements.length}가지 영양제를 참고해 답변드릴게요!',
+              : _getDummyResponse(text, supplements.length),
           'time': DateTime.now(),
         });
       });
@@ -154,27 +183,134 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
       body: Column(
         children: [
           Expanded(
-            child: ListView.builder(
-              controller: _scrollController,
-              padding: const EdgeInsets.all(16),
-              // 로딩 중이면 아이템 1개 추가 (로딩 말풍선)
-              itemCount: _messages.length + (_isLoading ? 1 : 0),
-              itemBuilder: (context, index) {
-                // 마지막 아이템이고 로딩 중이면 로딩 버블 표시
-                if (_isLoading && index == _messages.length) {
-                  return _buildLoadingBubble();
-                }
-                final chat = _messages[index];
-                final isBot = chat['role'] == 'bot';
-                return _buildMessageBubble(
-                  isBot: isBot,
-                  message: chat['message'] as String,
-                  time: chat['time'] as DateTime,
-                );
-              },
-            ),
+            child: _messages.length <= 1 && !_isLoading
+                ? Column(children: [Expanded(child: _buildEmptyState())])
+                : ListView.builder(
+                    controller: _scrollController,
+                    padding: const EdgeInsets.all(16),
+                    // 로딩 중이면 아이템 1개 추가 (로딩 말풍선)
+                    itemCount: _messages.length + (_isLoading ? 1 : 0),
+                    itemBuilder: (context, index) {
+                      // 마지막 아이템이고 로딩 중이면 로딩 버블 표시
+                      if (_isLoading && index == _messages.length) {
+                        return _buildLoadingBubble();
+                      }
+                      final chat = _messages[index];
+                      final isBot = chat['role'] == 'bot';
+                      return _buildMessageBubble(
+                        isBot: isBot,
+                        message: chat['message'] as String,
+                        time: chat['time'] as DateTime,
+                      );
+                    },
+                  ),
           ),
           _buildInputBar(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        children: [
+          const SizedBox(height: 32),
+          Container(
+            width: 80,
+            height: 80,
+            decoration: const BoxDecoration(
+              color: AppColors.primaryLight,
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.smart_toy_outlined,
+              color: AppColors.primary,
+              size: 40,
+            ),
+          ),
+          const SizedBox(height: 20),
+          const Text(
+            '무엇이든 물어보세요!',
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            '영양제 복용법, 상호작용, 부작용 등\n궁금한 점을 질문해 보세요.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.grey[500],
+              height: 1.6,
+            ),
+          ),
+          const SizedBox(height: 32),
+          const Align(
+            alignment: Alignment.centerLeft,
+            child: Text(
+              '추천 질문',
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.bold,
+                color: Colors.black54,
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: _suggestions
+                .map(
+                  (q) => GestureDetector(
+                    onTap: () {
+                      _controller.text = q;
+                      _sendMessage();
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 10,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: AppColors.primary.withOpacity(0.4),
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.04),
+                            blurRadius: 6,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.arrow_forward_ios_rounded,
+                            size: 11,
+                            color: AppColors.primary,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            q,
+                            style: const TextStyle(
+                              fontSize: 13,
+                              color: AppColors.primary,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                )
+                .toList(),
+          ),
         ],
       ),
     );

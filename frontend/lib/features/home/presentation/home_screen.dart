@@ -94,8 +94,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   // ── 월간 복용 달력 바텀시트 ──────────────────────────────────────────────
-  void _showMonthlyCalendar(
-      BuildContext context, SupplementNotifier notifier) {
+  void _showMonthlyCalendar(BuildContext context, SupplementNotifier notifier) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -166,21 +165,20 @@ class _HomeScreenState extends State<HomeScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: List.generate(7, (index) {
               final DateTime now = DateTime.now();
-              final DateTime firstDayOfWeek =
-                  now.subtract(Duration(days: now.weekday - 1));
-              final DateTime date =
-                  firstDayOfWeek.add(Duration(days: index));
+              final DateTime firstDayOfWeek = now.subtract(
+                Duration(days: now.weekday - 1),
+              );
+              final DateTime date = firstDayOfWeek.add(Duration(days: index));
 
-              final bool isSelected = date.day == _selectedDate.day &&
+              final bool isSelected =
+                  date.day == _selectedDate.day &&
                   date.month == _selectedDate.month;
               final bool isFuture = date.isAfter(now);
 
               final notifier = SupplementProvider.of(context);
-              final bool allDone =
-                  !isFuture && notifier.isAllDoneOn(date);
-              final bool partialDone = !isFuture &&
-                  !allDone &&
-                  notifier.hasDoseRecordOn(date);
+              final bool allDone = !isFuture && notifier.isAllDoneOn(date);
+              final bool partialDone =
+                  !isFuture && !allDone && notifier.hasDoseRecordOn(date);
 
               return Column(
                 children: [
@@ -207,8 +205,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       child: Text(
                         "${date.day}",
                         style: TextStyle(
-                          color:
-                              isSelected ? Colors.white : Colors.black87,
+                          color: isSelected ? Colors.white : Colors.black87,
                         ),
                       ),
                     ),
@@ -218,9 +215,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     width: 5,
                     height: 5,
                     decoration: BoxDecoration(
-                      color: allDone
-                          ? AppColors.primary
-                          : Colors.transparent,
+                      color: allDone ? AppColors.primary : Colors.transparent,
                       border: partialDone
                           ? Border.all(color: AppColors.primary, width: 1)
                           : null,
@@ -272,8 +267,11 @@ class _HomeScreenState extends State<HomeScreen> {
             Expanded(
               child: Text(
                 '캐비닛에 영양제를 추가하면\n복용 통계를 확인할 수 있어요!',
-                style:
-                    TextStyle(color: Colors.white, fontSize: 14, height: 1.5),
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 14,
+                  height: 1.5,
+                ),
               ),
             ),
           ],
@@ -282,21 +280,27 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     final todayRate = supplementTotal > 0 ? done / supplementTotal : 0.0;
-    final streakMsg = streak == 0
+    // 오늘 100% 복용 완료 시 특별 메시지
+    final isAllDoneToday = supplementTotal > 0 && done == supplementTotal;
+    final streakMsg = isAllDoneToday
+        ? '오늘 복용 완료! 정말 잘 하셨어요 🎉'
+        : streak == 0
         ? '오늘 복용을 시작해보세요!'
         : streak < 3
-            ? '좋은 시작이에요! 계속해봐요 💪'
-            : streak < 7
-                ? '습관이 만들어지고 있어요 🌱'
-                : streak < 30
-                    ? '대단해요! ${streak}일 연속 복용 중 🔥'
-                    : '믿기 어려운 기록이에요! 🏆';
+        ? '좋은 시작이에요! 계속해봐요 💪'
+        : streak < 7
+        ? '습관이 만들어지고 있어요 🌱'
+        : streak < 30
+        ? '대단해요! ${streak}일 연속 복용 중 🔥'
+        : '믿기 어려운 기록이에요! 🏆';
 
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [AppColors.primary, AppColors.primaryDark],
+        gradient: LinearGradient(
+          colors: isAllDoneToday
+              ? [const Color(0xFFFFB300), const Color(0xFFF57F17)]
+              : [AppColors.primary, AppColors.primaryDark],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -350,7 +354,9 @@ class _HomeScreenState extends State<HomeScreen> {
                     Text(
                       streakMsg,
                       style: const TextStyle(
-                          fontSize: 13, color: Colors.white70),
+                        fontSize: 13,
+                        color: Colors.white70,
+                      ),
                     ),
                   ],
                 ),
@@ -449,8 +455,7 @@ class _HomeScreenState extends State<HomeScreen> {
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
           decoration: BoxDecoration(
-            color:
-                Colors.white.withOpacity(onTap != null ? 0.22 : 0.15),
+            color: Colors.white.withOpacity(onTap != null ? 0.22 : 0.15),
             borderRadius: BorderRadius.circular(14),
             border: onTap != null
                 ? Border.all(color: Colors.white.withOpacity(0.3))
@@ -474,8 +479,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 children: [
                   Text(
                     label,
-                    style: const TextStyle(
-                        color: Colors.white60, fontSize: 10),
+                    style: const TextStyle(color: Colors.white60, fontSize: 10),
                   ),
                   if (onTap != null)
                     const Icon(
@@ -539,7 +543,10 @@ class _HomeScreenState extends State<HomeScreen> {
               '캐비닛에 영양제를 추가하면\n성분별 섭취량을 분석해 드려요',
               textAlign: TextAlign.center,
               style: TextStyle(
-                  fontSize: 13, color: Colors.grey[400], height: 1.6),
+                fontSize: 13,
+                color: Colors.grey[400],
+                height: 1.6,
+              ),
             ),
             const SizedBox(height: 20),
             OutlinedButton.icon(
@@ -547,15 +554,20 @@ class _HomeScreenState extends State<HomeScreen> {
               style: OutlinedButton.styleFrom(
                 side: const BorderSide(color: AppColors.primary),
                 shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12)),
+                  borderRadius: BorderRadius.circular(12),
+                ),
                 padding: const EdgeInsets.symmetric(
-                    horizontal: 20, vertical: 10),
+                  horizontal: 20,
+                  vertical: 10,
+                ),
               ),
               icon: const Icon(Icons.add, size: 16, color: AppColors.primary),
               label: const Text(
                 '영양제 추가하기',
                 style: TextStyle(
-                    color: AppColors.primary, fontWeight: FontWeight.bold),
+                  color: AppColors.primary,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
           ],
@@ -579,8 +591,11 @@ class _HomeScreenState extends State<HomeScreen> {
             child: const Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.lightbulb_outline,
-                    size: 16, color: AppColors.primary),
+                Icon(
+                  Icons.lightbulb_outline,
+                  size: 16,
+                  color: AppColors.primary,
+                ),
                 SizedBox(width: 8),
                 Text(
                   '적정 섭취량은 권장량의 70%~100% 사이입니다.',
@@ -603,16 +618,16 @@ class _HomeScreenState extends State<HomeScreen> {
     final Color barColor = ratio > 1.0
         ? AppColors.danger
         : ratio >= 0.7
-            ? AppColors.primary
-            : AppColors.warning;
+        ? AppColors.primary
+        : AppColors.warning;
     final pct = '${(ratio * 100).round()}%';
     final statusNote = ratio > 1.5
         ? '과다 섭취 주의'
         : ratio > 1.0
-            ? '권장량 초과'
-            : ratio >= 0.7
-                ? '적정 섭취'
-                : '섭취 부족';
+        ? '권장량 초과'
+        : ratio >= 0.7
+        ? '적정 섭취'
+        : '섭취 부족';
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 18),
@@ -626,7 +641,9 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: Text(
                   label,
                   style: const TextStyle(
-                      fontSize: 14, fontWeight: FontWeight.bold),
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                  ),
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
@@ -652,10 +669,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
           const SizedBox(height: 4),
-          Text(
-            statusNote,
-            style: TextStyle(fontSize: 10, color: barColor),
-          ),
+          Text(statusNote, style: TextStyle(fontSize: 10, color: barColor)),
         ],
       ),
     );
@@ -695,13 +709,11 @@ class _HomeScreenState extends State<HomeScreen> {
     SupplementNotifier notifier,
   ) {
     final isDone = notifier.isDoneOn(supplement.name, _selectedDate);
-    final isToday =
-        _dateOnly(_selectedDate) == _dateOnly(DateTime.now());
+    final isToday = _dateOnly(_selectedDate) == _dateOnly(DateTime.now());
 
     return GestureDetector(
       onTap: isToday
-          ? () => notifier.toggleDose(supplement.name,
-              date: _selectedDate)
+          ? () => notifier.toggleDose(supplement.name, date: _selectedDate)
           : null,
       child: _buildMedicationCard(supplement, isDone, isToday),
     );
@@ -729,8 +741,8 @@ class _HomeScreenState extends State<HomeScreen> {
           backgroundColor: isDone
               ? AppColors.primary
               : isToday
-                  ? AppColors.dangerBg
-                  : Colors.grey.shade200,
+              ? AppColors.dangerBg
+              : Colors.grey.shade200,
           child: Icon(
             isDone ? Icons.check : Icons.priority_high,
             color: Colors.white,
@@ -756,8 +768,7 @@ class _HomeScreenState extends State<HomeScreen> {
             if (!isDone && supplement.remaining <= 7)
               Container(
                 margin: const EdgeInsets.only(right: 8),
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 6, vertical: 2),
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 decoration: BoxDecoration(
                   color: AppColors.dangerBg,
                   borderRadius: BorderRadius.circular(6),
@@ -778,8 +789,8 @@ class _HomeScreenState extends State<HomeScreen> {
               color: isDone
                   ? AppColors.primary
                   : isToday
-                      ? Colors.grey[400]
-                      : Colors.grey[200],
+                  ? Colors.grey[400]
+                  : Colors.grey[200],
               size: 28,
             ),
           ],
@@ -800,8 +811,7 @@ class _MonthlyCalendarSheet extends StatefulWidget {
   const _MonthlyCalendarSheet({required this.notifier});
 
   @override
-  State<_MonthlyCalendarSheet> createState() =>
-      _MonthlyCalendarSheetState();
+  State<_MonthlyCalendarSheet> createState() => _MonthlyCalendarSheetState();
 }
 
 class _MonthlyCalendarSheetState extends State<_MonthlyCalendarSheet> {
@@ -831,7 +841,10 @@ class _MonthlyCalendarSheetState extends State<_MonthlyCalendarSheet> {
   String _dayStatus(DateTime day) {
     final n = widget.notifier;
     final today = DateTime(
-        DateTime.now().year, DateTime.now().month, DateTime.now().day);
+      DateTime.now().year,
+      DateTime.now().month,
+      DateTime.now().day,
+    );
     final d = DateTime(day.year, day.month, day.day);
     if (d.isAfter(today)) return 'future';
     // 현재 등록된 영양제가 없으면 복용 기록만으로 판단
@@ -849,10 +862,8 @@ class _MonthlyCalendarSheetState extends State<_MonthlyCalendarSheet> {
   Widget build(BuildContext context) {
     final now = _today;
     final days = _calendarDays;
-    final isCurrentMonth =
-        _month.year == now.year && _month.month == now.month;
-    final lastDayOfMonth =
-        DateTime(_month.year, _month.month + 1, 0).day;
+    final isCurrentMonth = _month.year == now.year && _month.month == now.month;
+    final lastDayOfMonth = DateTime(_month.year, _month.month + 1, 0).day;
     final countDays = isCurrentMonth ? now.day : lastDayOfMonth;
 
     // 해당 월 복용 일수 계산
@@ -907,18 +918,18 @@ class _MonthlyCalendarSheetState extends State<_MonthlyCalendarSheet> {
                   '${_month.year}년 ${_month.month}월',
                   textAlign: TextAlign.center,
                   style: const TextStyle(
-                      fontSize: 18, fontWeight: FontWeight.bold),
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
               IconButton(
                 icon: const Icon(Icons.chevron_right_rounded),
-                onPressed:
-                    _month.year == now.year && _month.month == now.month
-                        ? null
-                        : () => setState(() {
-                              _month =
-                                  DateTime(_month.year, _month.month + 1);
-                            }),
+                onPressed: _month.year == now.year && _month.month == now.month
+                    ? null
+                    : () => setState(() {
+                        _month = DateTime(_month.year, _month.month + 1);
+                      }),
               ),
             ],
           ),
@@ -927,8 +938,7 @@ class _MonthlyCalendarSheetState extends State<_MonthlyCalendarSheet> {
           // 월간 요약
           Container(
             margin: const EdgeInsets.only(bottom: 16),
-            padding: const EdgeInsets.symmetric(
-                vertical: 12, horizontal: 16),
+            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
             decoration: BoxDecoration(
               color: AppColors.primaryLight,
               borderRadius: BorderRadius.circular(14),
@@ -937,11 +947,7 @@ class _MonthlyCalendarSheetState extends State<_MonthlyCalendarSheet> {
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
                 _summaryItem('완전 복용', '$doneDays일', AppColors.primary),
-                _summaryItem(
-                  '부분 복용',
-                  '$partialDays일',
-                  AppColors.warning,
-                ),
+                _summaryItem('부분 복용', '$partialDays일', AppColors.warning),
                 _summaryItem(
                   '미복용',
                   '${countDays - doneDays - partialDays}일',
@@ -959,17 +965,19 @@ class _MonthlyCalendarSheetState extends State<_MonthlyCalendarSheet> {
           // 요일 헤더
           Row(
             children: ['월', '화', '수', '목', '금', '토', '일']
-                .map((d) => Expanded(
-                      child: Text(
-                        d,
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.grey[400],
-                        ),
+                .map(
+                  (d) => Expanded(
+                    child: Text(
+                      d,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.grey[400],
                       ),
-                    ))
+                    ),
+                  ),
+                )
                 .toList(),
           ),
           const SizedBox(height: 8),
@@ -978,8 +986,7 @@ class _MonthlyCalendarSheetState extends State<_MonthlyCalendarSheet> {
           GridView.builder(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
-            gridDelegate:
-                const SliverGridDelegateWithFixedCrossAxisCount(
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: 7,
               childAspectRatio: 1.0,
               mainAxisSpacing: 4,
@@ -990,7 +997,8 @@ class _MonthlyCalendarSheetState extends State<_MonthlyCalendarSheet> {
               final day = days[i];
               if (day == null) return const SizedBox.shrink();
               final status = _dayStatus(day);
-              final isToday = day.year == now.year &&
+              final isToday =
+                  day.year == now.year &&
                   day.month == now.month &&
                   day.day == now.day;
               return _buildDayCell(day, status, isToday);
@@ -1035,8 +1043,11 @@ class _MonthlyCalendarSheetState extends State<_MonthlyCalendarSheet> {
         badge = Positioned(
           top: 2,
           right: 2,
-          child: Icon(Icons.remove_circle,
-              size: 10, color: Colors.orange.shade400),
+          child: Icon(
+            Icons.remove_circle,
+            size: 10,
+            color: Colors.orange.shade400,
+          ),
         );
         break;
       case 'future':
@@ -1087,10 +1098,7 @@ class _MonthlyCalendarSheetState extends State<_MonthlyCalendarSheet> {
           ),
         ),
         const SizedBox(height: 2),
-        Text(
-          label,
-          style: TextStyle(fontSize: 11, color: Colors.grey[500]),
-        ),
+        Text(label, style: TextStyle(fontSize: 11, color: Colors.grey[500])),
       ],
     );
   }
@@ -1107,10 +1115,7 @@ class _MonthlyCalendarSheetState extends State<_MonthlyCalendarSheet> {
           ),
         ),
         const SizedBox(width: 4),
-        Text(
-          label,
-          style: TextStyle(fontSize: 11, color: Colors.grey[500]),
-        ),
+        Text(label, style: TextStyle(fontSize: 11, color: Colors.grey[500])),
       ],
     );
   }
