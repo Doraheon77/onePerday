@@ -307,7 +307,21 @@ class _CabinetDetailScreenState extends State<CabinetDetailScreen> {
           _buildInfoRow(
             Icons.notifications_active_outlined,
             '알림 설정',
-            '오전 09:00',
+            item.alarmTimes.isEmpty
+                ? '기본 시간'
+                : item.alarmTimes
+                      .map((t) {
+                        final h = t.hour;
+                        final period = h < 12 ? '오전' : '오후';
+                        final hour = h == 0
+                            ? 12
+                            : h > 12
+                            ? h - 12
+                            : h;
+                        final min = t.minute.toString().padLeft(2, '0');
+                        return '$period $hour:$min';
+                      })
+                      .join(', '),
           ),
         ],
       ),

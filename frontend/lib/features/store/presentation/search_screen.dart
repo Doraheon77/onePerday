@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:go_router/go_router.dart';
 import 'package:simcap/core/constant/app_constants.dart';
 import 'package:simcap/features/store/data/store_product_data.dart';
@@ -65,7 +64,7 @@ class _SearchScreenState extends State<SearchScreen> {
   String? _selectedPriceRange;
 
   // 최근 검색어
-  List<String> _recentSearches = [];
+  List<String> _recentSearches = ['멀티비타민', '오메가3', '유산균', '루테인'];
 
   // 인기 검색어
   final List<String> _popularSearches = [
@@ -87,7 +86,6 @@ class _SearchScreenState extends State<SearchScreen> {
   @override
   void initState() {
     super.initState();
-    _loadRecentSearches();
     // 초기 검색어가 있으면 진입 즉시 검색 상태로 설정
     if (widget.initialKeyword.isNotEmpty) {
       _searchController.text = widget.initialKeyword;
@@ -100,17 +98,6 @@ class _SearchScreenState extends State<SearchScreen> {
         setState(() => _isSearching = searching);
       }
     });
-  }
-
-  Future<void> _loadRecentSearches() async {
-    final prefs = await SharedPreferences.getInstance();
-    final saved = prefs.getStringList('recent_searches') ?? [];
-    if (mounted) setState(() => _recentSearches = saved);
-  }
-
-  Future<void> _saveRecentSearches() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setStringList('recent_searches', _recentSearches);
   }
 
   @override
@@ -133,7 +120,6 @@ class _SearchScreenState extends State<SearchScreen> {
       setState(() {
         _recentSearches.insert(0, query.trim());
         if (_recentSearches.length > 8) _recentSearches.removeLast();
-        _saveRecentSearches();
       });
     }
     // TODO: 실제 검색 API 호출
@@ -422,13 +408,19 @@ class _SearchScreenState extends State<SearchScreen> {
         Expanded(
           child: results.isEmpty
               ? _buildEmptyResult()
-              : ListView.separated(
-                  padding: const EdgeInsets.symmetric(vertical: 8),
-                  itemCount: results.length,
-                  separatorBuilder: (_, __) =>
-                      const Divider(height: 1, indent: 80),
-                  itemBuilder: (context, index) =>
-                      _buildProductCard(results[index]),
+              : NotificationListener<ScrollStartNotification>(
+                  onNotification: (_) {
+                    FocusScope.of(context).unfocus();
+                    return false;
+                  },
+                  child: ListView.separated(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    itemCount: results.length,
+                    separatorBuilder: (_, __) =>
+                        const Divider(height: 1, indent: 80),
+                    itemBuilder: (context, index) =>
+                        _buildProductCard(results[index]),
+                  ),
                 ),
         ),
       ],
@@ -670,10 +662,7 @@ class _SearchScreenState extends State<SearchScreen> {
           ),
           if (isClearAll)
             GestureDetector(
-              onTap: () {
-                setState(() => _recentSearches.clear());
-                _saveRecentSearches();
-              },
+              onTap: () => setState(() => _recentSearches.clear()),
               child: const Text(
                 '전체 삭제',
                 style: TextStyle(fontSize: 12, color: Colors.grey),
@@ -703,10 +692,7 @@ class _SearchScreenState extends State<SearchScreen> {
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(20),
               ),
-              onDeleted: () {
-                setState(() => _recentSearches.remove(keyword));
-                _saveRecentSearches();
-              },
+              onDeleted: () => setState(() => _recentSearches.remove(keyword)),
               deleteIcon: const Icon(Icons.close, size: 14),
             ),
           );

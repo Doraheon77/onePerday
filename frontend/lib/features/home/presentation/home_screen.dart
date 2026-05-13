@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:go_router/go_router.dart';
 import 'package:simcap/core/constant/app_constants.dart';
@@ -710,7 +711,14 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return GestureDetector(
       onTap: isToday
-          ? () => notifier.toggleDose(supplement.name, date: _selectedDate)
+          ? () {
+              if (isDone) {
+                HapticFeedback.lightImpact(); // 체크 해제
+              } else {
+                HapticFeedback.mediumImpact(); // 복용 완료
+              }
+              notifier.toggleDose(supplement.name, date: _selectedDate);
+            }
           : null,
       child: _buildMedicationCard(supplement, isDone, isToday),
     );
