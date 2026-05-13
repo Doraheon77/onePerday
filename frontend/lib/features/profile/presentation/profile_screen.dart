@@ -148,6 +148,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             options: noneOption != null
                                 ? [
                                     SurveyOption(
+                                      id: 'none',
                                       label: noneOption,
                                       imagePath: 'assets/images/none.png',
                                     ),
