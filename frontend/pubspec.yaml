@@ -38,7 +38,10 @@ flutter:
 
   assets:
     - assets/fonts/
-    - assets/images/
+    - assets/images/sex/
+    - assets/images/health_goal/
+    - assets/images/chronic_condition/
+    - assets/images/allergies_list/
   
   fonts:
     - family: Pretendard

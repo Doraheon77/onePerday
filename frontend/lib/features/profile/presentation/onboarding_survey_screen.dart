@@ -116,7 +116,7 @@ class _OnboardingSurveyScreenState extends State<OnboardingSurveyScreen> {
         SurveyOption(
           id: 'none',
           label: noneOption,
-          imagePath: 'assets/images/none.png',
+          imagePath: 'assets/images/chronic_condition/none.png',
         ),
         ...filtered,
       ];
