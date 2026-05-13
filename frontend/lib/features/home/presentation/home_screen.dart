@@ -15,6 +15,7 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   DateTime _selectedDate = DateTime.now();
+  int _weekOffset = 0; // 0 = 이번 주, -1 = 지난 주, ...
 
   @override
   Widget build(BuildContext context) {
@@ -160,14 +161,76 @@ class _HomeScreenState extends State<HomeScreen> {
               ],
             ),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 12),
+          // 주 이동 버튼
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                // 이전 주
+                IconButton(
+                  onPressed: () => setState(() => _weekOffset--),
+                  icon: const Icon(
+                    Icons.chevron_left_rounded,
+                    color: AppColors.primary,
+                  ),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                ),
+                // 이번 주로 돌아가기 버튼 (현재 주가 아닐 때만)
+                if (_weekOffset != 0)
+                  GestureDetector(
+                    onTap: () => setState(() {
+                      _weekOffset = 0;
+                      _selectedDate = DateTime.now();
+                    }),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.primaryLight,
+                        borderRadius: BorderRadius.circular(99),
+                      ),
+                      child: const Text(
+                        '오늘로',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: AppColors.primary,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  )
+                else
+                  const SizedBox.shrink(),
+                // 다음 주 (미래 주는 비활성)
+                IconButton(
+                  onPressed: _weekOffset < 0
+                      ? () => setState(() => _weekOffset++)
+                      : null,
+                  icon: Icon(
+                    Icons.chevron_right_rounded,
+                    color: _weekOffset < 0
+                        ? AppColors.primary
+                        : Colors.grey[300],
+                  ),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: List.generate(7, (index) {
               final DateTime now = DateTime.now();
-              final DateTime firstDayOfWeek = now.subtract(
-                Duration(days: now.weekday - 1),
-              );
+              final DateTime firstDayOfWeek = now
+                  .subtract(Duration(days: now.weekday - 1))
+                  .add(Duration(days: _weekOffset * 7));
               final DateTime date = firstDayOfWeek.add(Duration(days: index));
 
               final bool isSelected =
@@ -280,11 +343,7 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     final todayRate = supplementTotal > 0 ? done / supplementTotal : 0.0;
-    // 오늘 100% 복용 완료 시 특별 메시지
-    final isAllDoneToday = supplementTotal > 0 && done == supplementTotal;
-    final streakMsg = isAllDoneToday
-        ? '오늘 복용 완료! 정말 잘 하셨어요 🎉'
-        : streak == 0
+    final streakMsg = streak == 0
         ? '오늘 복용을 시작해보세요!'
         : streak < 3
         ? '좋은 시작이에요! 계속해봐요 💪'
@@ -297,10 +356,8 @@ class _HomeScreenState extends State<HomeScreen> {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: isAllDoneToday
-              ? [const Color(0xFFFFB300), const Color(0xFFF57F17)]
-              : [AppColors.primary, AppColors.primaryDark],
+        gradient: const LinearGradient(
+          colors: [AppColors.primary, AppColors.primaryDark],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
