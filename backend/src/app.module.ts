@@ -7,9 +7,10 @@ import { PrismaModule } from './prisma/prisma.module';
 import { ConflictModule } from './conflict/conflict.module';
 import { SupplementSearchService } from './supplement-search.service';
 import { PrismaService } from './prisma/prisma.service';
+import { RecommendModule } from './recommend/recommend.module';
 
 @Module({
-  imports: [PrismaModule, AuthModule, IntakeModule, ConflictModule],
+  imports: [PrismaModule, AuthModule, IntakeModule, ConflictModule, RecommendModule],
   controllers: [AppController],
   providers: [AppService, PrismaService, SupplementSearchService],
 

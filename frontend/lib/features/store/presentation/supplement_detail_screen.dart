@@ -18,6 +18,20 @@ class StoreProduct {
   final List<String> contraindications;
   final List<StoreProduct> similarProducts;
   final String? purchaseUrl;
+  final String? imageUrl;
+
+  // 기존 코드
+  // const StoreProduct({
+  //   required this.id,
+  //   required this.name,
+  //   required this.brand,
+  //   required this.price,
+  //   required this.description,
+  //   required this.nutrients,
+  //   this.contraindications = const [],
+  //   this.similarProducts = const [],
+  //   this.purchaseUrl,
+  // });
 
   const StoreProduct({
     required this.id,
@@ -29,7 +43,27 @@ class StoreProduct {
     this.contraindications = const [],
     this.similarProducts = const [],
     this.purchaseUrl,
+    this.imageUrl,
   });
+
+  factory StoreProduct.fromJson(Map<String, dynamic> json) {
+    return StoreProduct(
+      id: json['id']?.toString() ?? '',
+      name: json['product_name'] ?? json['name'] ?? '',
+      brand: json['brand_name'] ?? json['brand'] ?? '',
+      // 가격이 int가 아닐 수도 있으니 안전하게 파싱 (BigInt를 백엔드에서 string으로 처리 중)
+      price: json['price'] != null
+          ? int.tryParse(json['price'].toString()) ?? 0
+          : 0,
+      description: json['description'] ?? '',
+      // 아직 DB 연동되지 않은 필드들은 기본값 처리
+      nutrients: [],
+      contraindications: [],
+      similarProducts: [],
+      purchaseUrl: json['shop_url'],
+      imageUrl: json['image_url'],
+    );
+  }
 
   /// StoreProduct → Supplement 변환
   /// 스토어 상품을 캐비닛에 추가할 때 사용
@@ -331,13 +365,34 @@ class _SupplementDetailScreenState extends State<SupplementDetailScreen> {
       flexibleSpace: FlexibleSpaceBar(
         background: Container(
           color: AppColors.primaryFaint,
-          child: const Center(
-            child: Icon(
-              Icons.medication_rounded,
-              size: 100,
-              color: AppColors.primary,
-            ),
-          ),
+          // 기존 코드: 아이콘 하드코딩
+          // child: const Center(
+          //   child: Icon(
+          //     Icons.medication_rounded,
+          //     size: 100,
+          //     color: AppColors.primary,
+          //   ),
+          // ),
+          // API 연동 코드: 실제 이미지 렌더링
+          child: p.imageUrl != null && p.imageUrl!.isNotEmpty
+              ? Image.network(
+                  p.imageUrl!,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) => const Center(
+                    child: Icon(
+                      Icons.medication_rounded,
+                      size: 100,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                )
+              : const Center(
+                  child: Icon(
+                    Icons.medication_rounded,
+                    size: 100,
+                    color: AppColors.primary,
+                  ),
+                ),
         ),
       ),
     );
@@ -593,9 +648,10 @@ class _SupplementDetailScreenState extends State<SupplementDetailScreen> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-              color: Colors.black.withOpacity(0.04),
-              blurRadius: 12,
-              offset: const Offset(0, 4)),
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
         ],
       ),
       child: Column(
@@ -605,37 +661,46 @@ class _SupplementDetailScreenState extends State<SupplementDetailScreen> {
             padding: const EdgeInsets.fromLTRB(16, 16, 8, 8),
             child: Row(
               children: [
-                const Text('리뷰',
-                    style: TextStyle(
-                        fontSize: 16, fontWeight: FontWeight.bold)),
+                const Text(
+                  '리뷰',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
                 const SizedBox(width: 8),
                 // 평균 별점
                 Row(
                   children: [
-                    const Icon(Icons.star_rounded,
-                        size: 16, color: AppColors.warning),
+                    const Icon(
+                      Icons.star_rounded,
+                      size: 16,
+                      color: AppColors.warning,
+                    ),
                     const SizedBox(width: 2),
-                    Text(avg.toStringAsFixed(1),
-                        style: const TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.warning)),
-                    Text(' (${reviews.length})',
-                        style: TextStyle(
-                            fontSize: 12, color: Colors.grey[500])),
+                    Text(
+                      avg.toStringAsFixed(1),
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.warning,
+                      ),
+                    ),
+                    Text(
+                      ' (${reviews.length})',
+                      style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+                    ),
                   ],
                 ),
                 const Spacer(),
                 TextButton(
-                  onPressed: () => context.push(
-                    '/store/review',
-                    extra: product,
+                  onPressed: () =>
+                      context.push('/store/review', extra: product),
+                  child: const Text(
+                    '전체보기',
+                    style: TextStyle(
+                      color: AppColors.primary,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                    ),
                   ),
-                  child: const Text('전체보기',
-                      style: TextStyle(
-                          color: AppColors.primary,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 13)),
                 ),
               ],
             ),
@@ -645,9 +710,10 @@ class _SupplementDetailScreenState extends State<SupplementDetailScreen> {
           if (reviews.isEmpty)
             Padding(
               padding: const EdgeInsets.all(20),
-              child: Text('아직 리뷰가 없습니다',
-                  style: TextStyle(
-                      fontSize: 13, color: Colors.grey[400])),
+              child: Text(
+                '아직 리뷰가 없습니다',
+                style: TextStyle(fontSize: 13, color: Colors.grey[400]),
+              ),
             )
           else
             ...preview.map((r) => _buildReviewPreviewRow(r)),
@@ -680,22 +746,27 @@ class _SupplementDetailScreenState extends State<SupplementDetailScreen> {
                 ),
               ),
               const SizedBox(width: 6),
-              Text(review.userName,
-                  style: const TextStyle(
-                      fontSize: 12, fontWeight: FontWeight.w600)),
+              Text(
+                review.userName,
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
               const Spacer(),
               Text(
                 '${review.createdAt.month}/${review.createdAt.day}',
-                style:
-                    TextStyle(fontSize: 11, color: Colors.grey[400]),
+                style: TextStyle(fontSize: 11, color: Colors.grey[400]),
               ),
             ],
           ),
           const SizedBox(height: 6),
-          Text(review.content,
-              style: const TextStyle(fontSize: 13, height: 1.4),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis),
+          Text(
+            review.content,
+            style: const TextStyle(fontSize: 13, height: 1.4),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
         ],
       ),
     );

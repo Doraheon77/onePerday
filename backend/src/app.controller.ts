@@ -10,17 +10,29 @@ export class AppController {
     private readonly appService: AppService,
     private readonly prisma: PrismaService,
     private readonly searchService: SupplementSearchService,
-  ) {}
+  ) { }
 
   @Get()
   getHello(): string {
     return this.appService.getHello();
   }
 
-  @Get('supplements') 
+  @Get('supplements')
   async getSupplements() {
-    const data = await this.prisma.supplements.findMany({ take: 3 });
-    
+
+    // 기존 코드
+    // const data = await this.prisma.supplements.findMany({ take: 3 });
+
+    // 1. price가 존재하는 것만 가져오도록 변경
+    const data = await this.prisma.supplements.findMany({
+      take: 3,
+      where: {
+        price: {
+          not: null,
+        }
+      },
+    });
+
     // BigInt 처리 (JSON 변환)
     return JSON.parse(
       JSON.stringify(data, (key, value) =>

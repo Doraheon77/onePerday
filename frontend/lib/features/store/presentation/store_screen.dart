@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:simcap/core/constant/app_constants.dart';
 import 'package:simcap/features/store/data/store_product_data.dart';
 import 'package:simcap/features/store/presentation/supplement_detail_screen.dart';
+import 'package:simcap/services/store_api_service.dart';
 
 class StoreScreen extends StatefulWidget {
   const StoreScreen({super.key});
@@ -13,6 +14,11 @@ class StoreScreen extends StatefulWidget {
 }
 
 class _StoreScreenState extends State<StoreScreen> {
+  // HS - [DB 연동 추가 상태]
+  List<StoreProduct> _allProducts = [];
+  bool _isLoading = true;
+  // HS - [DB 연동 추가 상태] - end
+
   String _selectedRankCategory = '여성';
   String _selectedPriceRange = '전체';
 
@@ -29,6 +35,10 @@ class _StoreScreenState extends State<StoreScreen> {
   @override
   void initState() {
     super.initState();
+    // HS - [DB 연동 추가]
+    _fetchProducts();
+    // HS - [DB 연동 추가] - end
+
     _bannerTimer = Timer.periodic(const Duration(milliseconds: 3500), (timer) {
       if (_currentBannerPage < _banners.length - 1) {
         _currentBannerPage++;
@@ -52,6 +62,24 @@ class _StoreScreenState extends State<StoreScreen> {
     _pageController.dispose();
     super.dispose();
   }
+
+  // HS - [DB에서 데이터 로드]
+  Future<void> _fetchProducts() async {
+    try {
+      final service = StoreApiService();
+      final products = await service.fetchSupplements();
+      setState(() {
+        _allProducts = products;
+        _isLoading = false;
+      });
+    } catch (e) {
+      debugPrint('DB 로드 에러: $e');
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+  // HS - [DB에서 데이터 로드] - end
 
   @override
   Widget build(BuildContext context) {
@@ -80,23 +108,27 @@ class _StoreScreenState extends State<StoreScreen> {
           const SizedBox(width: 8),
         ],
       ),
-      body: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildAutoSliderBanner(),
-            _buildSectionTitle('나를 위한 추천'),
-            _buildRecommendList(),
-            _buildSectionTitle('선물 카테고리'),
-            _buildGiftCategories(),
-            const SizedBox(height: 20),
-            _buildSectionTitle('실시간 인기 랭킹'),
-            _buildRankingFilters(),
-            _buildRankingList(),
-            const SizedBox(height: 40),
-          ],
-        ),
-      ),
+      body: _isLoading
+          ? const Center(
+              child: CircularProgressIndicator(color: AppColors.primary),
+            )
+          : SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildAutoSliderBanner(),
+                  _buildSectionTitle('나를 위한 추천'),
+                  _buildRecommendList(),
+                  _buildSectionTitle('선물 카테고리'),
+                  _buildGiftCategories(),
+                  const SizedBox(height: 20),
+                  _buildSectionTitle('실시간 인기 랭킹'),
+                  _buildRankingFilters(),
+                  _buildRankingList(),
+                  const SizedBox(height: 40),
+                ],
+              ),
+            ),
     );
   }
 
@@ -172,6 +204,10 @@ class _StoreScreenState extends State<StoreScreen> {
   }
 
   Widget _buildRecommendList() {
+    // 기존 코드: final list = recommendProducts;
+    // API 연동 코드: 받아온 데이터 중 앞의 5개 사용
+    final displayList = _allProducts.take(5).toList();
+
     return SizedBox(
       height: 180,
       child: ListView.builder(
@@ -180,9 +216,9 @@ class _StoreScreenState extends State<StoreScreen> {
         // 세로 ScrollView와 제스처 충돌 방지 — 가로 스크롤 명시적 허용
         physics: const AlwaysScrollableScrollPhysics(),
         clipBehavior: Clip.none,
-        itemCount: recommendProducts.length,
+        itemCount: displayList.length,
         itemBuilder: (context, index) {
-          final product = recommendProducts[index];
+          final product = displayList[index];
           return GestureDetector(
             onTap: () => context.push('/store/detail', extra: product),
             child: Container(
@@ -203,11 +239,29 @@ class _StoreScreenState extends State<StoreScreen> {
                       color: AppColors.primaryFaint,
                       shape: BoxShape.circle,
                     ),
-                    child: const Icon(
-                      Icons.medication_rounded,
-                      color: AppColors.primary,
-                      size: 28,
-                    ),
+                    clipBehavior: Clip.hardEdge,
+                    // 기존 코드: 아이콘 하드코딩
+                    // child: const Icon(
+                    //   Icons.medication_rounded,
+                    //   color: AppColors.primary,
+                    //   size: 28,
+                    // ),
+                    // API 연동 코드: 실제 이미지 렌더링
+                    child: product.imageUrl != null && product.imageUrl!.isNotEmpty
+                        ? Image.network(
+                            product.imageUrl!,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) => const Icon(
+                              Icons.medication_rounded,
+                              color: AppColors.primary,
+                              size: 28,
+                            ),
+                          )
+                        : const Icon(
+                            Icons.medication_rounded,
+                            color: AppColors.primary,
+                            size: 28,
+                          ),
                   ),
                   const SizedBox(height: 8),
                   Padding(
@@ -355,8 +409,9 @@ class _StoreScreenState extends State<StoreScreen> {
   }
 
   Widget _buildRankingList() {
-    // 전체 상품에서 가격 필터 적용
-    var products = allProducts.where((p) {
+    // 기존 코드: var products = allProducts.where((p) {
+    // API 연동 코드: _allProducts 사용
+    var products = _allProducts.where((p) {
       switch (_selectedPriceRange) {
         case '1만원 이하':
           return p.price < 10000;
