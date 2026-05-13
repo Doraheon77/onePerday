@@ -15,7 +15,6 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   DateTime _selectedDate = DateTime.now();
-  int _weekOffset = 0; // 0 = 이번 주, -1 = 지난 주, ...
 
   @override
   Widget build(BuildContext context) {
@@ -161,76 +160,14 @@ class _HomeScreenState extends State<HomeScreen> {
               ],
             ),
           ),
-          const SizedBox(height: 12),
-          // 주 이동 버튼
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                // 이전 주
-                IconButton(
-                  onPressed: () => setState(() => _weekOffset--),
-                  icon: const Icon(
-                    Icons.chevron_left_rounded,
-                    color: AppColors.primary,
-                  ),
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(),
-                ),
-                // 이번 주로 돌아가기 버튼 (현재 주가 아닐 때만)
-                if (_weekOffset != 0)
-                  GestureDetector(
-                    onTap: () => setState(() {
-                      _weekOffset = 0;
-                      _selectedDate = DateTime.now();
-                    }),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppColors.primaryLight,
-                        borderRadius: BorderRadius.circular(99),
-                      ),
-                      child: const Text(
-                        '오늘로',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: AppColors.primary,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  )
-                else
-                  const SizedBox.shrink(),
-                // 다음 주 (미래 주는 비활성)
-                IconButton(
-                  onPressed: _weekOffset < 0
-                      ? () => setState(() => _weekOffset++)
-                      : null,
-                  icon: Icon(
-                    Icons.chevron_right_rounded,
-                    color: _weekOffset < 0
-                        ? AppColors.primary
-                        : Colors.grey[300],
-                  ),
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 20),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: List.generate(7, (index) {
               final DateTime now = DateTime.now();
-              final DateTime firstDayOfWeek = now
-                  .subtract(Duration(days: now.weekday - 1))
-                  .add(Duration(days: _weekOffset * 7));
+              final DateTime firstDayOfWeek = now.subtract(
+                Duration(days: now.weekday - 1),
+              );
               final DateTime date = firstDayOfWeek.add(Duration(days: index));
 
               final bool isSelected =
@@ -672,14 +609,17 @@ class _HomeScreenState extends State<HomeScreen> {
 
   // ── 바 그래프 ─────────────────────────────────────────────────────────────
   Widget _buildBarGraph(String label, double ratio) {
-    final Color barColor = ratio > 1.0
+    // 0~100%: 초록, 100~150%: 주황(권장량 초과), 150%+: 빨강(상한 섭취량)
+    final Color barColor = ratio > 1.5
         ? AppColors.danger
+        : ratio > 1.0
+        ? AppColors.warning
         : ratio >= 0.7
         ? AppColors.primary
         : AppColors.warning;
     final pct = '${(ratio * 100).round()}%';
     final statusNote = ratio > 1.5
-        ? '과다 섭취 주의'
+        ? '상한 섭취량 초과'
         : ratio > 1.0
         ? '권장량 초과'
         : ratio >= 0.7

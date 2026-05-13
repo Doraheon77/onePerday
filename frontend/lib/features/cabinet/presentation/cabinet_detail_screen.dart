@@ -125,7 +125,6 @@ class _CabinetDetailScreenState extends State<CabinetDetailScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
-        duration: const Duration(seconds: 2),
         behavior: SnackBarBehavior.floating,
         backgroundColor: isError ? AppColors.danger : Colors.black87,
       ),
@@ -310,30 +309,6 @@ class _CabinetDetailScreenState extends State<CabinetDetailScreen> {
             '알림 설정',
             '오전 09:00',
           ),
-          if (daysLeft != null && daysLeft <= 7) ...[
-            const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: () =>
-                    context.push('/store/search', extra: item.name),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.danger,
-                  foregroundColor: Colors.white,
-                  elevation: 0,
-                  padding: const EdgeInsets.symmetric(vertical: 13),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                icon: const Icon(Icons.shopping_bag_outlined, size: 18),
-                label: Text(
-                  'D-$daysLeft · 지금 재구매하기',
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                ),
-              ),
-            ),
-          ],
         ],
       ),
     );
@@ -469,11 +444,21 @@ class _CabinetDetailScreenState extends State<CabinetDetailScreen> {
   }
 
   Widget _buildNutrientBar(Nutrient n) {
-    Color barColor = AppColors.primary;
-    if (n.percent >= 1.0) {
+    // 0~100%: 초록, 100~150%: 주황(권장량 초과), 150%+: 빨강(상한 섭취량)
+    Color barColor;
+    String statusLabel;
+    if (n.percent > 1.5) {
       barColor = AppColors.danger;
-    } else if (n.percent < 0.3) {
+      statusLabel = '상한 섭취량 초과';
+    } else if (n.percent > 1.0) {
       barColor = AppColors.warning;
+      statusLabel = '권장량 초과';
+    } else if (n.percent >= 0.7) {
+      barColor = AppColors.primary;
+      statusLabel = '적정 섭취';
+    } else {
+      barColor = AppColors.warning;
+      statusLabel = '섭취 부족';
     }
 
     return Padding(

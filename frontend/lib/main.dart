@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/date_symbol_data_local.dart';
@@ -115,7 +116,10 @@ class ScaffoldWithNavBar extends StatelessWidget {
                     Icons.smart_toy_outlined,
                     color: Colors.white,
                   ),
-                  onPressed: () => context.push('/chatbot'),
+                  onPressed: () {
+                    HapticFeedback.mediumImpact();
+                    context.push('/chatbot');
+                  },
                 ),
               ),
             ),
@@ -135,7 +139,10 @@ class ScaffoldWithNavBar extends StatelessWidget {
     final bool isSelected = currentUri.startsWith(path);
 
     return InkWell(
-      onTap: () => context.go(path),
+      onTap: () {
+        HapticFeedback.lightImpact();
+        context.go(path);
+      },
       child: Column(
         mainAxisSize: MainAxisSize.min,
         mainAxisAlignment: MainAxisAlignment.center,

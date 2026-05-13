@@ -862,7 +862,7 @@ class _RecommendSheet extends StatelessWidget {
                             ),
                           ),
                           Text(
-                            '${(product.price / 1000).toStringAsFixed(0)}천원',
+                            '${product.price.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]},')}원',
                             style: const TextStyle(
                               fontSize: 13,
                               fontWeight: FontWeight.bold,
