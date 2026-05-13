@@ -8,24 +8,30 @@ import 'package:go_router/go_router.dart';
 // ── 정렬 옵션 ─────────────────────────────────────────────────────────────────
 enum _SortOption {
   registeredDesc, // 등록순 (기본)
-  nameAsc,        // 이름순
-  stockAsc,       // 소진 임박순
+  nameAsc, // 이름순
+  stockAsc, // 소진 임박순
 }
 
 extension _SortOptionLabel on _SortOption {
   String get label {
     switch (this) {
-      case _SortOption.registeredDesc: return '등록순';
-      case _SortOption.nameAsc:        return '이름순';
-      case _SortOption.stockAsc:       return '소진 임박순';
+      case _SortOption.registeredDesc:
+        return '등록순';
+      case _SortOption.nameAsc:
+        return '이름순';
+      case _SortOption.stockAsc:
+        return '소진 임박순';
     }
   }
 
   IconData get icon {
     switch (this) {
-      case _SortOption.registeredDesc: return Icons.access_time_rounded;
-      case _SortOption.nameAsc:        return Icons.sort_by_alpha_rounded;
-      case _SortOption.stockAsc:       return Icons.warning_amber_rounded;
+      case _SortOption.registeredDesc:
+        return Icons.access_time_rounded;
+      case _SortOption.nameAsc:
+        return Icons.sort_by_alpha_rounded;
+      case _SortOption.stockAsc:
+        return Icons.warning_amber_rounded;
     }
   }
 }
@@ -50,26 +56,37 @@ class _CabinetScreenState extends State<CabinetScreen> {
   }
 
   List<Supplement> _sorted(List<Supplement> all) {
-    // 검색 필터 먼저 적용
+    final list = List<Supplement>.from(all);
     final filtered = _searchQuery.isEmpty
-        ? all
-        : all.where((s) =>
-            s.name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-            s.brand.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-            s.nutrients.any((n) =>
-                n.name.toLowerCase().contains(_searchQuery.toLowerCase()))).toList();
+        ? list
+        : list
+              .where(
+                (s) =>
+                    s.name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
+                    s.brand.toLowerCase().contains(
+                      _searchQuery.toLowerCase(),
+                    ) ||
+                    s.nutrients.any(
+                      (n) => n.name.toLowerCase().contains(
+                        _searchQuery.toLowerCase(),
+                      ),
+                    ),
+              )
+              .toList();
 
     switch (_sortOption) {
       case _SortOption.registeredDesc:
         return filtered;
       case _SortOption.nameAsc:
-        return filtered..sort((a, b) => a.name.compareTo(b.name));
+        filtered.sort((a, b) => a.name.compareTo(b.name));
+        return filtered;
       case _SortOption.stockAsc:
-        return filtered..sort((a, b) {
+        filtered.sort((a, b) {
           final dA = a.daysUntilEmpty ?? 9999;
           final dB = b.daysUntilEmpty ?? 9999;
           return dA.compareTo(dB);
         });
+        return filtered;
     }
   }
 
@@ -97,16 +114,20 @@ class _CabinetScreenState extends State<CabinetScreen> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('정렬 기준',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            const Text(
+              '정렬 기준',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
             const SizedBox(height: 16),
-            ..._SortOption.values.map((opt) => ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: Icon(opt.icon,
-                  color: _sortOption == opt
-                      ? AppColors.primary
-                      : Colors.grey),
-              title: Text(opt.label,
+            ..._SortOption.values.map(
+              (opt) => ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: Icon(
+                  opt.icon,
+                  color: _sortOption == opt ? AppColors.primary : Colors.grey,
+                ),
+                title: Text(
+                  opt.label,
                   style: TextStyle(
                     fontWeight: _sortOption == opt
                         ? FontWeight.bold
@@ -114,16 +135,17 @@ class _CabinetScreenState extends State<CabinetScreen> {
                     color: _sortOption == opt
                         ? AppColors.primary
                         : Colors.black87,
-                  )),
-              trailing: _sortOption == opt
-                  ? const Icon(Icons.check_rounded,
-                      color: AppColors.primary)
-                  : null,
-              onTap: () {
-                setState(() => _sortOption = opt);
-                Navigator.pop(context);
-              },
-            )),
+                  ),
+                ),
+                trailing: _sortOption == opt
+                    ? const Icon(Icons.check_rounded, color: AppColors.primary)
+                    : null,
+                onTap: () {
+                  setState(() => _sortOption = opt);
+                  Navigator.pop(context);
+                },
+              ),
+            ),
           ],
         ),
       ),
@@ -141,7 +163,10 @@ class _CabinetScreenState extends State<CabinetScreen> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('${newSupplement.name}이(가) 등록되었습니다!')),
+          SnackBar(
+            content: Text('${newSupplement.name}이(가) 등록되었습니다!'),
+            duration: const Duration(seconds: 2),
+          ),
         );
       }
     }
@@ -178,7 +203,10 @@ class _CabinetScreenState extends State<CabinetScreen> {
               onTap: _showSortSheet,
               child: Container(
                 margin: const EdgeInsets.only(right: 4),
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
                   color: AppColors.primaryLight,
                   borderRadius: BorderRadius.circular(20),
@@ -188,11 +216,14 @@ class _CabinetScreenState extends State<CabinetScreen> {
                   children: [
                     Icon(_sortOption.icon, size: 14, color: AppColors.primary),
                     const SizedBox(width: 4),
-                    Text(_sortOption.label,
-                        style: const TextStyle(
-                            fontSize: 12,
-                            color: AppColors.primary,
-                            fontWeight: FontWeight.bold)),
+                    Text(
+                      _sortOption.label,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: AppColors.primary,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -212,8 +243,7 @@ class _CabinetScreenState extends State<CabinetScreen> {
           Expanded(
             child: Builder(
               builder: (context) {
-                final supplements =
-                    SupplementProvider.of(context).supplements;
+                final supplements = SupplementProvider.of(context).supplements;
                 final sorted = _sorted(supplements);
 
                 if (sorted.isEmpty) {
@@ -234,9 +264,10 @@ class _CabinetScreenState extends State<CabinetScreen> {
                               ? "'$_searchQuery' 검색 결과가 없습니다"
                               : '등록된 영양제가 없습니다',
                           style: TextStyle(
-                              fontSize: 15,
-                              color: Colors.grey[400],
-                              fontWeight: FontWeight.w600),
+                            fontSize: 15,
+                            color: Colors.grey[400],
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                         const SizedBox(height: 6),
                         Text(
@@ -244,7 +275,9 @@ class _CabinetScreenState extends State<CabinetScreen> {
                               ? '다른 키워드로 검색해보세요'
                               : '아래 버튼으로 영양제를 추가해보세요',
                           style: TextStyle(
-                              fontSize: 13, color: Colors.grey[400]),
+                            fontSize: 13,
+                            color: Colors.grey[400],
+                          ),
                         ),
                       ],
                     ),
@@ -253,7 +286,9 @@ class _CabinetScreenState extends State<CabinetScreen> {
 
                 return ListView.builder(
                   padding: const EdgeInsets.symmetric(
-                      horizontal: 16, vertical: 8),
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
                   itemCount: sorted.length,
                   itemBuilder: (context, index) {
                     final supp = sorted[index];
@@ -265,32 +300,33 @@ class _CabinetScreenState extends State<CabinetScreen> {
                           context: context,
                           builder: (ctx) => AlertDialog(
                             shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(16)),
-                            title: const Text('영양제 삭제',
-                                style: TextStyle(
-                                    fontWeight: FontWeight.bold)),
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            title: const Text(
+                              '영양제 삭제',
+                              style: TextStyle(fontWeight: FontWeight.bold),
+                            ),
                             content: Text(
                               '${supp.name}을(를) 삭제하시겠습니까?\n복용 기록도 함께 삭제됩니다.',
                               style: const TextStyle(height: 1.5),
                             ),
                             actions: [
                               TextButton(
-                                onPressed: () =>
-                                    Navigator.pop(ctx, false),
-                                child: const Text('취소',
-                                    style:
-                                        TextStyle(color: Colors.grey)),
+                                onPressed: () => Navigator.pop(ctx, false),
+                                child: const Text(
+                                  '취소',
+                                  style: TextStyle(color: Colors.grey),
+                                ),
                               ),
                               ElevatedButton(
-                                onPressed: () =>
-                                    Navigator.pop(ctx, true),
+                                onPressed: () => Navigator.pop(ctx, true),
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: AppColors.danger,
                                   foregroundColor: Colors.white,
                                   elevation: 0,
                                   shape: RoundedRectangleBorder(
-                                      borderRadius:
-                                          BorderRadius.circular(10)),
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
                                 ),
                                 child: const Text('삭제'),
                               ),
@@ -300,18 +336,22 @@ class _CabinetScreenState extends State<CabinetScreen> {
                         return confirmed == true;
                       },
                       onDismissed: (_) {
-                        SupplementProvider.of(context)
-                            .removeSupplement(supp.name);
+                        SupplementProvider.of(
+                          context,
+                        ).removeSupplement(supp.name);
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
                             content: Text('${supp.name}이(가) 삭제되었습니다.'),
+                            duration: const Duration(seconds: 2),
                             behavior: SnackBarBehavior.floating,
                           ),
                         );
                       },
                       background: Container(
                         margin: const EdgeInsets.symmetric(
-                            horizontal: 0, vertical: 6),
+                          horizontal: 0,
+                          vertical: 6,
+                        ),
                         decoration: BoxDecoration(
                           color: AppColors.danger,
                           borderRadius: BorderRadius.circular(16),
@@ -321,14 +361,20 @@ class _CabinetScreenState extends State<CabinetScreen> {
                         child: const Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.delete_outline_rounded,
-                                color: Colors.white, size: 26),
+                            Icon(
+                              Icons.delete_outline_rounded,
+                              color: Colors.white,
+                              size: 26,
+                            ),
                             SizedBox(height: 4),
-                            Text('삭제',
-                                style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.bold)),
+                            Text(
+                              '삭제',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
                           ],
                         ),
                       ),

@@ -20,7 +20,10 @@ import 'package:simcap/features/store/presentation/supplement_detail_screen.dart
 import 'package:simcap/main.dart';
 
 class AppRouter {
+  static final navigatorKey = GlobalKey<NavigatorState>();
+
   static final GoRouter router = GoRouter(
+    navigatorKey: navigatorKey,
     initialLocation: '/login',
     routes: [
       GoRoute(path: '/login', builder: (context, state) => const LoginScreen()),

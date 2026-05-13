@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:simcap/core/constant/app_constants.dart';
 import 'package:simcap/features/cabinet/domain/dataModels/supplement_model.dart';
 
 class SupplementCard extends StatelessWidget {
@@ -15,11 +16,11 @@ class SupplementCard extends StatelessWidget {
 
     Color statusColor;
     if (progress <= 0.2) {
-      statusColor = const Color(0xFFFF6B6B);
+      statusColor = AppColors.danger;
     } else if (progress <= 0.5) {
-      statusColor = const Color(0xFFFFC107);
+      statusColor = AppColors.warning;
     } else {
-      statusColor = const Color(0xFF4CAF50);
+      statusColor = AppColors.primary;
     }
 
     return GestureDetector(
@@ -86,7 +87,7 @@ class SupplementCard extends StatelessWidget {
       width: 50,
       height: 50,
       decoration: const BoxDecoration(
-        color: Color(0xFFF1F8E9),
+        color: AppColors.primaryLight,
         shape: BoxShape.circle,
       ),
       child: const Icon(
@@ -146,18 +147,18 @@ class SupplementCard extends StatelessWidget {
   Widget _buildDDayBadge(int daysLeft) {
     // 오늘 소진 또는 이미 소진
     if (daysLeft <= 0) {
-      return _badge('소진', const Color(0xFFFFEBEB), const Color(0xFFFF6B6B));
+      return _badge('소진', AppColors.dangerBg, AppColors.danger);
     }
 
     // D-Day 문자열: 7일 이하 D-7, 이후 D-30 형식
     final label = 'D-$daysLeft';
 
     if (daysLeft <= 7) {
-      return _badge(label, const Color(0xFFFFEBEB), const Color(0xFFFF6B6B));
+      return _badge(label, AppColors.dangerBg, AppColors.danger);
     } else if (daysLeft <= 30) {
-      return _badge(label, const Color(0xFFFFFDE7), const Color(0xFFFFC107));
+      return _badge(label, const Color(0xFFFFFDE7), AppColors.warning);
     } else {
-      return _badge(label, const Color(0xFFE8F5E9), const Color(0xFF4CAF50));
+      return _badge(label, const Color(0xFFE8F5E9), AppColors.primary);
     }
   }
 

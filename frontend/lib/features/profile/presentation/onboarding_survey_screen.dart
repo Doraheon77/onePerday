@@ -334,6 +334,7 @@ class _OnboardingSurveyScreenState extends State<OnboardingSurveyScreen> {
             selectedValues: userGender != null ? [userGender!] : [],
             onSelected: (val, isSelected) =>
                 setState(() => userGender = isSelected ? val : null),
+            columns: 2,
           ),
         ],
       ),

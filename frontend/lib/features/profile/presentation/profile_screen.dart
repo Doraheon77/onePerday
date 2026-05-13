@@ -298,7 +298,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   const SizedBox(height: 40),
 
                   // 메뉴 버튼 (설문 다시하기 제거)
-                  _buildMenuButton('앱 설정', Icons.settings, onTap: () {}),
+                  _buildMenuButton(
+                    '앱 설정',
+                    Icons.settings,
+                    onTap: _showAppSettingsSheet,
+                  ),
                   const SizedBox(height: 24),
                   _buildLogoutButton(),
                 ],
@@ -1020,6 +1024,90 @@ class _ProfileScreenState extends State<ProfileScreen> {
     SupplementProvider.of(context).clearAll();
     // 로그인 화면으로 이동 (스택 전체 교체)
     context.go('/login');
+  }
+
+  void _showAppSettingsSheet() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => Padding(
+        padding: EdgeInsets.only(
+          left: 24,
+          right: 24,
+          top: 24,
+          bottom: MediaQuery.of(context).padding.bottom + 24,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              '앱 설정',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 20),
+            _settingToggleRow(
+              Icons.alarm_rounded,
+              '복용 알림',
+              '영양제 복용 시간에 알림을 보냅니다',
+            ),
+            const Divider(height: 24),
+            _settingToggleRow(
+              Icons.shopping_bag_outlined,
+              '재구매 알림',
+              '소진 임박 시 알림을 보냅니다',
+            ),
+            const Divider(height: 24),
+            Row(
+              children: [
+                const Icon(Icons.info_outline, size: 20, color: Colors.grey),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        '앱 버전',
+                        style: TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                      Text(
+                        'v1.0.0',
+                        style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _settingToggleRow(IconData icon, String title, String subtitle) {
+    return Row(
+      children: [
+        Icon(icon, size: 20, color: AppColors.primary),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
+              Text(
+                subtitle,
+                style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+              ),
+            ],
+          ),
+        ),
+        Switch(value: true, onChanged: (_) {}, activeColor: AppColors.primary),
+      ],
+    );
   }
 
   Widget _buildLogoutButton() {

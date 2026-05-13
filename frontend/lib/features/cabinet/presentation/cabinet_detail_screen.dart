@@ -24,7 +24,9 @@ class _CabinetDetailScreenState extends State<CabinetDetailScreen> {
     setState(() => _isLaunching = true);
 
     final query = Uri.encodeComponent(widget.item.name);
-    final uri = Uri.parse('https://search.shopping.naver.com/search/all?query=$query');
+    final uri = Uri.parse(
+      'https://search.shopping.naver.com/search/all?query=$query',
+    );
 
     try {
       final canLaunch = await canLaunchUrl(uri);
@@ -46,10 +48,7 @@ class _CabinetDetailScreenState extends State<CabinetDetailScreen> {
     final idx = notifier.supplements.indexWhere((s) => s.name == item.name);
     if (idx == -1) return;
 
-    final updated = await context.push<Supplement>(
-      '/cabinet/add',
-      extra: item,
-    );
+    final updated = await context.push<Supplement>('/cabinet/add', extra: item);
 
     if (updated == null || !context.mounted) return;
 
@@ -72,10 +71,11 @@ class _CabinetDetailScreenState extends State<CabinetDetailScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16)),
-        title: const Text('영양제 삭제',
-            style: TextStyle(fontWeight: FontWeight.bold)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text(
+          '영양제 삭제',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
         content: Text(
           '${item.name}을(를) 삭제하시겠습니까?\n복용 기록도 함께 삭제됩니다.',
           style: const TextStyle(height: 1.5),
@@ -83,8 +83,7 @@ class _CabinetDetailScreenState extends State<CabinetDetailScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('취소',
-                style: TextStyle(color: Colors.grey)),
+            child: const Text('취소', style: TextStyle(color: Colors.grey)),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, true),
@@ -93,7 +92,8 @@ class _CabinetDetailScreenState extends State<CabinetDetailScreen> {
               foregroundColor: Colors.white,
               elevation: 0,
               shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10)),
+                borderRadius: BorderRadius.circular(10),
+              ),
             ),
             child: const Text('삭제'),
           ),
@@ -125,6 +125,7 @@ class _CabinetDetailScreenState extends State<CabinetDetailScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
+        duration: const Duration(seconds: 2),
         behavior: SnackBarBehavior.floating,
         backgroundColor: isError ? AppColors.danger : Colors.black87,
       ),
@@ -157,8 +158,10 @@ class _CabinetDetailScreenState extends State<CabinetDetailScreen> {
             onPressed: () => _navigateToEdit(context),
           ),
           IconButton(
-            icon: const Icon(Icons.delete_outline_rounded,
-                color: AppColors.danger),
+            icon: const Icon(
+              Icons.delete_outline_rounded,
+              color: AppColors.danger,
+            ),
             tooltip: '영양제 삭제',
             onPressed: () => _deleteSupplement(context),
           ),
@@ -307,6 +310,30 @@ class _CabinetDetailScreenState extends State<CabinetDetailScreen> {
             '알림 설정',
             '오전 09:00',
           ),
+          if (daysLeft != null && daysLeft <= 7) ...[
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () =>
+                    context.push('/store/search', extra: item.name),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.danger,
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  padding: const EdgeInsets.symmetric(vertical: 13),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                icon: const Icon(Icons.shopping_bag_outlined, size: 18),
+                label: Text(
+                  'D-$daysLeft · 지금 재구매하기',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -621,9 +648,11 @@ class _CabinetDetailScreenState extends State<CabinetDetailScreen> {
               ),
               child: _isLaunching
                   ? const SizedBox(
-                      width: 20, height: 20,
+                      width: 20,
+                      height: 20,
                       child: CircularProgressIndicator(
-                        strokeWidth: 2, color: Colors.white,
+                        strokeWidth: 2,
+                        color: Colors.white,
                       ),
                     )
                   : const Text(

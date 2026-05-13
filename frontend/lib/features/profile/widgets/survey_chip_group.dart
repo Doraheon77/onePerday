@@ -24,9 +24,9 @@ class SurveyChipGroup extends StatelessWidget {
       physics: const NeverScrollableScrollPhysics(),
       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: columns,
-        crossAxisSpacing: 8,
-        mainAxisSpacing: 8,
-        childAspectRatio: 0.85,
+        crossAxisSpacing: 12,
+        mainAxisSpacing: 12,
+        childAspectRatio: columns == 2 ? 1.3 : 0.85,
       ),
       itemCount: options.length,
       itemBuilder: (context, index) {
@@ -57,29 +57,32 @@ class SurveyChipGroup extends StatelessWidget {
                     borderRadius: BorderRadius.circular(8),
                     child: Image.asset(
                       option.imagePath,
-                      width: 32,
-                      height: 32,
+                      width: columns == 2 ? 52 : 32,
+                      height: columns == 2 ? 52 : 32,
                       fit: BoxFit.contain,
-                      errorBuilder: (context, error, stackTrace) => const Icon(
+                      errorBuilder: (context, error, stackTrace) => Icon(
                         Icons.medication,
-                        size: 28,
+                        size: columns == 2 ? 44 : 28,
                         color: Colors.grey,
                       ),
                     ),
                   )
                 else
-                  const Icon(Icons.medication, size: 28, color: Colors.grey),
+                  Icon(
+                    Icons.medication,
+                    size: columns == 2 ? 44 : 28,
+                    color: Colors.grey,
+                  ),
 
                 const SizedBox(height: 8),
 
-                // 메인 라벨 (subLabel 제거됨)
                 Text(
                   option.label,
                   textAlign: TextAlign.center,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontSize: 12,
+                    fontSize: columns == 2 ? 16 : 12,
                     fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
                     color: isSelected
                         ? const Color(0xFF2E7D32)
