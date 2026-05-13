@@ -16,6 +16,7 @@ class StoreScreen extends StatefulWidget {
 class _StoreScreenState extends State<StoreScreen> {
   // HS - [DB 연동 추가 상태]
   List<StoreProduct> _allProducts = [];
+  List<StoreProduct> _recommendedProducts = []; // 신규 추가: 맞춤 추천 영양제 리스트
   bool _isLoading = true;
   // HS - [DB 연동 추가 상태] - end
 
@@ -67,9 +68,21 @@ class _StoreScreenState extends State<StoreScreen> {
   Future<void> _fetchProducts() async {
     try {
       final service = StoreApiService();
-      final products = await service.fetchSupplements();
+
+      // 테스트를 위해 DB에 있는 사용자 UUID 하드코딩 (향후 Supabase Auth 연동)
+      final String currentUserId = '26fc9241-5921-4e6e-aa7c-6ef51987ed13';
+
+      // [개선된 코드] 전체 리스트와 맞춤 추천 리스트를 동시에 조회
+      final results = await Future.wait([
+        service.fetchSupplements(), // 인덱스 0: 일반 랭킹/검색용 전체 리스트
+        service.fetchRecommendedSupplements(
+          currentUserId,
+        ), // 인덱스 1: 나를 위한 추천 리스트
+      ]);
+
       setState(() {
-        _allProducts = products;
+        _allProducts = results[0];
+        _recommendedProducts = results[1];
         _isLoading = false;
       });
     } catch (e) {
@@ -204,9 +217,8 @@ class _StoreScreenState extends State<StoreScreen> {
   }
 
   Widget _buildRecommendList() {
-    // 기존 코드: final list = recommendProducts;
-    // API 연동 코드: 받아온 데이터 중 앞의 5개 사용
-    final displayList = _allProducts.take(5).toList();
+    // [개선된 코드] 맞춤 추천 결과 사용 및 요청하신 3개 제한 적용
+    final displayList = _recommendedProducts.take(3).toList();
 
     return SizedBox(
       height: 180,
@@ -247,15 +259,17 @@ class _StoreScreenState extends State<StoreScreen> {
                     //   size: 28,
                     // ),
                     // API 연동 코드: 실제 이미지 렌더링
-                    child: product.imageUrl != null && product.imageUrl!.isNotEmpty
+                    child:
+                        product.imageUrl != null && product.imageUrl!.isNotEmpty
                         ? Image.network(
                             product.imageUrl!,
                             fit: BoxFit.cover,
-                            errorBuilder: (context, error, stackTrace) => const Icon(
-                              Icons.medication_rounded,
-                              color: AppColors.primary,
-                              size: 28,
-                            ),
+                            errorBuilder: (context, error, stackTrace) =>
+                                const Icon(
+                                  Icons.medication_rounded,
+                                  color: AppColors.primary,
+                                  size: 28,
+                                ),
                           )
                         : const Icon(
                             Icons.medication_rounded,
