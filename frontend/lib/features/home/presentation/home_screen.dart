@@ -116,6 +116,8 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   // ── 주간 캘린더 ──────────────────────────────────────────────────────────
+  int _weekOffset = 0;
+
   Widget _buildWeeklyCalendar() {
     final notifier = SupplementProvider.of(context);
     final notificationCount = notifier.totalNotificationCount;
@@ -169,14 +171,72 @@ class _HomeScreenState extends State<HomeScreen> {
               ],
             ),
           ),
-          const SizedBox(height: 20),
+          // 주 이동 버튼
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                IconButton(
+                  onPressed: () => setState(() => _weekOffset--),
+                  icon: const Icon(
+                    Icons.chevron_left_rounded,
+                    color: AppColors.primary,
+                  ),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                ),
+                if (_weekOffset != 0)
+                  GestureDetector(
+                    onTap: () => setState(() {
+                      _weekOffset = 0;
+                      _selectedDate = DateTime.now();
+                    }),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.primaryLight,
+                        borderRadius: BorderRadius.circular(99),
+                      ),
+                      child: const Text(
+                        '오늘로',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: AppColors.primary,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  )
+                else
+                  const SizedBox.shrink(),
+                IconButton(
+                  onPressed: _weekOffset < 0
+                      ? () => setState(() => _weekOffset++)
+                      : null,
+                  icon: Icon(
+                    Icons.chevron_right_rounded,
+                    color: _weekOffset < 0
+                        ? AppColors.primary
+                        : Colors.grey[300],
+                  ),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: List.generate(7, (index) {
               final DateTime now = DateTime.now();
-              final DateTime firstDayOfWeek = now.subtract(
-                Duration(days: now.weekday - 1),
-              );
+              final DateTime firstDayOfWeek = now
+                  .subtract(Duration(days: now.weekday - 1))
+                  .add(Duration(days: _weekOffset * 7));
               final DateTime date = firstDayOfWeek.add(Duration(days: index));
 
               final bool isSelected =
