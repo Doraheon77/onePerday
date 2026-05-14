@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:go_router/go_router.dart';
 import 'package:simcap/core/constant/app_constants.dart';
@@ -17,6 +16,11 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   DateTime _selectedDate = DateTime.now();
 
+  Future<void> _handleRefresh() async {
+    await Future.delayed(const Duration(milliseconds: 800));
+    if (mounted) setState(() {});
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -26,38 +30,42 @@ class _HomeScreenState extends State<HomeScreen> {
           children: [
             _buildWeeklyCalendar(),
             Expanded(
-              child: SingleChildScrollView(
-                physics: const BouncingScrollPhysics(),
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildStreakCard(),
-                      const SizedBox(height: 24),
-                      Text(
-                        _isSelectedToday ? '오늘의 영양 성분 분석' : '영양 성분 분석',
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
+              child: RefreshIndicator(
+                onRefresh: _handleRefresh,
+                color: AppColors.primary,
+                child: SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildStreakCard(),
+                        const SizedBox(height: 24),
+                        Text(
+                          _isSelectedToday ? '오늘의 영양 성분 분석' : '영양 성분 분석',
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 12),
-                      _buildNutritionCard(),
-                      const SizedBox(height: 32),
-                      Text(
-                        _isSelectedToday
-                            ? '오늘 남은 복용'
-                            : '${_selectedDate.month}월 ${_selectedDate.day}일 복용 현황',
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
+                        const SizedBox(height: 12),
+                        _buildNutritionCard(),
+                        const SizedBox(height: 32),
+                        Text(
+                          _isSelectedToday
+                              ? '오늘 남은 복용'
+                              : '${_selectedDate.month}월 ${_selectedDate.day}일 복용 현황',
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 12),
-                      _buildMedicationList(),
-                      const SizedBox(height: 100),
-                    ],
+                        const SizedBox(height: 12),
+                        _buildMedicationList(),
+                        const SizedBox(height: 100),
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -610,17 +618,14 @@ class _HomeScreenState extends State<HomeScreen> {
 
   // ── 바 그래프 ─────────────────────────────────────────────────────────────
   Widget _buildBarGraph(String label, double ratio) {
-    // 0~100%: 초록, 100~150%: 주황(권장량 초과), 150%+: 빨강(상한 섭취량)
-    final Color barColor = ratio > 1.5
+    final Color barColor = ratio > 1.0
         ? AppColors.danger
-        : ratio > 1.0
-        ? AppColors.warning
         : ratio >= 0.7
         ? AppColors.primary
         : AppColors.warning;
     final pct = '${(ratio * 100).round()}%';
     final statusNote = ratio > 1.5
-        ? '상한 섭취량 초과'
+        ? '과다 섭취 주의'
         : ratio > 1.0
         ? '권장량 초과'
         : ratio >= 0.7
@@ -711,14 +716,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return GestureDetector(
       onTap: isToday
-          ? () {
-              if (isDone) {
-                HapticFeedback.lightImpact(); // 체크 해제
-              } else {
-                HapticFeedback.mediumImpact(); // 복용 완료
-              }
-              notifier.toggleDose(supplement.name, date: _selectedDate);
-            }
+          ? () => notifier.toggleDose(supplement.name, date: _selectedDate)
           : null,
       child: _buildMedicationCard(supplement, isDone, isToday),
     );
@@ -761,11 +759,13 @@ class _HomeScreenState extends State<HomeScreen> {
             decoration: isDone ? TextDecoration.lineThrough : null,
             color: isDone ? Colors.grey : Colors.black87,
           ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
         ),
         subtitle: Text(
           isDone
               ? '복용 완료 · ${supplement.remaining}정 남음'
-              : '${supplement.mealTiming.label} · ${supplement.remaining}정 남음',
+              : '${supplement.remaining}정 남음',
         ),
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
@@ -861,6 +861,11 @@ class _MonthlyCalendarSheetState extends State<_MonthlyCalendarSheet> {
     // 일부라도 복용 기록이 있으면 partial
     if (n.hasDoseRecordOn(d)) return 'partial';
     return 'none';
+  }
+
+  Future<void> _handleRefresh() async {
+    await Future.delayed(const Duration(milliseconds: 800));
+    if (mounted) setState(() {});
   }
 
   @override

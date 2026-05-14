@@ -36,7 +36,6 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
 
   // ── 폼 상태 ─────────────────────────────────────────────────────────────
   bool _showNameError = false;
-  MealTiming _selectedMealTiming = MealTiming.afterMeal;
 
   final _nameController = TextEditingController();
   final _brandController = TextEditingController();
@@ -65,7 +64,6 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
       _dailyDose = item.dailyDose;
       _dailyFrequency = item.dailyFrequency;
       _alarmTimes = List.from(item.alarmTimes);
-      _selectedMealTiming = item.mealTiming;
       // 편집 모드는 직접 입력 탭으로 시작
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _tabController.animateTo(_tabManual);
@@ -184,7 +182,7 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
       dailyDose: _dailyDose,
       dailyFrequency: _dailyFrequency,
       alarmTimes: _alarmTimes,
-      mealTiming: _selectedMealTiming,
+      mealTiming: MealTiming.anytime,
       nutrients: _nutrientController.text
           .split(',')
           .where((e) => e.trim().isNotEmpty)
@@ -556,7 +554,6 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
 
         const SizedBox(height: 24),
         _buildSectionTitle('복용 및 수량 설정'),
-        _buildMealTimingSelector(),
         _buildQuantityStepper(
           '1회 복용량 (정/캡슐)',
           _dailyDose,
@@ -925,86 +922,6 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
         ),
       ],
     );
-  }
-
-  Widget _buildMealTimingSelector() {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(15),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            '복용 시점',
-            style: TextStyle(fontWeight: FontWeight.w500, fontSize: 14),
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: MealTiming.values.map((timing) {
-              final isSelected = _selectedMealTiming == timing;
-              return Expanded(
-                child: GestureDetector(
-                  onTap: () => setState(() => _selectedMealTiming = timing),
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 180),
-                    margin: const EdgeInsets.only(right: 6),
-                    padding: const EdgeInsets.symmetric(vertical: 10),
-                    decoration: BoxDecoration(
-                      color: isSelected
-                          ? AppColors.primary
-                          : AppColors.dividerBg,
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(
-                        color: isSelected
-                            ? AppColors.primary
-                            : AppColors.border,
-                      ),
-                    ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          _mealTimingIcon(timing),
-                          size: 18,
-                          color: isSelected ? Colors.white : Colors.grey[500],
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          timing.label,
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            color: isSelected ? Colors.white : Colors.grey[600],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              );
-            }).toList(),
-          ),
-        ],
-      ),
-    );
-  }
-
-  IconData _mealTimingIcon(MealTiming timing) {
-    switch (timing) {
-      case MealTiming.beforeMeal:
-        return Icons.lunch_dining_outlined;
-      case MealTiming.afterMeal:
-        return Icons.restaurant_outlined;
-      case MealTiming.beforeSleep:
-        return Icons.bedtime_outlined;
-      case MealTiming.anytime:
-        return Icons.access_time_outlined;
-    }
   }
 
   Widget _buildSelectedImagePreview() {

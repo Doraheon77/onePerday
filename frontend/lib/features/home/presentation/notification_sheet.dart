@@ -162,7 +162,6 @@ class NotificationSheet extends StatelessWidget {
                       '복용 알림',
                       style: TextStyle(fontWeight: FontWeight.bold),
                     ),
-                    _timingBadge(s.mealTiming),
                   ],
                 ),
                 const SizedBox(height: 4),
@@ -322,21 +321,4 @@ class NotificationSheet extends StatelessWidget {
   }
 
   // 복용 시점 배지
-  Widget _timingBadge(MealTiming timing) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-      decoration: BoxDecoration(
-        color: const Color(0xFFE8F5E9),
-        borderRadius: BorderRadius.circular(6),
-      ),
-      child: Text(
-        timing.label,
-        style: const TextStyle(
-          fontSize: 10,
-          fontWeight: FontWeight.bold,
-          color: Color(0xFF4CAF50),
-        ),
-      ),
-    );
-  }
 }

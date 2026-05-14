@@ -81,7 +81,7 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
         .map((s) {
           final nutrients = s.nutrients.map((n) => n.name).join(', ');
           return '- ${s.name} (${s.brand}): 잔여 ${s.remaining}정, '
-              '${s.mealTiming.label} 복용, 주요 성분: $nutrients';
+              '주요 성분: $nutrients';
         })
         .join('\n');
   }

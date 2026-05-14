@@ -230,6 +230,8 @@ class _CabinetDetailScreenState extends State<CabinetDetailScreen> {
                 Text(
                   item.brand.isEmpty ? '브랜드 정보 없음' : item.brand,
                   style: const TextStyle(color: Colors.grey, fontSize: 14),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 4),
                 Text(
@@ -238,6 +240,8 @@ class _CabinetDetailScreenState extends State<CabinetDetailScreen> {
                     fontSize: 22,
                     fontWeight: FontWeight.bold,
                   ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ],
             ),
@@ -287,11 +291,6 @@ class _CabinetDetailScreenState extends State<CabinetDetailScreen> {
             '소진 예정일',
             emptyDateLabel,
             valueColor: emptyDateColor,
-          ),
-          _buildInfoRow(
-            Icons.schedule_outlined,
-            '복용 시점',
-            item.mealTiming.label,
           ),
           _buildInfoRow(
             Icons.medication_outlined,
