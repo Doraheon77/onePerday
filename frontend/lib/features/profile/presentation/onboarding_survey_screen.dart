@@ -22,6 +22,7 @@ class _OnboardingSurveyScreenState extends State<OnboardingSurveyScreen> {
   final TextEditingController _ageController = TextEditingController();
 
   int _currentPage = 0;
+  bool _showRecommendAfterLoad = false; // 로딩 후 추천 시트 표시 여부
   String _searchQuery = "";
 
   String? userName;
@@ -180,21 +181,10 @@ class _OnboardingSurveyScreenState extends State<OnboardingSurveyScreen> {
               _buildFullWidthButton('네, 맞아요! 분석 시작하기', () async {
                 await _saveSurveyData();
                 if (!mounted) return;
+                // 플래그 설정 — 6페이지 진입 시 추천 시트 표시
+                setState(() => _showRecommendAfterLoad = true);
                 Navigator.pop(context); // 요약 바텀시트 닫기
-                // 추천 영양제 화면 표시
-                showModalBottomSheet(
-                  context: context,
-                  isScrollControlled: true,
-                  backgroundColor: Colors.transparent,
-                  isDismissible: false,
-                  builder: (sheetContext) => _RecommendSheet(
-                    goals: selectedGoals,
-                    onStart: () {
-                      Navigator.pop(sheetContext);
-                      context.go('/home');
-                    },
-                  ),
-                );
+                _nextPage(); // 6페이지(로딩 화면)로 이동
               }),
             ],
           ),
@@ -281,7 +271,31 @@ class _OnboardingSurveyScreenState extends State<OnboardingSurveyScreen> {
             child: PageView(
               controller: _pageController,
               physics: const NeverScrollableScrollPhysics(),
-              onPageChanged: (idx) => setState(() => _currentPage = idx),
+              onPageChanged: (idx) {
+                setState(() => _currentPage = idx);
+                // 6페이지(완료 화면) 진입 시 추천 시트 표시
+                if (idx == 5 && _showRecommendAfterLoad) {
+                  _showRecommendAfterLoad = false;
+                  Future.delayed(const Duration(seconds: 2), () {
+                    if (!mounted) return;
+                    showModalBottomSheet(
+                      context: context,
+                      isScrollControlled: true,
+                      backgroundColor: Colors.transparent,
+                      isDismissible: false,
+                      builder: (sheetContext) => _RecommendSheet(
+                        goals: selectedGoals,
+                        onStart: () {
+                          Navigator.pop(sheetContext);
+                          Future.microtask(() {
+                            if (mounted) context.go('/home');
+                          });
+                        },
+                      ),
+                    );
+                  });
+                }
+              },
               children: [
                 _buildBasicInfoStep(),
                 _buildGoalStep(),
