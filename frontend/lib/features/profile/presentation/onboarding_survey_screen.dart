@@ -114,7 +114,11 @@ class _OnboardingSurveyScreenState extends State<OnboardingSurveyScreen> {
 
     if (noneOption != null) {
       return [
-        SurveyOption(label: noneOption, imagePath: 'assets/images/none.png'),
+        SurveyOption(
+          id: 'none',
+          label: noneOption,
+          imagePath: 'assets/images/chronic_condition/none.png',
+        ),
         ...filtered,
       ];
     }
@@ -337,13 +341,11 @@ class _OnboardingSurveyScreenState extends State<OnboardingSurveyScreen> {
           ),
           const SizedBox(height: 12),
           SurveyChipGroup(
-            options: [
-              SurveyOption(label: '남성', imagePath: 'assets/images/male.png'),
-              SurveyOption(label: '여성', imagePath: 'assets/images/female.png'),
-            ],
+            options: [...SurveyData.genderOptions],
             selectedValues: userGender != null ? [userGender!] : [],
             onSelected: (val, isSelected) =>
                 setState(() => userGender = isSelected ? val : null),
+            columns: 2,
           ),
         ],
       ),

@@ -565,11 +565,15 @@ class _BasketScreenState extends State<BasketScreen> {
               children: [
                 Text(
                   item.brand,
-                  style: const TextStyle(fontSize: 12, color: Colors.grey),
+                  style: TextStyle(fontSize: 12, color: Colors.grey),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
                 Text(
                   item.name,
-                  style: const TextStyle(fontWeight: FontWeight.bold),
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 8),
                 Text(
@@ -593,9 +597,44 @@ class _BasketScreenState extends State<BasketScreen> {
       children: [
         IconButton(
           icon: const Icon(Icons.remove_circle_outline, size: 20),
-          onPressed: () => notifier.updateCartCount(item.productId, -1),
+          onPressed: () {
+            if (item.count <= 1) {
+              // 수량 1에서 - 누르면 삭제 확인 다이얼로그
+              showDialog(
+                context: context,
+                builder: (_) => AlertDialog(
+                  title: const Text('상품 삭제'),
+                  content: Text('${item.name}을(를) 장바구니에서 삭제할까요?'),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text(
+                        '취소',
+                        style: TextStyle(color: Colors.grey),
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: () {
+                        Navigator.pop(context);
+                        notifier.updateCartCount(item.productId, -1);
+                      },
+                      child: const Text(
+                        '삭제',
+                        style: TextStyle(color: AppColors.danger),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            } else {
+              notifier.updateCartCount(item.productId, -1);
+            }
+          },
         ),
-        Text('${item.count}'),
+        Text(
+          '${item.count}',
+          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+        ),
         IconButton(
           icon: const Icon(Icons.add_circle_outline, size: 20),
           onPressed: () => notifier.updateCartCount(item.productId, 1),

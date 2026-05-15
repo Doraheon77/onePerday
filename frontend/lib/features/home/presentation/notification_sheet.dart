@@ -162,7 +162,6 @@ class NotificationSheet extends StatelessWidget {
                       '복용 알림',
                       style: TextStyle(fontWeight: FontWeight.bold),
                     ),
-                    _timingBadge(s.mealTiming),
                   ],
                 ),
                 const SizedBox(height: 4),
@@ -284,24 +283,37 @@ class NotificationSheet extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.notifications_none_rounded,
-            size: 56,
-            color: Colors.grey[300],
-          ),
-          const SizedBox(height: 16),
-          Text(
-            '새로운 알림이 없습니다',
-            style: TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.w600,
-              color: Colors.grey[400],
+          Container(
+            width: 80,
+            height: 80,
+            decoration: const BoxDecoration(
+              color: AppColors.primaryLight,
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.check_circle_outline_rounded,
+              size: 44,
+              color: AppColors.primary,
             ),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 20),
+          const Text(
+            '모든 알림을 확인했어요!',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: Colors.black87,
+            ),
+          ),
+          const SizedBox(height: 8),
           Text(
-            '오늘의 복용을 모두 완료했어요!',
-            style: TextStyle(fontSize: 13, color: Colors.grey[400]),
+            '오늘 복용을 모두 완료하면 알림이 사라집니다 🎉',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 13,
+              color: Colors.grey[500],
+              height: 1.6,
+            ),
           ),
         ],
       ),
@@ -309,21 +321,4 @@ class NotificationSheet extends StatelessWidget {
   }
 
   // 복용 시점 배지
-  Widget _timingBadge(MealTiming timing) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-      decoration: BoxDecoration(
-        color: const Color(0xFFE8F5E9),
-        borderRadius: BorderRadius.circular(6),
-      ),
-      child: Text(
-        timing.label,
-        style: const TextStyle(
-          fontSize: 10,
-          fontWeight: FontWeight.bold,
-          color: Color(0xFF4CAF50),
-        ),
-      ),
-    );
-  }
 }

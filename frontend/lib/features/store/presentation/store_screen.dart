@@ -53,6 +53,11 @@ class _StoreScreenState extends State<StoreScreen> {
     super.dispose();
   }
 
+  Future<void> _handleRefresh() async {
+    await Future.delayed(const Duration(milliseconds: 800));
+    if (mounted) setState(() {});
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -80,21 +85,26 @@ class _StoreScreenState extends State<StoreScreen> {
           const SizedBox(width: 8),
         ],
       ),
-      body: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildAutoSliderBanner(),
-            _buildSectionTitle('나를 위한 추천'),
-            _buildRecommendList(),
-            _buildSectionTitle('선물 카테고리'),
-            _buildGiftCategories(),
-            const SizedBox(height: 20),
-            _buildSectionTitle('실시간 인기 랭킹'),
-            _buildRankingFilters(),
-            _buildRankingList(),
-            const SizedBox(height: 40),
-          ],
+      body: RefreshIndicator(
+        onRefresh: _handleRefresh,
+        color: AppColors.primary,
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildAutoSliderBanner(),
+              _buildSectionTitle('나를 위한 추천'),
+              _buildRecommendList(),
+              _buildSectionTitle('선물 카테고리'),
+              _buildGiftCategories(),
+              const SizedBox(height: 20),
+              _buildSectionTitle('실시간 인기 랭킹'),
+              _buildRankingFilters(),
+              _buildRankingList(),
+              const SizedBox(height: 40),
+            ],
+          ),
         ),
       ),
     );

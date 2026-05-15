@@ -408,13 +408,19 @@ class _SearchScreenState extends State<SearchScreen> {
         Expanded(
           child: results.isEmpty
               ? _buildEmptyResult()
-              : ListView.separated(
-                  padding: const EdgeInsets.symmetric(vertical: 8),
-                  itemCount: results.length,
-                  separatorBuilder: (_, __) =>
-                      const Divider(height: 1, indent: 80),
-                  itemBuilder: (context, index) =>
-                      _buildProductCard(results[index]),
+              : NotificationListener<ScrollStartNotification>(
+                  onNotification: (_) {
+                    FocusScope.of(context).unfocus();
+                    return false;
+                  },
+                  child: ListView.separated(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    itemCount: results.length,
+                    separatorBuilder: (_, __) =>
+                        const Divider(height: 1, indent: 80),
+                    itemBuilder: (context, index) =>
+                        _buildProductCard(results[index]),
+                  ),
                 ),
         ),
       ],

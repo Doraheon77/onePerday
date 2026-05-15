@@ -1,17 +1,23 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:simcap/core/constant/app_constants.dart';
 
-/// 바코드 스캔 결과
-/// context.push('/cabinet/scan') 으로 진입,
-/// context.pop(BarcodeScanResult) 으로 결과 반환
-class BarcodeScanResult {
-  final String rawValue; // 바코드 원본 값
-  final BarcodeFormat format; // QR / EAN-13 / UPC-A 등
+/// 통합 스캔 결과
+class ScanResult {
+  final String? barcodeValue;
+  final BarcodeFormat? barcodeFormat;
+  final File? imageFile;
 
-  const BarcodeScanResult({required this.rawValue, required this.format});
+  const ScanResult({this.barcodeValue, this.barcodeFormat, this.imageFile});
+
+  bool get isBarcode => barcodeValue != null;
+  bool get isOCR => imageFile != null;
 }
+
+typedef BarcodeScanResult = ScanResult;
 
 class BarcodeScanScreen extends StatefulWidget {
   const BarcodeScanScreen({super.key});
@@ -26,8 +32,9 @@ class _BarcodeScanScreenState extends State<BarcodeScanScreen> {
     facing: CameraFacing.back,
     torchEnabled: false,
   );
+  final ImagePicker _picker = ImagePicker();
 
-  bool _hasScanned = false; // 중복 감지 방지
+  bool _hasScanned = false;
   bool _isTorchOn = false;
 
   @override
@@ -36,165 +43,177 @@ class _BarcodeScanScreenState extends State<BarcodeScanScreen> {
     super.dispose();
   }
 
-  // 바코드 감지 콜백
+  // ── 바코드 자동 감지 ─────────────────────────────────────────────────────
   void _onDetect(BarcodeCapture capture) {
     if (_hasScanned) return;
-
     final barcode = capture.barcodes.firstOrNull;
     if (barcode == null || barcode.rawValue == null) return;
 
     setState(() => _hasScanned = true);
     _controller.stop();
-
-    // 진동 피드백 (선택 사항 — vibration 패키지 없이도 동작)
-    _showResultSheet(barcode);
+    _showBarcodeResultSheet(barcode);
   }
 
-  // 스캔 성공 후 결과 확인 Bottom Sheet
-  void _showResultSheet(Barcode barcode) {
+  // ── 촬영 버튼 → 라벨 OCR ────────────────────────────────────────────────
+  Future<void> _captureForOCR() async {
+    _controller.stop();
+    final XFile? image = await _picker.pickImage(
+      source: ImageSource.camera,
+      imageQuality: 90,
+    );
+    if (image == null) {
+      _controller.start();
+      return;
+    }
+    if (!mounted) return;
+    context.pop(ScanResult(imageFile: File(image.path)));
+  }
+
+  // ── 갤러리 선택 → OCR ────────────────────────────────────────────────────
+  Future<void> _pickGalleryForOCR() async {
+    _controller.stop();
+    final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
+    if (image == null) {
+      _controller.start();
+      return;
+    }
+    if (!mounted) return;
+    context.pop(ScanResult(imageFile: File(image.path)));
+  }
+
+  // ── 바코드 인식 결과 바텀시트 ────────────────────────────────────────────
+  void _showBarcodeResultSheet(Barcode barcode) {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.white,
-      isDismissible: false, // 배경 탭으로 닫기 방지
+      isDismissible: false,
       enableDrag: false,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      builder: (_) {
-        return Padding(
-          padding: const EdgeInsets.fromLTRB(24, 24, 24, 40),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // 성공 아이콘
-              Container(
-                width: 64,
-                height: 64,
-                decoration: const BoxDecoration(
-                  color: AppColors.primaryLight,
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(
-                  Icons.check_circle_rounded,
-                  color: AppColors.primary,
-                  size: 36,
-                ),
+      builder: (_) => Padding(
+        padding: const EdgeInsets.fromLTRB(24, 24, 24, 40),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 64,
+              height: 64,
+              decoration: const BoxDecoration(
+                color: AppColors.primaryLight,
+                shape: BoxShape.circle,
               ),
-              const SizedBox(height: 16),
-              const Text(
-                '바코드 인식 완료',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              child: const Icon(
+                Icons.check_circle_rounded,
+                color: AppColors.primary,
+                size: 36,
               ),
-              const SizedBox(height: 8),
-
-              // 인식된 바코드 값
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: AppColors.scaffoldBg,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppColors.border),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      _formatName(barcode.format),
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey[500],
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      barcode.rawValue ?? '-',
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 1.5,
-                      ),
-                    ),
-                  ],
-                ),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              '바코드 인식 완료',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: AppColors.scaffoldBg,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppColors.border),
               ),
-              const SizedBox(height: 10),
-
-              // 안내 문구
-              Text(
-                '이 바코드로 영양제 정보를 불러올게요',
-                style: TextStyle(fontSize: 13, color: Colors.grey[500]),
-              ),
-              const SizedBox(height: 24),
-
-              // 버튼 영역
-              Row(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // 다시 스캔
-                  Expanded(
-                    child: OutlinedButton(
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        side: const BorderSide(color: AppColors.primary),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      onPressed: () {
-                        Navigator.pop(context); // Sheet 닫기
-                        setState(() => _hasScanned = false);
-                        _controller.start();
-                      },
-                      child: const Text(
-                        '다시 스캔',
-                        style: TextStyle(
-                          color: AppColors.primary,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
+                  Text(
+                    _formatBarcodeName(barcode.format),
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey[500],
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
-                  const SizedBox(width: 12),
-                  // 이 바코드 사용
-                  Expanded(
-                    flex: 2,
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        backgroundColor: AppColors.primary,
-                        foregroundColor: Colors.white,
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      onPressed: () {
-                        Navigator.pop(context); // Sheet 닫기
-                        // 결과를 이전 화면(add_supplement_screen)으로 반환
-                        context.pop(
-                          BarcodeScanResult(
-                            rawValue: barcode.rawValue!,
-                            format: barcode.format,
-                          ),
-                        );
-                      },
-                      child: const Text(
-                        '이 바코드 사용',
-                        style: TextStyle(fontWeight: FontWeight.bold),
-                      ),
+                  const SizedBox(height: 4),
+                  Text(
+                    barcode.rawValue ?? '-',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 1.5,
                     ),
                   ),
                 ],
               ),
-            ],
-          ),
-        );
-      },
+            ),
+            const SizedBox(height: 10),
+            Text(
+              '이 바코드로 영양제 정보를 불러올게요',
+              style: TextStyle(fontSize: 13, color: Colors.grey[500]),
+            ),
+            const SizedBox(height: 24),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      side: const BorderSide(color: AppColors.primary),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    onPressed: () {
+                      Navigator.pop(context);
+                      setState(() => _hasScanned = false);
+                      _controller.start();
+                    },
+                    child: const Text(
+                      '다시 스캔',
+                      style: TextStyle(
+                        color: AppColors.primary,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  flex: 2,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    onPressed: () {
+                      Navigator.pop(context);
+                      context.pop(
+                        ScanResult(
+                          barcodeValue: barcode.rawValue!,
+                          barcodeFormat: barcode.format,
+                        ),
+                      );
+                    },
+                    child: const Text(
+                      '이 바코드 사용',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
     );
   }
 
-  String _formatName(BarcodeFormat format) {
+  String _formatBarcodeName(BarcodeFormat format) {
     switch (format) {
       case BarcodeFormat.ean13:
         return 'EAN-13 바코드';
@@ -219,20 +238,14 @@ class _BarcodeScanScreenState extends State<BarcodeScanScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
-        backgroundColor: Colors.black,
-        foregroundColor: Colors.white,
+        backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () => context.pop(),
         ),
-        title: const Text(
-          '바코드 스캔',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
-        centerTitle: true,
-        // 플래시 토글 버튼
         actions: [
           IconButton(
             icon: Icon(
@@ -248,236 +261,102 @@ class _BarcodeScanScreenState extends State<BarcodeScanScreen> {
       ),
       body: Stack(
         children: [
-          // 카메라 미리보기
-          MobileScanner(controller: _controller, onDetect: _onDetect),
+          // 카메라 전체화면
+          Positioned.fill(
+            child: MobileScanner(controller: _controller, onDetect: _onDetect),
+          ),
 
-          // 스캔 가이드 오버레이
-          _buildScanOverlay(),
+          // 하단 버튼 영역만
+          Positioned(bottom: 0, left: 0, right: 0, child: _buildBottomBar()),
         ],
       ),
     );
   }
 
-  Widget _buildScanOverlay() {
-    return Column(
-      children: [
-        // 상단 어두운 영역
-        Expanded(flex: 2, child: Container(color: Colors.black54)),
-
-        // 중간 스캔 영역
-        Row(
-          children: [
-            // 좌측 어두운 영역
-            Expanded(child: Container(color: Colors.black54)),
-
-            // 스캔 박스
-            Container(
-              width: 260,
-              height: 260,
-              decoration: BoxDecoration(
-                border: Border.all(color: AppColors.primary, width: 2.5),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Stack(
-                children: [
-                  // 모서리 강조선 4개
-                  ..._buildCornerLines(),
-                  // 스캔 중 애니메이션 라인
-                  if (!_hasScanned) _buildScanLine(),
-                ],
-              ),
-            ),
-
-            // 우측 어두운 영역
-            Expanded(child: Container(color: Colors.black54)),
-          ],
+  Widget _buildBottomBar() {
+    final bottomPad = MediaQuery.of(context).padding.bottom;
+    return Container(
+      padding: EdgeInsets.only(
+        bottom: bottomPad + 24,
+        top: 20,
+        left: 40,
+        right: 40,
+      ),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.bottomCenter,
+          end: Alignment.topCenter,
+          colors: [Colors.black.withOpacity(0.8), Colors.transparent],
         ),
-
-        // 하단 안내 영역
-        Expanded(
-          flex: 3,
-          child: Container(
-            color: Colors.black54,
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  Icons.qr_code_scanner,
-                  color: Colors.white.withOpacity(0.8),
-                  size: 32,
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  '영양제 바코드를 박스 안에 맞춰주세요',
-                  style: TextStyle(
-                    color: Colors.white.withOpacity(0.85),
-                    fontSize: 15,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  'EAN-13 · UPC-A · QR코드 지원',
-                  style: TextStyle(
-                    color: Colors.white.withOpacity(0.5),
-                    fontSize: 12,
-                  ),
-                ),
-              ],
-            ),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          // 갤러리
+          _bottomButton(
+            icon: Icons.photo_library_outlined,
+            label: '갤러리',
+            size: 48,
+            onTap: _pickGalleryForOCR,
           ),
-        ),
-      ],
+
+          const SizedBox(width: 24),
+
+          // 촬영 버튼 (메인)
+          _bottomButton(
+            icon: Icons.camera_alt_rounded,
+            label: '라벨 촬영',
+            size: 72,
+            onTap: _captureForOCR,
+            primary: true,
+          ),
+
+          const SizedBox(width: 24),
+
+          // 빈 공간 (좌우 균형)
+          const SizedBox(width: 48),
+        ],
+      ),
     );
   }
 
-  // 스캔 박스 모서리 강조선
-  List<Widget> _buildCornerLines() {
-    const double len = 24;
-    const double thick = 3.5;
-    const Color color = AppColors.primary;
-
-    return [
-      // 좌상단
-      Positioned(
-        top: 0,
-        left: 0,
-        child: _corner(len, thick, color, top: true, left: true),
-      ),
-      // 우상단
-      Positioned(
-        top: 0,
-        right: 0,
-        child: _corner(len, thick, color, top: true, left: false),
-      ),
-      // 좌하단
-      Positioned(
-        bottom: 0,
-        left: 0,
-        child: _corner(len, thick, color, top: false, left: true),
-      ),
-      // 우하단
-      Positioned(
-        bottom: 0,
-        right: 0,
-        child: _corner(len, thick, color, top: false, left: false),
-      ),
-    ];
-  }
-
-  Widget _corner(
-    double len,
-    double thick,
-    Color color, {
-    required bool top,
-    required bool left,
+  Widget _bottomButton({
+    required IconData icon,
+    required String label,
+    required double size,
+    required VoidCallback onTap,
+    bool primary = false,
   }) {
-    return SizedBox(
-      width: len,
-      height: len,
-      child: CustomPaint(
-        painter: _CornerPainter(
-          color: color,
-          thick: thick,
-          top: top,
-          left: left,
-        ),
-      ),
-    );
-  }
-
-  // 스캔 애니메이션 라인
-  Widget _buildScanLine() {
-    return _ScanLineAnimation();
-  }
-}
-
-// 모서리선 CustomPainter
-class _CornerPainter extends CustomPainter {
-  final Color color;
-  final double thick;
-  final bool top;
-  final bool left;
-
-  _CornerPainter({
-    required this.color,
-    required this.thick,
-    required this.top,
-    required this.left,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = color
-      ..strokeWidth = thick
-      ..strokeCap = StrokeCap.round;
-
-    final double w = size.width;
-    final double h = size.height;
-
-    // 가로선
-    canvas.drawLine(Offset(0, top ? 0 : h), Offset(w, top ? 0 : h), paint);
-    // 세로선
-    canvas.drawLine(Offset(left ? 0 : w, 0), Offset(left ? 0 : w, h), paint);
-  }
-
-  @override
-  bool shouldRepaint(_CornerPainter old) => false;
-}
-
-// 스캔 라인 애니메이션
-class _ScanLineAnimation extends StatefulWidget {
-  @override
-  State<_ScanLineAnimation> createState() => _ScanLineAnimationState();
-}
-
-class _ScanLineAnimationState extends State<_ScanLineAnimation>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _ctrl;
-  late Animation<double> _anim;
-
-  @override
-  void initState() {
-    super.initState();
-    _ctrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1800),
-    )..repeat(reverse: true);
-    _anim = Tween<double>(
-      begin: 0.05,
-      end: 0.95,
-    ).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut));
-  }
-
-  @override
-  void dispose() {
-    _ctrl.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _anim,
-      builder: (_, __) => Positioned(
-        top: 260 * _anim.value - 1,
-        left: 8,
-        right: 8,
-        child: Container(
-          height: 2,
-          decoration: BoxDecoration(
-            color: AppColors.primary.withOpacity(0.85),
-            borderRadius: BorderRadius.circular(1),
-            boxShadow: [
-              BoxShadow(
-                color: AppColors.primary.withOpacity(0.4),
-                blurRadius: 6,
-                spreadRadius: 1,
-              ),
-            ],
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: size,
+            height: size,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: primary ? Colors.white : Colors.white.withOpacity(0.2),
+              border: Border.all(color: Colors.white, width: primary ? 0 : 1.5),
+            ),
+            child: Icon(
+              icon,
+              color: primary ? Colors.black87 : Colors.white,
+              size: primary ? 32 : 22,
+            ),
           ),
-        ),
+          const SizedBox(height: 6),
+          Text(
+            label,
+            style: TextStyle(
+              color: Colors.white.withOpacity(0.85),
+              fontSize: 11,
+              fontWeight: primary ? FontWeight.bold : FontWeight.normal,
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -1,10 +1,12 @@
 import 'dart:io';
+import 'package:go_router/go_router.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/data/latest_all.dart' as tz_data;
 import 'package:timezone/timezone.dart' as tz;
 import 'package:simcap/core/constant/app_constants.dart';
 import 'package:simcap/features/cabinet/domain/dataModels/supplement_model.dart';
+import 'package:simcap/routes/app_router.dart';
 
 // 알림 채널 ID 상수
 const _doseChannelId = 'simcap_dose';
@@ -180,8 +182,15 @@ class NotificationService {
 
   // 알림 탭 핸들러
   void _onNotificationTap(NotificationResponse response) {
-    // TODO: 알림 탭 시 해당 화면으로 이동 (GoRouter 연동 필요)
-    debugPrint('[NotificationService] 알림 탭: id=${response.id}');
+    final id = response.id ?? -1;
+    debugPrint('[NotificationService] 알림 탭: id=$id');
+    final context = AppRouter.navigatorKey.currentContext;
+    if (context == null) return;
+    if (id >= 1000 && id < 2000) {
+      context.go('/home');
+    } else if (id >= 2000 && id < 3000) {
+      context.go('/cabinet');
+    }
   }
 
   //  복용 알림

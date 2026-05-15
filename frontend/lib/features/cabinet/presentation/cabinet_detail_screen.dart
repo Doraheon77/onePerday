@@ -24,7 +24,9 @@ class _CabinetDetailScreenState extends State<CabinetDetailScreen> {
     setState(() => _isLaunching = true);
 
     final query = Uri.encodeComponent(widget.item.name);
-    final uri = Uri.parse('https://search.shopping.naver.com/search/all?query=$query');
+    final uri = Uri.parse(
+      'https://search.shopping.naver.com/search/all?query=$query',
+    );
 
     try {
       final canLaunch = await canLaunchUrl(uri);
@@ -46,10 +48,7 @@ class _CabinetDetailScreenState extends State<CabinetDetailScreen> {
     final idx = notifier.supplements.indexWhere((s) => s.name == item.name);
     if (idx == -1) return;
 
-    final updated = await context.push<Supplement>(
-      '/cabinet/add',
-      extra: item,
-    );
+    final updated = await context.push<Supplement>('/cabinet/add', extra: item);
 
     if (updated == null || !context.mounted) return;
 
@@ -72,10 +71,11 @@ class _CabinetDetailScreenState extends State<CabinetDetailScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16)),
-        title: const Text('영양제 삭제',
-            style: TextStyle(fontWeight: FontWeight.bold)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text(
+          '영양제 삭제',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
         content: Text(
           '${item.name}을(를) 삭제하시겠습니까?\n복용 기록도 함께 삭제됩니다.',
           style: const TextStyle(height: 1.5),
@@ -83,8 +83,7 @@ class _CabinetDetailScreenState extends State<CabinetDetailScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('취소',
-                style: TextStyle(color: Colors.grey)),
+            child: const Text('취소', style: TextStyle(color: Colors.grey)),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, true),
@@ -93,7 +92,8 @@ class _CabinetDetailScreenState extends State<CabinetDetailScreen> {
               foregroundColor: Colors.white,
               elevation: 0,
               shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10)),
+                borderRadius: BorderRadius.circular(10),
+              ),
             ),
             child: const Text('삭제'),
           ),
@@ -157,8 +157,10 @@ class _CabinetDetailScreenState extends State<CabinetDetailScreen> {
             onPressed: () => _navigateToEdit(context),
           ),
           IconButton(
-            icon: const Icon(Icons.delete_outline_rounded,
-                color: AppColors.danger),
+            icon: const Icon(
+              Icons.delete_outline_rounded,
+              color: AppColors.danger,
+            ),
             tooltip: '영양제 삭제',
             onPressed: () => _deleteSupplement(context),
           ),
@@ -228,6 +230,8 @@ class _CabinetDetailScreenState extends State<CabinetDetailScreen> {
                 Text(
                   item.brand.isEmpty ? '브랜드 정보 없음' : item.brand,
                   style: const TextStyle(color: Colors.grey, fontSize: 14),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 4),
                 Text(
@@ -236,6 +240,8 @@ class _CabinetDetailScreenState extends State<CabinetDetailScreen> {
                     fontSize: 22,
                     fontWeight: FontWeight.bold,
                   ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ],
             ),
@@ -287,11 +293,6 @@ class _CabinetDetailScreenState extends State<CabinetDetailScreen> {
             valueColor: emptyDateColor,
           ),
           _buildInfoRow(
-            Icons.schedule_outlined,
-            '복용 시점',
-            item.mealTiming.label,
-          ),
-          _buildInfoRow(
             Icons.medication_outlined,
             '1일 복용량',
             '${item.dailyDose}정',
@@ -305,7 +306,21 @@ class _CabinetDetailScreenState extends State<CabinetDetailScreen> {
           _buildInfoRow(
             Icons.notifications_active_outlined,
             '알림 설정',
-            '오전 09:00',
+            item.alarmTimes.isEmpty
+                ? '기본 시간'
+                : item.alarmTimes
+                      .map((t) {
+                        final h = t.hour;
+                        final period = h < 12 ? '오전' : '오후';
+                        final hour = h == 0
+                            ? 12
+                            : h > 12
+                            ? h - 12
+                            : h;
+                        final min = t.minute.toString().padLeft(2, '0');
+                        return '$period $hour:$min';
+                      })
+                      .join(', '),
           ),
         ],
       ),
@@ -442,11 +457,21 @@ class _CabinetDetailScreenState extends State<CabinetDetailScreen> {
   }
 
   Widget _buildNutrientBar(Nutrient n) {
-    Color barColor = AppColors.primary;
-    if (n.percent >= 1.0) {
+    // 0~100%: 초록, 100~150%: 주황(권장량 초과), 150%+: 빨강(상한 섭취량)
+    Color barColor;
+    String statusLabel;
+    if (n.percent > 1.5) {
       barColor = AppColors.danger;
-    } else if (n.percent < 0.3) {
+      statusLabel = '상한 섭취량 초과';
+    } else if (n.percent > 1.0) {
       barColor = AppColors.warning;
+      statusLabel = '권장량 초과';
+    } else if (n.percent >= 0.7) {
+      barColor = AppColors.primary;
+      statusLabel = '적정 섭취';
+    } else {
+      barColor = AppColors.warning;
+      statusLabel = '섭취 부족';
     }
 
     return Padding(
@@ -621,9 +646,11 @@ class _CabinetDetailScreenState extends State<CabinetDetailScreen> {
               ),
               child: _isLaunching
                   ? const SizedBox(
-                      width: 20, height: 20,
+                      width: 20,
+                      height: 20,
                       child: CircularProgressIndicator(
-                        strokeWidth: 2, color: Colors.white,
+                        strokeWidth: 2,
+                        color: Colors.white,
                       ),
                     )
                   : const Text(

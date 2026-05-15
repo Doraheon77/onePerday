@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:go_router/go_router.dart';
 import 'package:simcap/core/constant/app_constants.dart';
 import 'package:simcap/providers/supplement_provider.dart';
+import 'package:simcap/services/notification_service.dart';
 import 'package:simcap/features/profile/widgets/survey_chip_group.dart';
 import 'package:simcap/features/profile/data/survey_data.dart';
 import 'package:simcap/services/auth_service.dart';
@@ -148,6 +149,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             options: noneOption != null
                                 ? [
                                     SurveyOption(
+                                      id: 'none',
                                       label: noneOption,
                                       imagePath: 'assets/images/none.png',
                                     ),
@@ -298,7 +300,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   const SizedBox(height: 40),
 
                   // 메뉴 버튼 (설문 다시하기 제거)
-                  _buildMenuButton('앱 설정', Icons.settings, onTap: () {}),
+                  _buildMenuButton(
+                    '앱 설정',
+                    Icons.settings,
+                    onTap: _showAppSettingsSheet,
+                  ),
                   const SizedBox(height: 24),
                   _buildLogoutButton(),
                 ],
@@ -1023,6 +1029,141 @@ class _ProfileScreenState extends State<ProfileScreen> {
     SupplementProvider.of(context).clearAll();
     // 로그인 화면으로 이동 (스택 전체 교체)
     context.go('/login');
+  }
+
+  void _showAppSettingsSheet() async {
+    // 현재 저장된 설정값 로드
+    final prefs = await SharedPreferences.getInstance();
+    bool doseAlarm = prefs.getBool('setting_dose_alarm') ?? true;
+    bool restockAlarm = prefs.getBool('setting_restock_alarm') ?? true;
+
+    if (!mounted) return;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => StatefulBuilder(
+        builder: (context, setSheetState) => Padding(
+          padding: EdgeInsets.only(
+            left: 24,
+            right: 24,
+            top: 24,
+            bottom: MediaQuery.of(context).padding.bottom + 24,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                '앱 설정',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 20),
+              // 복용 알림 토글
+              _settingToggleRow(
+                icon: Icons.alarm_rounded,
+                title: '복용 알림',
+                subtitle: '영양제 복용 시간에 알림을 보냅니다',
+                value: doseAlarm,
+                onChanged: (val) async {
+                  setSheetState(() => doseAlarm = val);
+                  await prefs.setBool('setting_dose_alarm', val);
+                  final notifier = SupplementProvider.of(context);
+                  if (val) {
+                    // 알림 켜기 — 모든 영양제 알림 재등록
+                    await NotificationService.instance.scheduleAllDoseAlarms(
+                      notifier.supplements.toList(),
+                    );
+                  } else {
+                    // 알림 끄기 — 모든 복용 알림 취소
+                    await NotificationService.instance.cancelAllDoseAlarms();
+                  }
+                },
+              ),
+              const Divider(height: 24),
+              // 재구매 알림 토글
+              _settingToggleRow(
+                icon: Icons.shopping_bag_outlined,
+                title: '재구매 알림',
+                subtitle: '소진 임박 시 알림을 보냅니다',
+                value: restockAlarm,
+                onChanged: (val) async {
+                  setSheetState(() => restockAlarm = val);
+                  await prefs.setBool('setting_restock_alarm', val);
+                  if (val) {
+                    final notifier = SupplementProvider.of(context);
+                    await NotificationService.instance.checkAndNotifyLowStock(
+                      notifier.supplements.toList(),
+                    );
+                  }
+                  // 끄기: 재구매 알림은 다음 체크 시 자동 무시
+                },
+              ),
+              const Divider(height: 24),
+              Row(
+                children: [
+                  const Icon(Icons.info_outline, size: 20, color: Colors.grey),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          '앱 버전',
+                          style: TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                        Text(
+                          'v1.0.0',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey[500],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _settingToggleRow({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required bool value,
+    required ValueChanged<bool> onChanged,
+  }) {
+    return Row(
+      children: [
+        Icon(icon, size: 20, color: AppColors.primary),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
+              Text(
+                subtitle,
+                style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+              ),
+            ],
+          ),
+        ),
+        Switch(
+          value: value,
+          onChanged: onChanged,
+          activeColor: AppColors.primary,
+        ),
+      ],
+    );
   }
 
   Widget _buildLogoutButton() {
