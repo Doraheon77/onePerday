@@ -187,10 +187,10 @@ class _OnboardingSurveyScreenState extends State<OnboardingSurveyScreen> {
                   isScrollControlled: true,
                   backgroundColor: Colors.transparent,
                   isDismissible: false,
-                  builder: (_) => _RecommendSheet(
+                  builder: (sheetContext) => _RecommendSheet(
                     goals: selectedGoals,
                     onStart: () {
-                      Navigator.pop(context);
+                      Navigator.pop(sheetContext);
                       context.go('/home');
                     },
                   ),
@@ -791,8 +791,13 @@ class _RecommendSheet extends StatelessWidget {
                 const SizedBox(height: 20),
                 ...recommended.map((product) => GestureDetector(
                   onTap: () {
-                    Navigator.pop(context);
-                    context.push('/store/detail', extra: product);
+                    onStart(); // 바텀시트 닫고
+                    // 잠깐 딜레이 후 상세로 이동
+                    Future.microtask(() =>
+                        Navigator.of(context, rootNavigator: true)
+                            .push(MaterialPageRoute(
+                                builder: (_) => SupplementDetailScreen(
+                                    product: product))));
                   },
                   child: Container(
                     margin: const EdgeInsets.only(bottom: 12),
