@@ -191,16 +191,16 @@ class SupplementProvider extends InheritedNotifier<SupplementNotifier> {
 // SupplementNotifier — 실제 상태 + 비즈니스 로직
 class SupplementNotifier extends ChangeNotifier {
   // SharedPreferences 키
-  static const _keySupplements  = 'sp_supplements';
-  static const _keyDoseHistory  = 'sp_dose_history';
-  static const _keyCartItems    = 'sp_cart_items';
-  static const _keyPurchases    = 'sp_purchases';
+  static const _keySupplements = 'sp_supplements';
+  static const _keyDoseHistory = 'sp_dose_history';
+  static const _keyCartItems = 'sp_cart_items';
+  static const _keyPurchases = 'sp_purchases';
 
   // 상태 (앱 시작 시 _load()로 초기화)
-  List<Supplement>    _supplements = [];
-  List<DoseRecord>    _doseHistory = [];
-  List<CartItem>      _cartItems   = [];
-  List<PurchaseRecord> _purchases  = [];
+  List<Supplement> _supplements = [];
+  List<DoseRecord> _doseHistory = [];
+  List<CartItem> _cartItems = [];
+  List<PurchaseRecord> _purchases = [];
 
   bool _isLoaded = false;
 
@@ -353,21 +353,20 @@ class SupplementNotifier extends ChangeNotifier {
   /// 총 완전 복용 일수 (누적)
   int get totalDoneDays {
     if (_doseHistory.isEmpty) return 0;
-    final uniqueDates = _doseHistory
-        .map((r) => _dateOnly(r.date))
-        .toSet();
+    final uniqueDates = _doseHistory.map((r) => _dateOnly(r.date)).toSet();
     return uniqueDates.where((day) => isAllDoneOn(day)).length;
   }
 
   /// 역대 최장 연속 복용 일수
   int get bestStreak {
     if (_supplements.isEmpty || _doseHistory.isEmpty) return 0;
-    final doneDays = _doseHistory
-        .map((r) => _dateOnly(r.date))
-        .toSet()
-        .where((day) => isAllDoneOn(day))
-        .toList()
-      ..sort();
+    final doneDays =
+        _doseHistory
+            .map((r) => _dateOnly(r.date))
+            .toSet()
+            .where((day) => isAllDoneOn(day))
+            .toList()
+          ..sort();
     if (doneDays.isEmpty) return 0;
     int best = 1, current = 1;
     for (int i = 1; i < doneDays.length; i++) {
@@ -380,7 +379,6 @@ class SupplementNotifier extends ChangeNotifier {
     }
     return best;
   }
-
 
   /// 특정 날짜에 해당 영양제를 복용했는지 여부
   bool isDoneOn(String supplementName, DateTime date) {
