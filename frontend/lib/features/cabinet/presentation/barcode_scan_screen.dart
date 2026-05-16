@@ -1,8 +1,10 @@
 import 'dart:io';
+import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_mlkit_barcode_scanning/google_mlkit_barcode_scanning.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:simcap/core/constant/app_constants.dart';
 
 /// 통합 스캔 결과
@@ -27,61 +29,148 @@ class BarcodeScanScreen extends StatefulWidget {
 }
 
 class _BarcodeScanScreenState extends State<BarcodeScanScreen> {
-  final MobileScannerController _controller = MobileScannerController(
-    detectionSpeed: DetectionSpeed.normal,
-    facing: CameraFacing.back,
-    torchEnabled: false,
-  );
+  CameraController? _cameraController;
+  final BarcodeScanner _barcodeScanner = BarcodeScanner();
   final ImagePicker _picker = ImagePicker();
 
+  bool _isInitialized = false;
+  bool _isScanning = false;
   bool _hasScanned = false;
   bool _isTorchOn = false;
+  bool _isCapturing = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _initCamera();
+  }
 
   @override
   void dispose() {
-    _controller.dispose();
+    _cameraController?.dispose();
+    _barcodeScanner.close();
     super.dispose();
   }
 
-  // ── 바코드 자동 감지 ─────────────────────────────────────────────────────
-  void _onDetect(BarcodeCapture capture) {
-    if (_hasScanned) return;
-    final barcode = capture.barcodes.firstOrNull;
-    if (barcode == null || barcode.rawValue == null) return;
+  Future<void> _initCamera() async {
+    try {
+      final cameras = await availableCameras();
+      if (cameras.isEmpty) return;
+      final back = cameras.firstWhere(
+        (c) => c.lensDirection == CameraLensDirection.back,
+        orElse: () => cameras.first,
+      );
+      final controller = CameraController(
+        back,
+        ResolutionPreset.high,
+        enableAudio: false,
+        imageFormatGroup: ImageFormatGroup.nv21,
+      );
+      await controller.initialize();
+      if (!mounted) return;
 
-    setState(() => _hasScanned = true);
-    _controller.stop();
-    _showBarcodeResultSheet(barcode);
-  }
+      setState(() {
+        _cameraController = controller;
+        _isInitialized = true;
+      });
 
-  // ── 촬영 버튼 → 라벨 OCR ────────────────────────────────────────────────
-  Future<void> _captureForOCR() async {
-    _controller.stop();
-    final XFile? image = await _picker.pickImage(
-      source: ImageSource.camera,
-      imageQuality: 90,
-    );
-    if (image == null) {
-      _controller.start();
-      return;
+      // 바코드 실시간 감지 시작
+      _startBarcodeScanning();
+    } catch (e) {
+      debugPrint('카메라 초기화 실패: $e');
     }
-    if (!mounted) return;
-    context.pop(ScanResult(imageFile: File(image.path)));
   }
 
-  // ── 갤러리 선택 → OCR ────────────────────────────────────────────────────
+  // ── 실시간 바코드 스캔 ────────────────────────────────────────────────────
+  void _startBarcodeScanning() {
+    _cameraController?.startImageStream((CameraImage image) async {
+      if (_isScanning || _hasScanned || !mounted) return;
+      _isScanning = true;
+
+      try {
+        final inputImage = _convertCameraImage(image);
+        if (inputImage == null) {
+          _isScanning = false;
+          return;
+        }
+
+        final barcodes = await _barcodeScanner.processImage(inputImage);
+        if (barcodes.isNotEmpty && !_hasScanned && mounted) {
+          final barcode = barcodes.first;
+          if (barcode.rawValue != null) {
+            setState(() => _hasScanned = true);
+            await _cameraController?.stopImageStream();
+            if (mounted) _showBarcodeResultSheet(barcode);
+          }
+        }
+      } catch (e) {
+        debugPrint('바코드 스캔 오류: $e');
+      }
+
+      _isScanning = false;
+    });
+  }
+
+  InputImage? _convertCameraImage(CameraImage image) {
+    try {
+      final camera = _cameraController!.description;
+      final rotation =
+          InputImageRotationValue.fromRawValue(camera.sensorOrientation) ??
+          InputImageRotation.rotation0deg;
+
+      final format = InputImageFormatValue.fromRawValue(image.format.raw);
+      if (format == null) return null;
+
+      final plane = image.planes.first;
+      return InputImage.fromBytes(
+        bytes: plane.bytes,
+        metadata: InputImageMetadata(
+          size: Size(image.width.toDouble(), image.height.toDouble()),
+          rotation: rotation,
+          format: format,
+          bytesPerRow: plane.bytesPerRow,
+        ),
+      );
+    } catch (e) {
+      return null;
+    }
+  }
+
+  // ── 라벨 촬영 버튼 ────────────────────────────────────────────────────────
+  Future<void> _captureForOCR() async {
+    if (_cameraController == null || !_isInitialized || _isCapturing) return;
+    setState(() => _isCapturing = true);
+
+    try {
+      // 이미지 스트림 중지
+      await _cameraController!.stopImageStream();
+
+      // 현재 화면 촬영
+      final XFile photo = await _cameraController!.takePicture();
+      if (!mounted) return;
+      context.pop(ScanResult(imageFile: File(photo.path)));
+    } catch (e) {
+      debugPrint('촬영 실패: $e');
+      setState(() => _isCapturing = false);
+      // 스트림 재시작
+      _hasScanned = false;
+      _startBarcodeScanning();
+    }
+  }
+
+  // ── 갤러리 선택 ──────────────────────────────────────────────────────────
   Future<void> _pickGalleryForOCR() async {
-    _controller.stop();
+    await _cameraController?.stopImageStream();
     final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
     if (image == null) {
-      _controller.start();
+      if (mounted) _startBarcodeScanning();
       return;
     }
     if (!mounted) return;
     context.pop(ScanResult(imageFile: File(image.path)));
   }
 
-  // ── 바코드 인식 결과 바텀시트 ────────────────────────────────────────────
+  // ── 바코드 결과 바텀시트 ─────────────────────────────────────────────────
   void _showBarcodeResultSheet(Barcode barcode) {
     showModalBottomSheet(
       context: context,
@@ -127,7 +216,7 @@ class _BarcodeScanScreenState extends State<BarcodeScanScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    _formatBarcodeName(barcode.format),
+                    '바코드',
                     style: TextStyle(
                       fontSize: 12,
                       color: Colors.grey[500],
@@ -166,7 +255,7 @@ class _BarcodeScanScreenState extends State<BarcodeScanScreen> {
                     onPressed: () {
                       Navigator.pop(context);
                       setState(() => _hasScanned = false);
-                      _controller.start();
+                      _startBarcodeScanning();
                     },
                     child: const Text(
                       '다시 스캔',
@@ -192,12 +281,7 @@ class _BarcodeScanScreenState extends State<BarcodeScanScreen> {
                     ),
                     onPressed: () {
                       Navigator.pop(context);
-                      context.pop(
-                        ScanResult(
-                          barcodeValue: barcode.rawValue!,
-                          barcodeFormat: barcode.format,
-                        ),
-                      );
+                      context.pop(ScanResult(barcodeValue: barcode.rawValue!));
                     },
                     child: const Text(
                       '이 바코드 사용',
@@ -211,27 +295,6 @@ class _BarcodeScanScreenState extends State<BarcodeScanScreen> {
         ),
       ),
     );
-  }
-
-  String _formatBarcodeName(BarcodeFormat format) {
-    switch (format) {
-      case BarcodeFormat.ean13:
-        return 'EAN-13 바코드';
-      case BarcodeFormat.ean8:
-        return 'EAN-8 바코드';
-      case BarcodeFormat.upcA:
-        return 'UPC-A 바코드';
-      case BarcodeFormat.upcE:
-        return 'UPC-E 바코드';
-      case BarcodeFormat.qrCode:
-        return 'QR 코드';
-      case BarcodeFormat.code128:
-        return 'Code 128';
-      case BarcodeFormat.code39:
-        return 'Code 39';
-      default:
-        return '바코드';
-    }
   }
 
   @override
@@ -252,8 +315,10 @@ class _BarcodeScanScreenState extends State<BarcodeScanScreen> {
               _isTorchOn ? Icons.flash_on : Icons.flash_off,
               color: _isTorchOn ? Colors.yellow : Colors.white,
             ),
-            onPressed: () {
-              _controller.toggleTorch();
+            onPressed: () async {
+              await _cameraController?.setFlashMode(
+                _isTorchOn ? FlashMode.off : FlashMode.torch,
+              );
               setState(() => _isTorchOn = !_isTorchOn);
             },
           ),
@@ -261,12 +326,16 @@ class _BarcodeScanScreenState extends State<BarcodeScanScreen> {
       ),
       body: Stack(
         children: [
-          // 카메라 전체화면
+          // 카메라 뷰
           Positioned.fill(
-            child: MobileScanner(controller: _controller, onDetect: _onDetect),
+            child: _isInitialized && _cameraController != null
+                ? CameraPreview(_cameraController!)
+                : const Center(
+                    child: CircularProgressIndicator(color: Colors.white),
+                  ),
           ),
 
-          // 하단 버튼 영역만
+          // 하단 버튼
           Positioned(bottom: 0, left: 0, right: 0, child: _buildBottomBar()),
         ],
       ),
@@ -293,28 +362,23 @@ class _BarcodeScanScreenState extends State<BarcodeScanScreen> {
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
-          // 갤러리
           _bottomButton(
             icon: Icons.photo_library_outlined,
             label: '갤러리',
             size: 48,
             onTap: _pickGalleryForOCR,
           ),
-
           const SizedBox(width: 24),
-
-          // 촬영 버튼 (메인)
           _bottomButton(
-            icon: Icons.camera_alt_rounded,
+            icon: _isCapturing
+                ? Icons.hourglass_top_rounded
+                : Icons.camera_alt_rounded,
             label: '라벨 촬영',
             size: 72,
-            onTap: _captureForOCR,
+            onTap: _isCapturing ? () {} : _captureForOCR,
             primary: true,
           ),
-
           const SizedBox(width: 24),
-
-          // 빈 공간 (좌우 균형)
           const SizedBox(width: 48),
         ],
       ),
