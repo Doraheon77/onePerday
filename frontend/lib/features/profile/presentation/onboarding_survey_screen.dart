@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:simcap/core/constant/app_constants.dart';
+import 'package:simcap/features/store/data/store_product_data.dart';
+import 'package:simcap/features/store/presentation/supplement_detail_screen.dart';
 import '../widgets/survey_chip_group.dart';
 import '../data/survey_data.dart';
 
@@ -19,6 +22,7 @@ class _OnboardingSurveyScreenState extends State<OnboardingSurveyScreen> {
   final TextEditingController _ageController = TextEditingController();
 
   int _currentPage = 0;
+  bool _showRecommendAfterLoad = false; // 로딩 후 추천 시트 표시 여부
   String _searchQuery = "";
 
   String? userName;
@@ -113,11 +117,7 @@ class _OnboardingSurveyScreenState extends State<OnboardingSurveyScreen> {
 
     if (noneOption != null) {
       return [
-        SurveyOption(
-          id: 'none',
-          label: noneOption,
-          imagePath: 'assets/images/chronic_condition/none.png',
-        ),
+        SurveyOption(id: 'none', label: noneOption, imagePath: 'assets/images/chronic_condition/none.png'),
         ...filtered,
       ];
     }
@@ -181,8 +181,10 @@ class _OnboardingSurveyScreenState extends State<OnboardingSurveyScreen> {
               _buildFullWidthButton('네, 맞아요! 분석 시작하기', () async {
                 await _saveSurveyData();
                 if (!mounted) return;
-                Navigator.pop(context);
-                _nextPage();
+                // 플래그 설정 — 6페이지 진입 시 추천 시트 표시
+                setState(() => _showRecommendAfterLoad = true);
+                Navigator.pop(context); // 요약 바텀시트 닫기
+                _nextPage(); // 6페이지(로딩 화면)로 이동
               }),
             ],
           ),
@@ -269,7 +271,31 @@ class _OnboardingSurveyScreenState extends State<OnboardingSurveyScreen> {
             child: PageView(
               controller: _pageController,
               physics: const NeverScrollableScrollPhysics(),
-              onPageChanged: (idx) => setState(() => _currentPage = idx),
+              onPageChanged: (idx) {
+                setState(() => _currentPage = idx);
+                // 6페이지(완료 화면) 진입 시 추천 시트 표시
+                if (idx == 5 && _showRecommendAfterLoad) {
+                  _showRecommendAfterLoad = false;
+                  Future.delayed(const Duration(seconds: 2), () {
+                    if (!mounted) return;
+                    showModalBottomSheet(
+                      context: context,
+                      isScrollControlled: true,
+                      backgroundColor: Colors.transparent,
+                      isDismissible: false,
+                      builder: (sheetContext) => _RecommendSheet(
+                        goals: selectedGoals,
+                        onStart: () {
+                          Navigator.pop(sheetContext);
+                          Future.microtask(() {
+                            if (mounted) context.go('/home');
+                          });
+                        },
+                      ),
+                    );
+                  });
+                }
+              },
               children: [
                 _buildBasicInfoStep(),
                 _buildGoalStep(),
@@ -331,7 +357,9 @@ class _OnboardingSurveyScreenState extends State<OnboardingSurveyScreen> {
           ),
           const SizedBox(height: 12),
           SurveyChipGroup(
-            options: [...SurveyData.genderOptions],
+            options: [
+              ...SurveyData.genderOptions,
+            ],
             selectedValues: userGender != null ? [userGender!] : [],
             onSelected: (val, isSelected) =>
                 setState(() => userGender = isSelected ? val : null),
@@ -672,6 +700,191 @@ class _OnboardingSurveyScreenState extends State<OnboardingSurveyScreen> {
             color: Colors.white,
           ),
         ),
+      ),
+    );
+  }
+}
+
+// ── 온보딩 완료 후 추천 영양제 바텀시트 ─────────────────────────────────────
+class _RecommendSheet extends StatelessWidget {
+  final List<String> goals;
+  final VoidCallback onStart;
+
+  const _RecommendSheet({required this.goals, required this.onStart});
+
+  List<StoreProduct> _getRecommended() {
+    final Map<String, List<String>> goalKeywords = {
+      '다이어트': ['오메가', '코큐텐', '유산균'],
+      '근육': ['멀티비타민', '마그네슘'],
+      '면역': ['비타민D', '멀티비타민', '유산균'],
+      '피로': ['코큐텐', '마그네슘', '멀티비타민'],
+      '눈 건강': ['루테인'],
+      '장 건강': ['유산균'],
+      '뼈 건강': ['비타민D', '마그네슘'],
+      '혈관': ['오메가', '코큐텐'],
+      '간 건강': ['밀크씨슬'],
+      '수면': ['마그네슘'],
+    };
+
+    final Set<String> keywords = {};
+    for (final goal in goals) {
+      for (final entry in goalKeywords.entries) {
+        if (goal.contains(entry.key) || entry.key.contains(goal)) {
+          keywords.addAll(entry.value);
+        }
+      }
+    }
+
+    final matched = allProducts
+        .where((p) => keywords.any((k) => p.name.contains(k)))
+        .toList();
+
+    return matched.isEmpty
+        ? allProducts.take(3).toList()
+        : matched.take(4).toList();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final recommended = _getRecommended();
+
+    return Container(
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).padding.bottom + 16,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            margin: const EdgeInsets.only(top: 12, bottom: 8),
+            width: 40,
+            height: 4,
+            decoration: BoxDecoration(
+              color: Colors.grey[300],
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(24, 12, 24, 0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: const BoxDecoration(
+                      color: AppColors.primaryLight,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.auto_awesome,
+                        color: AppColors.primary, size: 20),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('맞춤 영양제 추천',
+                            style: TextStyle(
+                                fontSize: 18, fontWeight: FontWeight.bold)),
+                        Text(
+                          goals.isEmpty
+                              ? '인기 영양제를 확인해보세요'
+                              : '${goals.take(2).join(', ')} 목표에 맞는 영양제예요',
+                          style: TextStyle(
+                              fontSize: 12, color: Colors.grey[500]),
+                        ),
+                      ],
+                    ),
+                  ),
+                ]),
+                const SizedBox(height: 20),
+                ...recommended.map((product) => GestureDetector(
+                  onTap: () {
+                    onStart(); // 바텀시트 닫고
+                    // 잠깐 딜레이 후 상세로 이동
+                    Future.microtask(() =>
+                        Navigator.of(context, rootNavigator: true)
+                            .push(MaterialPageRoute(
+                                builder: (_) => SupplementDetailScreen(
+                                    product: product))));
+                  },
+                  child: Container(
+                    margin: const EdgeInsets.only(bottom: 12),
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: AppColors.scaffoldBg,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: AppColors.border),
+                    ),
+                    child: Row(children: [
+                      Container(
+                        width: 44,
+                        height: 44,
+                        decoration: const BoxDecoration(
+                          color: AppColors.primaryLight,
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.medication_rounded,
+                            color: AppColors.primary, size: 22),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(product.name,
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 14),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis),
+                            Text(product.brand,
+                                style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.grey[500])),
+                          ],
+                        ),
+                      ),
+                      Text(
+                        '${product.price.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]},')}원',
+                        style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.primary),
+                      ),
+                      const SizedBox(width: 4),
+                      const Icon(Icons.chevron_right_rounded,
+                          size: 18, color: Colors.grey),
+                    ]),
+                  ),
+                )),
+                const SizedBox(height: 8),
+                SizedBox(
+                  width: double.infinity,
+                  height: 54,
+                  child: ElevatedButton(
+                    onPressed: onStart,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16)),
+                    ),
+                    child: const Text('앱 시작하기',
+                        style: TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.bold)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
