@@ -18,6 +18,7 @@ import 'package:simcap/features/store/presentation/search_screen.dart';
 import 'package:simcap/features/store/presentation/basket_screen.dart';
 import 'package:simcap/features/store/presentation/supplement_detail_screen.dart';
 import 'package:simcap/main.dart';
+import 'package:simcap/features/profile/presentation/splash_screen.dart';
 
 // 슬라이드 업 전환 (모달성 화면용)
 CustomTransitionPage<T> _slideUp<T>(
@@ -70,8 +71,16 @@ class AppRouter {
 
   static final GoRouter router = GoRouter(
     navigatorKey: navigatorKey,
-    initialLocation: '/login',
+    initialLocation: '/splash',
     routes: [
+      GoRoute(
+        path: '/',
+        redirect:(context, state) => '/splash',
+      ),
+      GoRoute(
+        path: '/splash',
+        builder:(context, state) => const SplashScreen(),
+      ),
       GoRoute(path: '/login', builder: (context, state) => const LoginScreen()),
       GoRoute(
         path: '/onboarding',
