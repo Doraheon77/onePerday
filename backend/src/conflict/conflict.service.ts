@@ -3,6 +3,7 @@ import { Conflict } from './entities/conflict.entity';
 import { HttpService } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
 import { firstValueFrom } from 'rxjs';
+import { PrismaService } from '../prisma/prisma.service';
 
 interface UserConflictRecord {
   piilName: string;
@@ -27,8 +28,37 @@ export class ConflictService {
   constructor(
     private readonly httpService: HttpService,
     private readonly configService: ConfigService,
+    private readonly prisma: PrismaService,
   ) {
     this.durApiKey = this.configService.get<string>('DUR_API_KEY') || '';
+  }
+
+  async checkConflictsByIds(supplementIds: number[]) {
+    if (!supplementIds || supplementIds.length === 0) {
+      return [];
+    }
+
+    const supplementBigIntIds = supplementIds.map((id) => BigInt(id));
+
+    const selectedSupplements = await this.prisma.supplements.findMany({
+      where: {
+        id: {
+          in: supplementBigIntIds,
+        },
+      },
+      include: {
+        supplements_ingredients: true,
+      },
+    });
+
+    const conflicts: Conflict[] = selectedSupplements.map((s) => ({
+      name: s.product_name,
+      ingredients: s.supplements_ingredients
+        .map((si) => si.ingredient_name?.trim())
+        .filter(Boolean) as string[],
+    }));
+
+    return this.checkConflicts(conflicts);
   }
 
   async checkConflicts(conflicts: Conflict[]) {

@@ -2,7 +2,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:simcap/core/constant/app_constants.dart';
-import 'package:simcap/features/store/data/store_product_data.dart';
 import 'package:simcap/features/store/presentation/supplement_detail_screen.dart';
 import 'package:simcap/services/store_api_service.dart';
 
@@ -14,11 +13,9 @@ class StoreScreen extends StatefulWidget {
 }
 
 class _StoreScreenState extends State<StoreScreen> {
-  // HS - [DB 연동 추가 상태]
   List<StoreProduct> _allProducts = [];
   List<StoreProduct> _recommendedProducts = []; // 신규 추가: 맞춤 추천 영양제 리스트
   bool _isLoading = true;
-  // HS - [DB 연동 추가 상태] - end
 
   String _selectedRankCategory = '여성';
   String _selectedPriceRange = '전체';
@@ -36,9 +33,7 @@ class _StoreScreenState extends State<StoreScreen> {
   @override
   void initState() {
     super.initState();
-    // HS - [DB 연동 추가]
     _fetchProducts();
-    // HS - [DB 연동 추가] - end
 
     _bannerTimer = Timer.periodic(const Duration(milliseconds: 3500), (timer) {
       if (_currentBannerPage < _banners.length - 1) {
@@ -64,7 +59,6 @@ class _StoreScreenState extends State<StoreScreen> {
     super.dispose();
   }
 
-  // HS - [DB에서 데이터 로드]
   Future<void> _fetchProducts() async {
     try {
       final service = StoreApiService();
@@ -92,7 +86,6 @@ class _StoreScreenState extends State<StoreScreen> {
       });
     }
   }
-  // HS - [DB에서 데이터 로드] - end
 
   @override
   Widget build(BuildContext context) {

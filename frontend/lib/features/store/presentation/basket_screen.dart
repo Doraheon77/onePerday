@@ -3,8 +3,8 @@ import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:simcap/core/constant/app_constants.dart';
 import 'package:simcap/providers/supplement_provider.dart';
-import 'package:simcap/features/cabinet/domain/dataModels/supplement_model.dart';
 import 'package:simcap/services/intake_api_service.dart';
+import 'package:simcap/services/conflict_api_service.dart';
 
 // 검사 결과 데이터 모델
 
@@ -247,45 +247,68 @@ class _BasketScreenState extends State<BasketScreen> {
     final userHealth = prefs.getStringList('selectedHealth') ?? [];
     final userAllergies = prefs.getStringList('selectedAllergies') ?? [];
 
-    await Future.delayed(const Duration(milliseconds: 600));
-
     final results = <_ContraindicationResult>[];
 
-    // 1. 상품명 기반 중복 성분 검사
-    // CartItem에는 nutrients 필드가 없으므로 상품명으로 성분 추정
-    final dangerousPairs = <(List<String>, String, String)>[
-      (['비타민A', '비타민 A', '레티놀'], '비타민 A', '지용성 비타민 — 합산 시 독성 위험'),
-      (['비타민D', '비타민 D', 'D3'], '비타민 D', '지용성 비타민 — 합산 시 고칼슘혈증 위험'),
-      (['비타민E', '비타민 E', '토코페롤'], '비타민 E', '혈액 응고 억제 중복 — 출혈 위험 증가'),
-      (['칼슘', 'Ca', '탄산칼슘', 'calcium'], '칼슘', '고칼슘혈증 위험'),
-      (['아연', 'Zinc', 'zinc', '징크'], '아연', '면역 독성 위험 — 구리 흡수 방해'),
-      (['철분', '철', 'Iron', 'iron'], '철분', '철 과부하 — 산화 스트레스 증가'),
-      (['오메가3', '오메가-3', 'EPA', 'DHA', '어유'], '오메가3', '혈액 희석 효과 중복 — 출혈 위험'),
-    ];
-
-    for (final pair in dangerousPairs) {
-      final aliases = pair.$1;
-      final nutrientName = pair.$2;
-      final reason = pair.$3;
-
-      // 상품명에 해당 성분 키워드가 포함된 상품 찾기
-      final matching = checkedItems
-          .where(
-            (c) => aliases.any(
-              (a) => c.name.toLowerCase().contains(a.toLowerCase()),
-            ),
-          )
+    // 1. 실제 백엔드 DUR API 기반 성분 상호작용(병용금기) 검사
+    try {
+      final supplementIds = checkedItems
+          .map((item) => int.tryParse(item.productId))
+          .whereType<int>()
           .toList();
 
-      if (matching.length >= 2) {
-        results.add(
-          _ContraindicationResult(
-            item1: matching[0].name,
-            item2: matching[1].name,
-            reason: '[$nutrientName 중복] $reason',
-            status: _CheckStatus.warning,
-          ),
+      if (supplementIds.isNotEmpty) {
+        final conflictApi = ConflictApiService();
+        final backendConflicts = await conflictApi.checkConflictsBySupplementIds(
+          supplementIds: supplementIds,
         );
+
+        for (final conflict in backendConflicts) {
+          results.add(
+            _ContraindicationResult(
+              item1: conflict.conflicts.isNotEmpty ? conflict.conflicts[0] : '',
+              item2: conflict.conflicts.length > 1 ? conflict.conflicts[1] : '',
+              reason: '[병용금기] ${conflict.reason} (${conflict.conflictingIngredients.join(", ")} 성분 충돌)',
+              status: _CheckStatus.danger,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint('[BasketScreen] DUR 병용금기 백엔드 검사 실패: $e');
+      // 백엔드 실패 시 로컬 더미 중복 성분 검사로 폴백(fallback)하여 사용자 경험을 유지합니다.
+      final dangerousPairs = <(List<String>, String, String)>[
+        (['비타민A', '비타민 A', '레티놀'], '비타민 A', '지용성 비타민 — 합산 시 독성 위험'),
+        (['비타민D', '비타민 D', 'D3'], '비타민 D', '지용성 비타민 — 합산 시 고칼슘혈증 위험'),
+        (['비타민E', '비타민 E', '토코페롤'], '비타민 E', '혈액 응고 억제 중복 — 출혈 위험 증가'),
+        (['칼슘', 'Ca', '탄산칼슘', 'calcium'], '칼슘', '고칼슘혈증 위험'),
+        (['아연', 'Zinc', 'zinc', '징크'], '아연', '면역 독성 위험 — 구리 흡수 방해'),
+        (['철분', '철', 'Iron', 'iron'], '철분', '철 과부하 — 산화 스트레스 증가'),
+        (['오메가3', '오메가-3', 'EPA', 'DHA', '어유'], '오메가3', '혈액 희석 효과 중복 — 출혈 위험'),
+      ];
+
+      for (final pair in dangerousPairs) {
+        final aliases = pair.$1;
+        final nutrientName = pair.$2;
+        final reason = pair.$3;
+
+        final matching = checkedItems
+            .where(
+              (c) => aliases.any(
+                (a) => c.name.toLowerCase().contains(a.toLowerCase()),
+              ),
+            )
+            .toList();
+
+        if (matching.length >= 2) {
+          results.add(
+            _ContraindicationResult(
+              item1: matching[0].name,
+              item2: matching[1].name,
+              reason: '[$nutrientName 중복] $reason',
+              status: _CheckStatus.warning,
+            ),
+          );
+        }
       }
     }
 

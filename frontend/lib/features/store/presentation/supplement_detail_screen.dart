@@ -20,19 +20,6 @@ class StoreProduct {
   final String? purchaseUrl;
   final String? imageUrl;
 
-  // 기존 코드
-  // const StoreProduct({
-  //   required this.id,
-  //   required this.name,
-  //   required this.brand,
-  //   required this.price,
-  //   required this.description,
-  //   required this.nutrients,
-  //   this.contraindications = const [],
-  //   this.similarProducts = const [],
-  //   this.purchaseUrl,
-  // });
-
   const StoreProduct({
     required this.id,
     required this.name,
@@ -185,15 +172,20 @@ class _SupplementDetailScreenState extends State<SupplementDetailScreen> {
   void _addToCart(BuildContext context) {
     final notifier = SupplementProvider.of(context);
     final p = widget.product;
+    final alreadyInCart = _isInCart(context);
 
     notifier.addToCart(
       CartItem(productId: p.id, name: p.name, brand: p.brand, price: p.price),
     );
 
+    // 이전 스낵바들을 즉시 지워 연속 클릭 시 버벅임 없앰
+    ScaffoldMessenger.of(context).clearSnackBars();
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
+        duration: const Duration(seconds: 2), // 2초 후 자동으로 사라짐
         content: Text(
-          notifier.isInCart(p.id)
+          alreadyInCart
               ? '${p.name} 수량을 추가했습니다.'
               : '${p.name}을(를) 장바구니에 담았습니다!',
         ),
@@ -202,7 +194,9 @@ class _SupplementDetailScreenState extends State<SupplementDetailScreen> {
         action: SnackBarAction(
           label: '장바구니 보기',
           textColor: Colors.white,
-          onPressed: () => context.push('/store/basket'),
+          onPressed: () {
+            context.push('/store/basket');
+          },
         ),
       ),
     );

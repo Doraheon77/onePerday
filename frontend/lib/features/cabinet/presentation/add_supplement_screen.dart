@@ -1,17 +1,19 @@
 import 'dart:io';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:http/http.dart' as http;
 import 'package:simcap/core/constant/app_constants.dart';
 import 'package:simcap/features/cabinet/domain/dataModels/supplement_model.dart';
 import 'package:simcap/features/cabinet/presentation/barcode_scan_screen.dart';
 
 // ── 탭 인덱스 상수 ───────────────────────────────────────────────────────────
 // 0: 라벨 촬영  /  1: 바코드 스캔  /  2: 직접 입력
-const int _tabLabel   = 0;
+const int _tabLabel = 0;
 const int _tabBarcode = 1;
-const int _tabManual  = 2;
+const int _tabManual = 2;
 
 class AddSupplementScreen extends StatefulWidget {
   /// 편집 모드: 기존 영양제 전달 시 폼에 데이터 자동 입력
@@ -26,13 +28,12 @@ class AddSupplementScreen extends StatefulWidget {
 
 class _AddSupplementScreenState extends State<AddSupplementScreen>
     with SingleTickerProviderStateMixin {
-
   // ── 탭 상태 ─────────────────────────────────────────────────────────────
   late final TabController _tabController;
   int _selectedTab = _tabLabel; // 초기: 라벨 촬영
 
   // ── OCR 상태 ─────────────────────────────────────────────────────────────
-  bool _isLoadingOCR  = false;
+  bool _isLoadingOCR = false;
   File? _selectedImage;
   final ImagePicker _picker = ImagePicker();
 
@@ -43,10 +44,10 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
   bool _showNameError = false;
   MealTiming _selectedMealTiming = MealTiming.afterMeal;
 
-  final _nameController      = TextEditingController();
-  final _brandController     = TextEditingController();
-  final _nutrientController  = TextEditingController();
-  int _dailyDose      = 1; // 1회 복용량
+  final _nameController = TextEditingController();
+  final _brandController = TextEditingController();
+  final _nutrientController = TextEditingController();
+  int _dailyDose = 1; // 1회 복용량
   int _dailyFrequency = 1; // 하루 복용 횟수
   List<TimeOfDay> _alarmTimes = []; // 사용자 지정 알림 시간
   final _remainingController = TextEditingController(text: '30');
@@ -63,15 +64,14 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
     // 편집 모드: 기존 데이터로 폼 초기화 + 직접 입력 탭으로 고정
     final item = widget.initialItem;
     if (item != null) {
-      _nameController.text      = item.name;
-      _brandController.text     = item.brand;
-      _nutrientController.text  =
-          item.nutrients.map((n) => n.name).join(', ');
+      _nameController.text = item.name;
+      _brandController.text = item.brand;
+      _nutrientController.text = item.nutrients.map((n) => n.name).join(', ');
       _remainingController.text = item.remaining.toString();
-      _dailyDose      = item.dailyDose;
+      _dailyDose = item.dailyDose;
       _dailyFrequency = item.dailyFrequency;
-      _alarmTimes     = List.from(item.alarmTimes);
-      _selectedMealTiming       = item.mealTiming;
+      _alarmTimes = List.from(item.alarmTimes);
+      _selectedMealTiming = item.mealTiming;
       // 편집 모드는 직접 입력 탭으로 시작
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _tabController.animateTo(_tabManual);
@@ -93,25 +93,45 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
   Future<void> _processOCR(File imageFile) async {
     setState(() => _isLoadingOCR = true);
     try {
-      // TODO: 팀원 OCR 서비스 함수 호출로 교체
-      // final result = await YourTeamMemberOCRService.analyze(imageFile);
-      await Future.delayed(const Duration(seconds: 2)); // 시뮬레이션
+      // 실제 NestJS 백엔드 OCR API 호출
+      final uri = Uri.parse('http://10.0.2.2:3000/supplements/ocr');
+      final request = http.MultipartRequest('POST', uri);
 
-      if (!mounted) return;
-      setState(() {
-        _nameController.text     = '멀티비타민 골드';   // result.productName
-        _brandController.text    = '시뮬레이션 브랜드'; // result.brandName
-        _nutrientController.text = '비타민C, 비타민D, 아연'; // result.nutrients
-        _isLoadingOCR = false;
-        // OCR 완료 → 직접 입력 탭으로 자동 이동
-        _tabController.animateTo(_tabManual);
-      });
+      // 파일 추가
+      request.files.add(
+        await http.MultipartFile.fromPath('image', imageFile.path),
+      );
+
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final Map<String, dynamic> result = json.decode(
+          utf8.decode(response.bodyBytes),
+        );
+
+        if (!mounted) return;
+        setState(() {
+          _nameController.text = result['productName'] ?? '알 수 없는 영양제';
+          _brandController.text = result['brandName'] ?? '알 수 없는 브랜드';
+          _nutrientController.text = result['nutrients'] ?? '비타민C, 비타민D, 아연';
+          _isLoadingOCR = false;
+          // OCR 완료 → 직접 입력 탭으로 자동 이동
+          _tabController.animateTo(_tabManual);
+        });
+      } else {
+        throw Exception(
+          'Server responded with status code: ${response.statusCode}',
+        );
+      }
     } catch (e) {
+      debugPrint('OCR Upload Error: $e');
       if (!mounted) return;
       setState(() => _isLoadingOCR = false);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('OCR 분석에 실패했습니다. 내용을 직접 확인해주세요.')),
       );
+      // 실패하더라도 사용자가 직접 입력할 수 있도록 탭 이동
       _tabController.animateTo(_tabManual);
     }
   }
@@ -119,7 +139,9 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
   // ── 이미지 선택 ──────────────────────────────────────────────────────────
   Future<void> _pickFromCamera() async {
     final XFile? image = await _picker.pickImage(
-        source: ImageSource.camera, imageQuality: 90);
+      source: ImageSource.camera,
+      imageQuality: 90,
+    );
     if (image != null) _handlePickedImage(File(image.path));
   }
 
@@ -177,14 +199,16 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
       imagePath: _selectedImage?.path,
       remaining: int.tryParse(_remainingController.text) ?? 0,
       total: (int.tryParse(_remainingController.text) ?? 0) + 30,
-      dailyDose:      _dailyDose,
+      dailyDose: _dailyDose,
       dailyFrequency: _dailyFrequency,
-      alarmTimes:     _alarmTimes,
+      alarmTimes: _alarmTimes,
       mealTiming: _selectedMealTiming,
       nutrients: _nutrientController.text
           .split(',')
           .where((e) => e.trim().isNotEmpty)
-          .map((e) => Nutrient(name: e.trim(), value: 0, unit: '', percent: 0.7))
+          .map(
+            (e) => Nutrient(name: e.trim(), value: 0, unit: '', percent: 0.7),
+          )
           .toList(),
       analysisGuide: '방금 등록된 영양제입니다.',
       aiSummary: '분석 데이터 준비 중',
@@ -203,25 +227,28 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
       backgroundColor: AppColors.scaffoldBg,
       appBar: _buildAppBar(),
       body: Column(
-          children: [
-            // ── 상단 탭바 ───────────────────────────────────────────────
-            _buildTabBar(),
-            const Divider(height: 1),
-            // ── 탭 콘텐츠 ───────────────────────────────────────────────
-            Expanded(
-              child: AnimatedSwitcher(
-                duration: const Duration(milliseconds: 250),
-                switchInCurve: Curves.easeOut,
-                switchOutCurve: Curves.easeIn,
-                child: _buildTabContent(),
-              ),
+        children: [
+          // ── 상단 탭바 ───────────────────────────────────────────────
+          _buildTabBar(),
+          const Divider(height: 1),
+          // ── 탭 콘텐츠 ───────────────────────────────────────────────
+          Expanded(
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 250),
+              switchInCurve: Curves.easeOut,
+              switchOutCurve: Curves.easeIn,
+              child: _buildTabContent(),
             ),
-          ],
-        ),
+          ),
+        ],
+      ),
       bottomNavigationBar: _selectedTab == _tabManual
           ? SafeArea(
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 10,
+                ),
                 child: _buildRegisterButton(),
               ),
             )
@@ -232,11 +259,14 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
   // ── AppBar ──────────────────────────────────────────────────────────────
   PreferredSizeWidget _buildAppBar() {
     final isEditMode = widget.initialItem != null;
-    const tabTitles  = ['라벨 촬영', '바코드 스캔', '직접 입력'];
+    const tabTitles = ['라벨 촬영', '바코드 스캔', '직접 입력'];
     return AppBar(
       title: Text(
         isEditMode ? '영양제 수정' : tabTitles[_selectedTab],
-        style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+        style: const TextStyle(
+          color: Colors.black,
+          fontWeight: FontWeight.bold,
+        ),
       ),
       backgroundColor: Colors.white,
       elevation: 0,
@@ -268,9 +298,12 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
         indicatorColor: AppColors.primary,
         indicatorWeight: 2.5,
         tabs: const [
-          Tab(icon: Icon(Icons.camera_alt_rounded, size: 18),    text: '라벨 촬영'),
-          Tab(icon: Icon(Icons.qr_code_scanner_rounded, size: 18), text: '바코드 스캔'),
-          Tab(icon: Icon(Icons.edit_note_rounded, size: 18),     text: '직접 입력'),
+          Tab(icon: Icon(Icons.camera_alt_rounded, size: 18), text: '라벨 촬영'),
+          Tab(
+            icon: Icon(Icons.qr_code_scanner_rounded, size: 18),
+            text: '바코드 스캔',
+          ),
+          Tab(icon: Icon(Icons.edit_note_rounded, size: 18), text: '직접 입력'),
         ],
       ),
     );
@@ -279,10 +312,14 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
   // ── 탭 콘텐츠 분기 ──────────────────────────────────────────────────────
   Widget _buildTabContent() {
     switch (_selectedTab) {
-      case _tabLabel:   return _buildLabelTab();
-      case _tabBarcode: return _buildBarcodeTab();
-      case _tabManual:  return _buildManualTab();
-      default:          return _buildLabelTab();
+      case _tabLabel:
+        return _buildLabelTab();
+      case _tabBarcode:
+        return _buildBarcodeTab();
+      case _tabManual:
+        return _buildManualTab();
+      default:
+        return _buildLabelTab();
     }
   }
 
@@ -323,8 +360,8 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
                 child: _isLoadingOCR
                     ? _buildOCRLoading()
                     : _selectedImage != null
-                        ? _buildImagePreviewInCard()
-                        : _buildLabelGuide(),
+                    ? _buildImagePreviewInCard()
+                    : _buildLabelGuide(),
               ),
             ),
             const SizedBox(height: 24),
@@ -412,7 +449,9 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
         ),
         // 어두운 오버레이 + 분석 완료 뱃지
         Positioned(
-          bottom: 12, left: 12, right: 12,
+          bottom: 12,
+          left: 12,
+          right: 12,
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: BoxDecoration(
@@ -426,8 +465,11 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
                 SizedBox(width: 6),
                 Text(
                   '분석 완료 — 직접 입력 탭에서 확인하세요',
-                  style: TextStyle(color: Colors.white, fontSize: 12,
-                      fontWeight: FontWeight.bold),
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ],
             ),
@@ -448,8 +490,10 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
           style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 6),
-        Text('잠시만 기다려 주세요',
-            style: TextStyle(fontSize: 13, color: Colors.grey[500])),
+        Text(
+          '잠시만 기다려 주세요',
+          style: TextStyle(fontSize: 13, color: Colors.grey[500]),
+        ),
       ],
     );
   }
@@ -474,8 +518,7 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, size: 18,
-                color: filled ? Colors.white : Colors.black87),
+            Icon(icon, size: 18, color: filled ? Colors.white : Colors.black87),
             const SizedBox(width: 6),
             Text(
               label,
@@ -531,7 +574,8 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
                 boxShadow: [
                   BoxShadow(
                     color: Colors.black.withOpacity(0.05),
-                    blurRadius: 16, offset: const Offset(0, 6),
+                    blurRadius: 16,
+                    offset: const Offset(0, 6),
                   ),
                 ],
               ),
@@ -559,7 +603,10 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
                     '영양제 포장의 바코드를 스캔하면\n제품 정보를 자동으로 불러와요',
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                        fontSize: 13, color: Colors.grey[500], height: 1.6),
+                      fontSize: 13,
+                      color: Colors.grey[500],
+                      height: 1.6,
+                    ),
                   ),
                   const SizedBox(height: 24),
                   // 스캔된 바코드 결과 표시
@@ -571,36 +618,47 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
                         color: AppColors.primaryLight,
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
-                            color: AppColors.primary.withOpacity(0.3)),
+                          color: AppColors.primary.withOpacity(0.3),
+                        ),
                       ),
                       child: Row(
                         children: [
-                          const Icon(Icons.check_circle_rounded,
-                              color: AppColors.primary, size: 20),
+                          const Icon(
+                            Icons.check_circle_rounded,
+                            color: AppColors.primary,
+                            size: 20,
+                          ),
                           const SizedBox(width: 10),
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                const Text('인식된 바코드',
-                                    style: TextStyle(
-                                        fontSize: 11,
-                                        color: AppColors.primaryDark)),
+                                const Text(
+                                  '인식된 바코드',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: AppColors.primaryDark,
+                                  ),
+                                ),
                                 Text(
                                   _scannedBarcode!,
                                   style: const TextStyle(
-                                      fontSize: 15,
-                                      fontWeight: FontWeight.bold,
-                                      color: AppColors.primaryDark,
-                                      letterSpacing: 1.2),
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.bold,
+                                    color: AppColors.primaryDark,
+                                    letterSpacing: 1.2,
+                                  ),
                                 ),
                               ],
                             ),
                           ),
                           // 초기화 버튼
                           IconButton(
-                            icon: const Icon(Icons.close,
-                                size: 16, color: Colors.grey),
+                            icon: const Icon(
+                              Icons.close,
+                              size: 16,
+                              color: Colors.grey,
+                            ),
                             onPressed: () =>
                                 setState(() => _scannedBarcode = null),
                           ),
@@ -627,7 +685,9 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
                       label: Text(
                         _scannedBarcode != null ? '다시 스캔하기' : '스캔 시작',
                         style: const TextStyle(
-                            fontSize: 16, fontWeight: FontWeight.bold),
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
                   ),
@@ -645,14 +705,12 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.info_outline,
-                      size: 16, color: Colors.grey),
+                  const Icon(Icons.info_outline, size: 16, color: Colors.grey),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
                       'EAN-13 · UPC-A · QR코드 형식을 지원합니다',
-                      style: TextStyle(
-                          fontSize: 12, color: Colors.grey[500]),
+                      style: TextStyle(fontSize: 12, color: Colors.grey[500]),
                     ),
                   ),
                 ],
@@ -694,16 +752,18 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
         const SizedBox(height: 24),
         _buildSectionTitle('복용 및 수량 설정'),
         _buildMealTimingSelector(),
-        _buildQuantityStepper('1회 복용량 (정/캡슐)', _dailyDose,
-            (v) => setState(() => _dailyDose = v)),
-        _buildQuantityStepper('하루 복용 횟수', _dailyFrequency,
-            (v) {
-              setState(() {
-                _dailyFrequency = v;
-                // 횟수가 바뀌면 알림 시간 초기화 (기본값으로)
-                _alarmTimes = [];
-              });
-            }),
+        _buildQuantityStepper(
+          '1회 복용량 (정/캡슐)',
+          _dailyDose,
+          (v) => setState(() => _dailyDose = v),
+        ),
+        _buildQuantityStepper('하루 복용 횟수', _dailyFrequency, (v) {
+          setState(() {
+            _dailyFrequency = v;
+            // 횟수가 바뀌면 알림 시간 초기화 (기본값으로)
+            _alarmTimes = [];
+          });
+        }),
 
         const SizedBox(height: 8),
         _buildAlarmTimesSection(),
@@ -727,16 +787,20 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
       ),
       child: Row(
         children: [
-          const Icon(Icons.qr_code_scanner_rounded,
-              size: 16, color: AppColors.shippingFg),
+          const Icon(
+            Icons.qr_code_scanner_rounded,
+            size: 16,
+            color: AppColors.shippingFg,
+          ),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
               '바코드 인식됨: $_scannedBarcode',
               style: const TextStyle(
-                  fontSize: 12,
-                  color: AppColors.shippingFg,
-                  fontWeight: FontWeight.w500),
+                fontSize: 12,
+                color: AppColors.shippingFg,
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ),
         ],
@@ -763,7 +827,9 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
             borderRadius: BorderRadius.circular(8),
             child: Image.file(
               _selectedImage!,
-              width: 60, height: 60, fit: BoxFit.cover,
+              width: 60,
+              height: 60,
+              fit: BoxFit.cover,
             ),
           ),
           const SizedBox(width: 12),
@@ -771,10 +837,14 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('사진 업로드 완료',
-                    style: TextStyle(fontWeight: FontWeight.bold)),
-                Text('정보가 자동으로 입력되었습니다',
-                    style: TextStyle(fontSize: 12, color: Colors.grey)),
+                Text(
+                  '사진 업로드 완료',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                Text(
+                  '정보가 자동으로 입력되었습니다',
+                  style: TextStyle(fontSize: 12, color: Colors.grey),
+                ),
               ],
             ),
           ),
@@ -799,8 +869,10 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('복용 시점',
-              style: TextStyle(fontWeight: FontWeight.w500, fontSize: 14)),
+          const Text(
+            '복용 시점',
+            style: TextStyle(fontWeight: FontWeight.w500, fontSize: 14),
+          ),
           const SizedBox(height: 12),
           Row(
             children: MealTiming.values.map((timing) {
@@ -813,22 +885,30 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
                     margin: const EdgeInsets.only(right: 6),
                     padding: const EdgeInsets.symmetric(vertical: 10),
                     decoration: BoxDecoration(
-                      color: isSelected ? AppColors.primary : AppColors.dividerBg,
+                      color: isSelected
+                          ? AppColors.primary
+                          : AppColors.dividerBg,
                       borderRadius: BorderRadius.circular(10),
                       border: Border.all(
-                        color: isSelected ? AppColors.primary : AppColors.border,
+                        color: isSelected
+                            ? AppColors.primary
+                            : AppColors.border,
                       ),
                     ),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(_mealTimingIcon(timing), size: 18,
-                            color: isSelected ? Colors.white : Colors.grey[500]),
+                        Icon(
+                          _mealTimingIcon(timing),
+                          size: 18,
+                          color: isSelected ? Colors.white : Colors.grey[500],
+                        ),
                         const SizedBox(height: 4),
                         Text(
                           timing.label,
                           style: TextStyle(
-                            fontSize: 11, fontWeight: FontWeight.w600,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
                             color: isSelected ? Colors.white : Colors.grey[600],
                           ),
                         ),
@@ -846,10 +926,14 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
 
   IconData _mealTimingIcon(MealTiming timing) {
     switch (timing) {
-      case MealTiming.beforeMeal:  return Icons.lunch_dining_outlined;
-      case MealTiming.afterMeal:   return Icons.restaurant_outlined;
-      case MealTiming.beforeSleep: return Icons.bedtime_outlined;
-      case MealTiming.anytime:     return Icons.access_time_outlined;
+      case MealTiming.beforeMeal:
+        return Icons.lunch_dining_outlined;
+      case MealTiming.afterMeal:
+        return Icons.restaurant_outlined;
+      case MealTiming.beforeSleep:
+        return Icons.bedtime_outlined;
+      case MealTiming.anytime:
+        return Icons.access_time_outlined;
     }
   }
 
@@ -857,8 +941,8 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
     String hint,
     TextEditingController controller, {
     bool isMultiLine = false,
-    bool isNumber    = false,
-    bool hasError    = false,
+    bool isNumber = false,
+    bool hasError = false,
   }) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -874,7 +958,8 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
       child: TextField(
         controller: controller,
         onChanged: (val) {
-          if (hasError && val.isNotEmpty) setState(() => _showNameError = false);
+          if (hasError && val.isNotEmpty)
+            setState(() => _showNameError = false);
         },
         maxLines: isMultiLine ? 3 : 1,
         keyboardType: isNumber ? TextInputType.number : TextInputType.text,
@@ -890,7 +975,10 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
   }
 
   Widget _buildQuantityStepper(
-      String label, int value, void Function(int) onChanged) {
+    String label,
+    int value,
+    void Function(int) onChanged,
+  ) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -902,8 +990,10 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
       child: Row(
         children: [
           Expanded(
-            child: Text(label,
-                style: const TextStyle(fontWeight: FontWeight.w500)),
+            child: Text(
+              label,
+              style: const TextStyle(fontWeight: FontWeight.w500),
+            ),
           ),
           // 감소 버튼
           GestureDetector(
@@ -911,22 +1001,26 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
               if (value > 1) onChanged(value - 1);
             },
             child: Container(
-              width: 32, height: 32,
+              width: 32,
+              height: 32,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 border: Border.all(
                   color: value > 1 ? Colors.grey : Colors.grey.shade300,
                 ),
               ),
-              child: Icon(Icons.remove,
-                  size: 16,
-                  color: value > 1 ? Colors.grey : Colors.grey.shade300),
+              child: Icon(
+                Icons.remove,
+                size: 16,
+                color: value > 1 ? Colors.grey : Colors.grey.shade300,
+              ),
             ),
           ),
           const SizedBox(width: 12),
           // 숫자 표시
           Container(
-            width: 44, height: 36,
+            width: 44,
+            height: 36,
             alignment: Alignment.center,
             decoration: BoxDecoration(
               color: AppColors.primaryLight,
@@ -948,13 +1042,13 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
               if (value < 99) onChanged(value + 1);
             },
             child: Container(
-              width: 32, height: 32,
+              width: 32,
+              height: 32,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 border: Border.all(color: AppColors.primary),
               ),
-              child: const Icon(Icons.add,
-                  size: 16, color: AppColors.primary),
+              child: const Icon(Icons.add, size: 16, color: AppColors.primary),
             ),
           ),
         ],
@@ -983,35 +1077,45 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
               const Icon(Icons.alarm, size: 18, color: AppColors.primary),
               const SizedBox(width: 8),
               const Expanded(
-                child: Text('복용 알림 시간',
-                    style: TextStyle(fontWeight: FontWeight.w600)),
+                child: Text(
+                  '복용 알림 시간',
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
               ),
               if (_alarmTimes.isEmpty)
                 Container(
                   padding: const EdgeInsets.symmetric(
-                      horizontal: 8, vertical: 3),
+                    horizontal: 8,
+                    vertical: 3,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.primaryLight,
                     borderRadius: BorderRadius.circular(99),
                   ),
-                  child: const Text('기본값',
-                      style: TextStyle(
-                          fontSize: 11,
-                          color: AppColors.primary,
-                          fontWeight: FontWeight.bold)),
+                  child: const Text(
+                    '기본값',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: AppColors.primary,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 )
               else
                 TextButton(
                   onPressed: () => setState(() => _alarmTimes = []),
                   style: TextButton.styleFrom(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 8, vertical: 2),
+                      horizontal: 8,
+                      vertical: 2,
+                    ),
                     minimumSize: Size.zero,
                     tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   ),
-                  child: const Text('초기화',
-                      style: TextStyle(
-                          fontSize: 12, color: AppColors.danger)),
+                  child: const Text(
+                    '초기화',
+                    style: TextStyle(fontSize: 12, color: AppColors.danger),
+                  ),
                 ),
             ],
           ),
@@ -1027,7 +1131,9 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
                   onTap: () => _pickAlarmTime(i),
                   child: Container(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 14, vertical: 8),
+                      horizontal: 14,
+                      vertical: 8,
+                    ),
                     decoration: BoxDecoration(
                       color: isCustom
                           ? AppColors.primary
@@ -1042,11 +1148,11 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.access_time,
-                            size: 14,
-                            color: isCustom
-                                ? Colors.white
-                                : AppColors.primary),
+                        Icon(
+                          Icons.access_time,
+                          size: 14,
+                          color: isCustom ? Colors.white : AppColors.primary,
+                        ),
                         const SizedBox(width: 5),
                         Text(
                           _formatTime(time),
@@ -1072,7 +1178,9 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
                   },
                   child: Container(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 14, vertical: 8),
+                      horizontal: 14,
+                      vertical: 8,
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(99),
@@ -1081,12 +1189,12 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
                     child: const Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.edit_outlined,
-                            size: 14, color: Colors.grey),
+                        Icon(Icons.edit_outlined, size: 14, color: Colors.grey),
                         SizedBox(width: 5),
-                        Text('직접 설정',
-                            style: TextStyle(
-                                fontSize: 13, color: Colors.grey)),
+                        Text(
+                          '직접 설정',
+                          style: TextStyle(fontSize: 13, color: Colors.grey),
+                        ),
                       ],
                     ),
                   ),
@@ -1169,8 +1277,8 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
     final h = time.hour == 0
         ? 12
         : time.hour <= 12
-            ? time.hour
-            : time.hour - 12;
+        ? time.hour
+        : time.hour - 12;
     final m = time.minute.toString().padLeft(2, '0');
     return '$period $h:$m';
   }
@@ -1179,8 +1287,11 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildInputField('현재 남은 수량 (정/캡슐)', _remainingController,
-            isNumber: true),
+        _buildInputField(
+          '현재 남은 수량 (정/캡슐)',
+          _remainingController,
+          isNumber: true,
+        ),
         const SizedBox(height: 10),
         SingleChildScrollView(
           scrollDirection: Axis.horizontal,
@@ -1192,13 +1303,16 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
                 child: ChoiceChip(
                   label: Text('$val정'),
                   selected: isSelected,
-                  onSelected: (_) =>
-                      setState(() => _remainingController.text = val.toString()),
+                  onSelected: (_) => setState(
+                    () => _remainingController.text = val.toString(),
+                  ),
                   selectedColor: AppColors.primaryLight,
                   backgroundColor: Colors.white,
                   labelStyle: TextStyle(
                     color: isSelected ? AppColors.primary : Colors.black54,
-                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                    fontWeight: isSelected
+                        ? FontWeight.bold
+                        : FontWeight.normal,
                   ),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(10),
@@ -1221,7 +1335,10 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
       child: Text(
         title,
         style: const TextStyle(
-            fontSize: 14, fontWeight: FontWeight.bold, color: Colors.black54),
+          fontSize: 14,
+          fontWeight: FontWeight.bold,
+          color: Colors.black54,
+        ),
       ),
     );
   }
@@ -1234,13 +1351,18 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
         onPressed: _onRegister,
         style: ElevatedButton.styleFrom(
           backgroundColor: AppColors.primary,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
           elevation: 0,
         ),
         child: Text(
           widget.initialItem != null ? '수정 완료' : '캐비닛에 추가하기',
           style: const TextStyle(
-              fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
         ),
       ),
     );
@@ -1257,8 +1379,8 @@ class _DrumRollTimePicker extends StatefulWidget {
 }
 
 class _DrumRollTimePickerState extends State<_DrumRollTimePicker> {
-  late int _hour;    // 1 ~ 12
-  late int _minute;  // 0 ~ 59
+  late int _hour; // 1 ~ 12
+  late int _minute; // 0 ~ 59
   late bool _isAm;
 
   late FixedExtentScrollController _hourCtrl;
@@ -1272,15 +1394,19 @@ class _DrumRollTimePickerState extends State<_DrumRollTimePicker> {
   void initState() {
     super.initState();
     final h = widget.initialTime.hour;
-    _isAm   = h < 12;
-    _hour   = h == 0 ? 12 : h > 12 ? h - 12 : h;
+    _isAm = h < 12;
+    _hour = h == 0
+        ? 12
+        : h > 12
+        ? h - 12
+        : h;
     _minute = widget.initialTime.minute;
 
     // 가운데 위치에서 시작 (무한 스크롤 효과)
-    final hourMid   = (_loopCount ~/ 2) * 12 + (_hour - 1);
+    final hourMid = (_loopCount ~/ 2) * 12 + (_hour - 1);
     final minuteMid = (_loopCount ~/ 2) * 60 + _minute;
 
-    _hourCtrl   = FixedExtentScrollController(initialItem: hourMid);
+    _hourCtrl = FixedExtentScrollController(initialItem: hourMid);
     _minuteCtrl = FixedExtentScrollController(initialItem: minuteMid);
     _periodCtrl = FixedExtentScrollController(initialItem: _isAm ? 0 : 1);
   }
@@ -1340,8 +1466,7 @@ class _DrumRollTimePickerState extends State<_DrumRollTimePicker> {
                           controller: _periodCtrl,
                           itemCount: 2,
                           looped: false,
-                          onSelected: (i) =>
-                              setState(() => _isAm = i == 0),
+                          onSelected: (i) => setState(() => _isAm = i == 0),
                           builder: (i) => _wheelItem(
                             i == 0 ? '오전' : '오후',
                             selected: (_isAm ? 0 : 1) == i,
@@ -1355,8 +1480,7 @@ class _DrumRollTimePickerState extends State<_DrumRollTimePicker> {
                           controller: _hourCtrl,
                           itemCount: 12 * _loopCount,
                           looped: true,
-                          onSelected: (i) =>
-                              setState(() => _hour = i % 12 + 1),
+                          onSelected: (i) => setState(() => _hour = i % 12 + 1),
                           builder: (i) => _wheelItem(
                             '${i % 12 + 1}',
                             selected: (i % 12 + 1) == _hour,
@@ -1365,11 +1489,14 @@ class _DrumRollTimePickerState extends State<_DrumRollTimePicker> {
                         ),
                       ),
                       // 구분자
-                      const Text(':',
-                          style: TextStyle(
-                              fontSize: 28,
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.primary)),
+                      const Text(
+                        ':',
+                        style: TextStyle(
+                          fontSize: 28,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.primary,
+                        ),
+                      ),
                       // 분
                       Expanded(
                         flex: 3,
@@ -1377,8 +1504,7 @@ class _DrumRollTimePickerState extends State<_DrumRollTimePicker> {
                           controller: _minuteCtrl,
                           itemCount: 60 * _loopCount,
                           looped: true,
-                          onSelected: (i) =>
-                              setState(() => _minute = i % 60),
+                          onSelected: (i) => setState(() => _minute = i % 60),
                           builder: (i) => _wheelItem(
                             (i % 60).toString().padLeft(2, '0'),
                             selected: (i % 60) == _minute,
@@ -1440,11 +1566,14 @@ class _DrumRollTimePickerState extends State<_DrumRollTimePicker> {
                     style: OutlinedButton.styleFrom(
                       side: BorderSide(color: Colors.grey.shade300),
                       shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12)),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                       padding: const EdgeInsets.symmetric(vertical: 13),
                     ),
-                    child: const Text('취소',
-                        style: TextStyle(color: Colors.grey)),
+                    child: const Text(
+                      '취소',
+                      style: TextStyle(color: Colors.grey),
+                    ),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -1456,11 +1585,14 @@ class _DrumRollTimePickerState extends State<_DrumRollTimePicker> {
                       foregroundColor: Colors.white,
                       elevation: 0,
                       shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12)),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                       padding: const EdgeInsets.symmetric(vertical: 13),
                     ),
-                    child: const Text('확인',
-                        style: TextStyle(fontWeight: FontWeight.bold)),
+                    child: const Text(
+                      '확인',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
                   ),
                 ),
               ],
