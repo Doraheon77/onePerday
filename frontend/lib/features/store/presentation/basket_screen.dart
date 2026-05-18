@@ -249,7 +249,7 @@ class _BasketScreenState extends State<BasketScreen> {
 
     final results = <_ContraindicationResult>[];
 
-    // 1. 실제 백엔드 DUR API 기반 성분 상호작용(병용금기) 검사
+    // 1. 실제 백엔드 DUR API 및 만성질환/알레르기 교차 검사
     try {
       final supplementIds = checkedItems
           .map((item) => int.tryParse(item.productId))
@@ -257,9 +257,19 @@ class _BasketScreenState extends State<BasketScreen> {
           .toList();
 
       if (supplementIds.isNotEmpty) {
+        final cabinetSuppsJson = notifier.supplements
+            .map((s) => {
+                  'name': s.name,
+                  'ingredients': s.nutrients.map((n) => n.name).toList(),
+                })
+            .toList();
+
         final conflictApi = ConflictApiService();
         final backendConflicts = await conflictApi.checkConflictsBySupplementIds(
           supplementIds: supplementIds,
+          cabinetSupplements: cabinetSuppsJson,
+          userHealth: userHealth,
+          userAllergies: userAllergies,
         );
 
         for (final conflict in backendConflicts) {
@@ -267,7 +277,7 @@ class _BasketScreenState extends State<BasketScreen> {
             _ContraindicationResult(
               item1: conflict.conflicts.isNotEmpty ? conflict.conflicts[0] : '',
               item2: conflict.conflicts.length > 1 ? conflict.conflicts[1] : '',
-              reason: '[병용금기] ${conflict.reason} (${conflict.conflictingIngredients.join(", ")} 성분 충돌)',
+              reason: conflict.reason,
               status: _CheckStatus.danger,
             ),
           );
@@ -306,71 +316,6 @@ class _BasketScreenState extends State<BasketScreen> {
               item2: matching[1].name,
               reason: '[$nutrientName 중복] $reason',
               status: _CheckStatus.warning,
-            ),
-          );
-        }
-      }
-    }
-
-    // 2. 사용자 질환과 상품명 교차 검사
-    const healthWarnings = {
-      '당뇨': [('크롬', '혈당 과도 저하 위험'), ('알파리포산', '저혈당 위험')],
-      '고혈압': [('감초', '혈압 상승 가능'), ('나트륨', '혈압 상승 가능')],
-      '갑상선 질환': [
-        ('아이오딘', '갑상선 기능 악화 가능'),
-        ('요오드', '갑상선 기능 악화 가능'),
-        ('켈프', '요오드 과다'),
-      ],
-      '신장 질환': [('마그네슘', '신장 부담 증가'), ('칼륨', '고칼륨혈증 위험')],
-      '빈혈': [('칼슘', '철분 흡수 방해 — 빈혈 악화 가능')],
-      '골다공증': [('알루미늄', '칼슘 흡수 방해')],
-      '통풍': [('비타민C', '고용량 시 요산 증가 가능'), ('퓨린', '요산 수치 상승')],
-    };
-
-    for (final disease in userHealth) {
-      final warnings = healthWarnings[disease];
-      if (warnings == null) continue;
-      for (final w in warnings) {
-        final nutrient = w.$1;
-        final reason = w.$2;
-        for (final item in checkedItems) {
-          if (item.name.toLowerCase().contains(nutrient.toLowerCase())) {
-            results.add(
-              _ContraindicationResult(
-                item1: item.name,
-                item2: '[$disease 보유]',
-                reason: reason,
-                status: _CheckStatus.danger,
-              ),
-            );
-          }
-        }
-      }
-    }
-
-    // 3. 알레르기 성분 교차 검사
-    const allergyMap = {
-      '갑각류': ['크릴', '크릴오일', 'krill', '새우', '게'],
-      '대두': ['대두', '콩', 'soy', '이소플라본'],
-      '우유': ['유청', 'whey', '카세인', '유단백'],
-      '견과류': ['아몬드', '호두', '캐슈', '견과'],
-      '밀': ['밀', '글루텐'],
-      '달걀': ['달걀', '계란', 'egg'],
-      '고등어': ['어유', 'fish oil', '오메가3', '오메가-3'],
-    };
-
-    for (final allergy in userAllergies) {
-      final keywords = allergyMap[allergy];
-      if (keywords == null) continue;
-      for (final item in checkedItems) {
-        final nameLower = item.name.toLowerCase();
-        if (keywords.any((k) => nameLower.contains(k.toLowerCase()))) {
-          results.add(
-            _ContraindicationResult(
-              item1: item.name,
-              item2: '[$allergy 알레르기]',
-              reason: '$allergy 알레르기 유발 성분 포함 가능 — 섭취 전 전문의 상담 권장',
-              status: _CheckStatus.danger,
             ),
           );
         }

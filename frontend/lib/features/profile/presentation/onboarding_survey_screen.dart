@@ -182,8 +182,9 @@ class _OnboardingSurveyScreenState extends State<OnboardingSurveyScreen> {
                   name: userName ?? '',
                   gender: userGender ?? '',
                   birthYear: int.tryParse(userAge ?? '0') ?? 0,
-                  healthStatus: selectedHealth.join(','),
-                  symptoms: selectedGoals,
+                  selectedGoals: selectedGoals,
+                  selectedHealth: selectedHealth,
+                  selectedAllergies: selectedAllergies,
                 );
 
                 if (!mounted) return;

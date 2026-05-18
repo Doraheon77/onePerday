@@ -20,31 +20,58 @@ export class RecommendService {
     '10': ['아연'],
   };
 
-  // 건강 목표별 추천 성분 매핑 (DB의 health_goals 컬럼 ID 기준)
-  // 1: 눈 건강, 2: 관절, 3: 면역력, 4: 활력, 5: 장 건강, 6: 피부, 7: 뼈, 8: 심혈관, 9: 두뇌, 10: 체중, 11: 수면, 12: 모발/손톱
-  private readonly benefitMap: Record<string, string[]> = {
-    '1': ['루테인', '지아잔틴', '오메가3', '비타민A'],
-    '2': ['MSM', '글루코사민', '콘드로이친', '보스웰리아'],
-    '3': ['아연', '비타민D', '비타민C', '프로폴리스'],
-    '4': ['비타민B', '밀크씨슬', '홍삼', '테아닌', '마그네슘'],
-    '5': ['유산균', '프로바이오틱스', '프리바이오틱스'],
-    '6': ['콜라겐', '비타민C', '히알루론산'],
-    '7': ['칼슘', '비타민D', '마그네슘', '비타민K'],
-    '8': ['오메가3', '코엔자임Q10', '홍삼'],
-    '9': ['오메가3', '포스파티딜세린', '은행잎'],
-    '10': ['가르시니아', '카테킨', 'CLA'],
-    '11': ['마그네슘', '테아닌', '락티움'],
-    '12': ['비오틴', '맥주효모', '콜라겐'],
+  // 건강 목표 ID에 따른 DB target_area 분석용 매칭 키워드 정의
+  private readonly goalKeywordMap: Record<string, string[]> = {
+    '1': ['눈', '망막'],             // 눈 건강
+    '2': ['관절'],                  // 관절 건강
+    '3': ['면역계', '면역'],         // 면역력 증진
+    '4': ['에너지', '피로', '근육', '세포'], // 피로 회복
+    '5': ['장', '소화계'],           // 장 건강
+    '6': ['피부'],                  // 피부 개선
+    '7': ['뼈', '치아'],             // 뼈/치아 건강
+    '8': ['심혈관', '혈관', '심장'],  // 혈행 개선
+    '9': ['뇌', '신경계'],           // 두뇌/기억력 개선
+    '10': ['지방', '콜레스테롤'],    // 다이어트
+    '11': ['수면', '스트레스', '신경계'], // 스트레스 케어
+    '12': ['머리', '손톱', '발톱', '모발'], // 모발/손톱 영양
+    '13': ['간'],                  // 간 건강
+  };
+
+  // 알레르기 ID별 키워드 매핑 (DB의 allergies 컬럼 ID 기준)
+  // 1: 견과류, 2: 갑각류, 3: 생선, 4: 유제품, 5: 달걀, 6: 글루텐, 7: 대두
+  private readonly allergyMap: Record<string, string> = {
+    '1': '견과류',
+    '2': '갑각류',
+    '3': '생선',
+    '4': '유제품',
+    '5': '달걀',
+    '6': '글루텐',
+    '7': '대두',
   };
 
   async getPersonalizedRecommendations(userId: string) {
     // 1. 사용자 건강 정보 조회 (users_info 테이블 사용)
-    const userInfo = await this.prisma.users_info.findUnique({
-      where: { id: userId },
-    });
+    let userInfo: any = null;
+    try {
+      userInfo = await this.prisma.users_info.findUnique({
+        where: { id: userId },
+      });
+    } catch (error) {
+      // UUID 형식 불일치 등 예외 발생 시 기본값으로 대응하기 위해 null 유지
+    }
 
     if (!userInfo) {
-      throw new NotFoundException('해당 사용자의 건강 정보를 찾을 수 없습니다.');
+      userInfo = {
+        id: userId,
+        name: '사용자',
+        gender: null,
+        birth_year: null,
+        health_goals: [],
+        conditions: [],
+        allergies: [],
+        special_notes: [],
+        created_at: new Date(),
+      };
     }
 
     // health_goals(건강 목표) 및 conditions(만성질환)은 BigInt 배열로 들어옵니다.
@@ -63,8 +90,20 @@ export class RecommendService {
 
     const avoidList = Array.from(avoidIngredients);
 
-    // 3. 영양제 1차 필터링 (가격이 NULL이 아니고 주의 성분이 포함되지 않은 영양제)
-    const safeSupplements = await this.prisma.supplements.findMany({
+    // 2.2 알레르기 유발성분 한글 키워드 도출 (DB의 allergies 컬럼 ID 기준)
+    const avoidAllergyKeywords = new Set<string>();
+    if (userInfo.allergies && Array.isArray(userInfo.allergies)) {
+      for (const allergyId of userInfo.allergies) {
+        const idStr = allergyId.toString();
+        if (this.allergyMap[idStr]) {
+          avoidAllergyKeywords.add(this.allergyMap[idStr]);
+        }
+      }
+    }
+    const allergyList = Array.from(avoidAllergyKeywords);
+
+    // 3. 영양제 1차 필터링 (가격이 NULL이 아니고 만성질환 주의 성분이 포함되지 않은 영양제)
+    const dbSupplements = await this.prisma.supplements.findMany({
       where: {
         price: { not: null }, // 가격이 NULL인 항목 제외
         ...(avoidList.length > 0 && {
@@ -84,32 +123,68 @@ export class RecommendService {
       },
     });
 
+    // 3.2 알레르기 소거 (DB 상세 정보 공백 보완을 위해 영양제명, 브랜드명 및 성분명 통합 체크)
+    const safeSupplements = dbSupplements.filter((supplement) => {
+      if (allergyList.length === 0) return true;
+
+      const productName = supplement.product_name || '';
+      const brandName = supplement.brand_name || '';
+      const ingredients = supplement.supplements_ingredients.map(
+        (i) => i.ingredient_name || '',
+      );
+
+      // 알레르기 유발 물질이 상품명, 브랜드명 또는 성분 중 하나에라도 포함되어 있으면 소거
+      const hasAllergyConflict = allergyList.some((allergy) => {
+        if (productName.includes(allergy)) return true;
+        if (brandName.includes(allergy)) return true;
+        if (ingredients.some((ing) => ing.includes(allergy))) return true;
+        return false;
+      });
+
+      return !hasAllergyConflict;
+    });
+
     // 4. 영양제 2차 필터링 (맞춤 추천 스코어링)
     const targetIngredients = new Set<string>();
 
     // health_goals(목표 ID) 기반 가점 대상 성분 추출
     if (userInfo.health_goals && Array.isArray(userInfo.health_goals)) {
+      // DB에서 실시간으로 영양성분 가이드 테이블 전체 조회
+      const guides = await this.prisma.nutrient_guide.findMany();
+
       for (const goalId of userInfo.health_goals) {
         const idStr = goalId.toString();
-        if (this.benefitMap[idStr]) {
-          this.benefitMap[idStr].forEach((i) => targetIngredients.add(i));
+        const keywords = this.goalKeywordMap[idStr] || [];
+
+        // 유저의 건강 목표 키워드가 target_area에 들어 있는 성분들을 동적으로 수집
+        for (const guide of guides) {
+          if (!guide.nutrient_name || !guide.target_area) continue;
+          
+          const isMatched = guide.target_area.some((area) => 
+            keywords.some((keyword) => area.includes(keyword))
+          );
+
+          if (isMatched) {
+            targetIngredients.add(guide.nutrient_name);
+          }
         }
       }
     }
 
     // 타겟 성분이 있다면 스코어링, 없다면 기본 정렬
     const recommendedList = safeSupplements.map((supplement) => {
-      let score = 0;
-      const ingredients = supplement.supplements_ingredients.map((i) => i.ingredient_name || '');
+      const productName = supplement.product_name || '';
+      const brandName = supplement.brand_name || '';
+      const ingredients = supplement.supplements_ingredients.map(
+        (i) => i.ingredient_name || '',
+      );
 
-      // 가점 로직: 타겟 성분이 포함되어 있으면 점수 부여
-      ingredients.forEach((ingredient) => {
-        Array.from(targetIngredients).forEach((target) => {
-          if (ingredient.includes(target)) {
-            score += 10;
-          }
-        });
-      });
+      const score = this.calculateGoalScore(
+        productName,
+        brandName,
+        ingredients,
+        targetIngredients,
+      );
 
       return {
         ...supplement,
@@ -129,5 +204,32 @@ export class RecommendService {
         typeof value === 'bigint' ? value.toString() : value,
       ),
     );
+  }
+
+  /**
+   * 건강 목표 가치 대비 맞춤 추천 점수를 산출하는 도우미 함수 (향후 확장 가능 구조)
+   */
+  private calculateGoalScore(
+    productName: string,
+    brandName: string,
+    ingredients: string[],
+    targetIngredients: Set<string>,
+  ): number {
+    let score = 0;
+    const targets = Array.from(targetIngredients);
+
+    for (const target of targets) {
+      // 1. 상품명이나 브랜드명에 가점 목표 성분이 포함된 경우 (DB 성분 정보 보완)
+      if (productName.includes(target) || brandName.includes(target)) {
+        score += 15; // 상품명/브랜드명 일치는 직관성이 높으므로 15점 가점
+      }
+      // 2. 실제 성분 데이터베이스에 성분이 매칭되는 경우
+      const hasIngredient = ingredients.some((ing) => ing.includes(target));
+      if (hasIngredient) {
+        score += 10;
+      }
+    }
+
+    return score;
   }
 }

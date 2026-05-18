@@ -6,6 +6,9 @@ class ConflictApiService {
 
   Future<List<ConflictCheckResult>> checkConflictsBySupplementIds({
     required List<int> supplementIds,
+    List<Map<String, dynamic>>? cabinetSupplements,
+    List<String>? userHealth,
+    List<String>? userAllergies,
   }) async {
     final response = await http.post(
       Uri.parse('$baseUrl/conflict/check-safety'),
@@ -14,6 +17,9 @@ class ConflictApiService {
       },
       body: jsonEncode({
         'supplementIds': supplementIds,
+        if (cabinetSupplements != null) 'cabinetSupplements': cabinetSupplements,
+        if (userHealth != null) 'userHealth': userHealth,
+        if (userAllergies != null) 'userAllergies': userAllergies,
       }),
     );
 

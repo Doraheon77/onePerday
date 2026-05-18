@@ -61,9 +61,78 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setStringList(key, newData);
     await _loadProfileData();
+
+    // Supabase DB 실시간 클라우드 동기화
+    final authService = AuthService();
+    final user = authService.currentUser;
+    if (user != null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Row(
+              children: [
+                SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                ),
+                SizedBox(width: 12),
+                Text('클라우드에 변경사항 동기화 중...'),
+              ],
+            ),
+            duration: Duration(milliseconds: 600),
+          ),
+        );
+      }
+
+      try {
+        final goals = prefs.getStringList('selectedGoals') ?? [];
+        final health = prefs.getStringList('selectedHealth') ?? [];
+        final allergies = prefs.getStringList('selectedAllergies') ?? [];
+
+        final name = prefs.getString('userName') ?? _userName;
+        final gender = prefs.getString('gender') ?? prefs.getString('userGender') ?? _userGender;
+        final ageStr = prefs.getString('userAge') ?? _userAge;
+        
+        int birthYearVal = int.tryParse(ageStr) ?? 0;
+        if (birthYearVal > 0 && birthYearVal < 120) {
+          birthYearVal = DateTime.now().year - birthYearVal;
+        }
+
+        await authService.completeOnboarding(
+          name: name,
+          gender: gender,
+          birthYear: birthYearVal,
+          selectedGoals: goals,
+          selectedHealth: health,
+          selectedAllergies: allergies,
+        );
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).hideCurrentSnackBar();
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('🔒 서버 클라우드와 안전하게 동기화되었습니다!'),
+              backgroundColor: AppColors.primary,
+              duration: Duration(seconds: 1),
+            ),
+          );
+        }
+      } catch (e) {
+        debugPrint('DB 실시간 동기화 에러: $e');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('⚠️ 동기화 실패: $e'),
+              backgroundColor: Colors.redAccent,
+            ),
+          );
+        }
+      }
+    }
   }
 
-  // 생활 습관(흡연) 업데이트 함수
+  // 생활 습관(흡연) 업데이트 함수 (생활 습관은 로컬 캐시에 저장되며 백엔드 추천 스코어링에는 영향을 주지 않으므로 로컬 저장소에 보관)
   Future<void> _updateSmokingStatus(String status) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('smokingStatus', status);

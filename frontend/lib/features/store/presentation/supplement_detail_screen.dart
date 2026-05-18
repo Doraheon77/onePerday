@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:simcap/core/constant/app_constants.dart';
 import 'package:simcap/features/cabinet/domain/dataModels/supplement_model.dart';
 import 'package:simcap/features/store/presentation/review_screen.dart';
 import 'package:simcap/providers/supplement_provider.dart';
+import 'package:simcap/services/conflict_api_service.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 // 스토어 상품 데이터 모델
@@ -157,6 +159,74 @@ class SupplementDetailScreen extends StatefulWidget {
 class _SupplementDetailScreenState extends State<SupplementDetailScreen> {
   bool _contraExpanded = false;
   bool _isPurchaseLoading = false;
+  List<String> _contraindications = [];
+  bool _isContraLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkContraindications();
+    });
+  }
+
+  Future<void> _checkContraindications() async {
+    if (!mounted) return;
+    setState(() => _isContraLoading = true);
+
+    try {
+      final notifier = SupplementProvider.of(context);
+      final currentProductId = int.tryParse(widget.product.id);
+
+      if (currentProductId != null) {
+        final cabinetSuppsJson = notifier.supplements
+            .map(
+              (s) => {
+                'name': s.name,
+                'ingredients': s.nutrients.map((n) => n.name).toList(),
+              },
+            )
+            .toList();
+
+        final prefs = await SharedPreferences.getInstance();
+        final userHealth = prefs.getStringList('selectedHealth') ?? [];
+        final userAllergies = prefs.getStringList('selectedAllergies') ?? [];
+
+        final conflictApi = ConflictApiService();
+        final backendConflicts = await conflictApi
+            .checkConflictsBySupplementIds(
+              supplementIds: [currentProductId],
+              cabinetSupplements: cabinetSuppsJson,
+              userHealth: userHealth,
+              userAllergies: userAllergies,
+            );
+
+        final List<String> formattedResults = [];
+        for (final conflict in backendConflicts) {
+          if (conflict.conflicts.length > 1) {
+            final cabinetItemName = conflict.conflicts[1];
+            formattedResults.add(
+              '내 캐비닛 [$cabinetItemName] 제품과 충돌 유의\n${conflict.reason}',
+            );
+          } else {
+            formattedResults.add(conflict.reason);
+          }
+        }
+
+        if (mounted) {
+          setState(() {
+            _contraindications = formattedResults;
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint('[SupplementDetailScreen] 안전성 검출 실패: $e');
+    } finally {
+      if (mounted) {
+        setState(() => _isContraLoading = false);
+      }
+    }
+  }
 
   /// 이미 캐비닛에 등록된 영양제인지 여부 (이름 기준 비교)
   bool _isAlreadyInCabinet(BuildContext context) {
@@ -286,7 +356,7 @@ class _SupplementDetailScreenState extends State<SupplementDetailScreen> {
                 const SizedBox(height: 12),
                 _buildNutrientChart(p.nutrients),
                 const SizedBox(height: 12),
-                _buildContraindications(p.contraindications),
+                _buildContraindications(),
                 const SizedBox(height: 12),
                 _buildReviewSummary(p),
                 const SizedBox(height: 12),
@@ -548,26 +618,36 @@ class _SupplementDetailScreenState extends State<SupplementDetailScreen> {
   }
 
   // 병용 금지 정보
-  Widget _buildContraindications(List<String> items) {
+  Widget _buildContraindications() {
     return _card(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _sectionTitle('병용 금지 약물·성분', icon: Icons.warning_amber_rounded),
           const SizedBox(height: 12),
-          if (items.isEmpty)
+          if (_isContraLoading)
+            const Center(
+              child: Padding(
+                padding: EdgeInsets.symmetric(vertical: 16),
+                child: CircularProgressIndicator(color: AppColors.primary),
+              ),
+            )
+          else if (_contraindications.isEmpty)
             Text(
-              '등록된 병용 금지 정보가 없습니다.',
+              '충돌하는 경우를 발견하지 못했습니다.',
               style: TextStyle(fontSize: 14, color: Colors.grey[500]),
             )
           else ...[
             // 처음 1개는 항상 표시, 나머지는 접기/펼치기
-            _buildContraItem(items.first),
-            if (items.length > 1) ...[
+            _buildContraItem(_contraindications.first),
+            if (_contraindications.length > 1) ...[
               AnimatedCrossFade(
                 firstChild: const SizedBox.shrink(),
                 secondChild: Column(
-                  children: items.skip(1).map(_buildContraItem).toList(),
+                  children: _contraindications
+                      .skip(1)
+                      .map(_buildContraItem)
+                      .toList(),
                 ),
                 crossFadeState: _contraExpanded
                     ? CrossFadeState.showSecond
@@ -581,7 +661,9 @@ class _SupplementDetailScreenState extends State<SupplementDetailScreen> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      _contraExpanded ? '접기' : '${items.length - 1}개 더 보기',
+                      _contraExpanded
+                          ? '접기'
+                          : '${_contraindications.length - 1}개 더 보기',
                       style: const TextStyle(
                         fontSize: 13,
                         color: AppColors.primary,

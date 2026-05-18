@@ -13,7 +13,17 @@ export class ConflictController {
   }
 
   @Post('check-safety')
-  async checkConflictSafety(@Body() reqBody: { supplementIds: number[] }) {
-    return this.conflictService.checkConflictsByIds(reqBody.supplementIds);
+  async checkConflictSafety(@Body() reqBody: { 
+    supplementIds: number[];
+    cabinetSupplements?: { name: string; ingredients: string[] }[];
+    userHealth?: string[];
+    userAllergies?: string[];
+  }) {
+    return this.conflictService.checkConflictsByIds(
+      reqBody.supplementIds,
+      reqBody.cabinetSupplements || [],
+      reqBody.userHealth || [],
+      reqBody.userAllergies || [],
+    );
   }
 }
