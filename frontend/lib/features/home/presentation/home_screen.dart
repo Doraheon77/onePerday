@@ -771,22 +771,118 @@ class _HomeScreenState extends State<HomeScreen> {
     Supplement supplement,
     SupplementNotifier notifier,
   ) {
-    final isDone = notifier.isDoneOn(supplement.name, _selectedDate);
     final isToday = _dateOnly(_selectedDate) == _dateOnly(DateTime.now());
+    final freq = supplement.dailyFrequency;
 
-    return GestureDetector(
-      onTap: isToday
-          ? () => notifier.toggleDose(supplement.name, date: _selectedDate)
-          : null,
-      child: _buildMedicationCard(supplement, isDone, isToday),
+    // 1회 복용 — 기존 방식
+    if (freq <= 1) {
+      final isDone = notifier.isDoneOn(supplement.name, _selectedDate);
+      return GestureDetector(
+        onTap: isToday
+            ? () => notifier.toggleDose(supplement.name, date: _selectedDate)
+            : null,
+        child: _buildMedicationCard(
+          supplement,
+          isDone,
+          isToday,
+          doseLabel: null,
+        ),
+      );
+    }
+
+    // 2회 이상 — 시간대 헤더 + 카드
+    final alarmTimes = supplement.alarmTimes.isNotEmpty
+        ? supplement.alarmTimes
+        : List.generate(freq, (i) {
+            const defaults = [
+              TimeOfDay(hour: 8, minute: 0),
+              TimeOfDay(hour: 13, minute: 0),
+              TimeOfDay(hour: 19, minute: 0),
+              TimeOfDay(hour: 22, minute: 0),
+            ];
+            return i < defaults.length
+                ? defaults[i]
+                : TimeOfDay(hour: (8 + i * 4) % 24, minute: 0);
+          });
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: List.generate(freq, (i) {
+        final isDone = notifier.isDoneOnIndex(
+          supplement.name,
+          _selectedDate,
+          i,
+        );
+        final t = i < alarmTimes.length
+            ? alarmTimes[i]
+            : TimeOfDay(hour: (8 + i * 4) % 24, minute: 0);
+        final isPm = t.hour >= 12;
+        final h = t.hour == 0 ? 12 : (t.hour > 12 ? t.hour - 12 : t.hour);
+        final m = t.minute.toString().padLeft(2, '0');
+        final timeLabel = '${isPm ? "오후" : "오전"} $h:$m';
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // 시간대 헤더
+            if (i > 0)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: Divider(color: Colors.grey.shade200, height: 1),
+              ),
+            Padding(
+              padding: const EdgeInsets.only(left: 4, bottom: 6, top: 4),
+              child: Row(
+                children: [
+                  const Icon(
+                    Icons.access_time_rounded,
+                    size: 13,
+                    color: AppColors.primary,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    timeLabel,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            // 카드
+            GestureDetector(
+              onTap: isToday
+                  ? () => notifier.toggleDoseIndex(
+                      supplement.name,
+                      i,
+                      date: _selectedDate,
+                    )
+                  : null,
+              child: _buildMedicationCard(
+                supplement,
+                isDone,
+                isToday,
+                doseLabel: null,
+                doseIndex: i,
+                totalDose: freq,
+              ),
+            ),
+          ],
+        );
+      }),
     );
   }
 
   Widget _buildMedicationCard(
     Supplement supplement,
     bool isDone,
-    bool isToday,
-  ) {
+    bool isToday, {
+    String? doseLabel,
+    int doseIndex = 0,
+    int totalDose = 1,
+  }) {
     return AnimatedContainer(
       duration: const Duration(milliseconds: 250),
       margin: const EdgeInsets.only(bottom: 12),
@@ -823,7 +919,11 @@ class _HomeScreenState extends State<HomeScreen> {
           overflow: TextOverflow.ellipsis,
         ),
         subtitle: Text(
-          isDone
+          doseLabel != null
+              ? isDone
+                    ? '$doseLabel 복용 완료 · ${supplement.remaining}정 남음'
+                    : '$doseLabel · ${supplement.remaining}정 남음'
+              : isDone
               ? '복용 완료 · ${supplement.remaining}정 남음'
               : '${supplement.remaining}정 남음',
         ),

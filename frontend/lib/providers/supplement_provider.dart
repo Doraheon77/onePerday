@@ -10,17 +10,24 @@ import 'package:simcap/services/notification_service.dart';
 class DoseRecord {
   final String supplementName;
   final DateTime date;
+  final int doseIndex; // 복용 횟수 인덱스 (0부터 시작)
 
-  const DoseRecord({required this.supplementName, required this.date});
+  const DoseRecord({
+    required this.supplementName,
+    required this.date,
+    this.doseIndex = 0,
+  });
 
   Map<String, dynamic> toJson() => {
     'supplementName': supplementName,
     'date': date.toIso8601String(),
+    'doseIndex': doseIndex,
   };
 
   factory DoseRecord.fromJson(Map<String, dynamic> json) => DoseRecord(
     supplementName: json['supplementName'] as String,
     date: DateTime.parse(json['date'] as String),
+    doseIndex: json['doseIndex'] as int? ?? 0,
   );
 }
 
@@ -381,6 +388,17 @@ class SupplementNotifier extends ChangeNotifier {
   }
 
   /// 특정 날짜에 해당 영양제를 복용했는지 여부
+  /// 특정 날짜 + 인덱스 복용 여부
+  bool isDoneOnIndex(String supplementName, DateTime date, int doseIndex) {
+    final day = _dateOnly(date);
+    return _doseHistory.any(
+      (r) =>
+          r.supplementName == supplementName &&
+          _dateOnly(r.date) == day &&
+          r.doseIndex == doseIndex,
+    );
+  }
+
   bool isDoneOn(String supplementName, DateTime date) {
     final day = _dateOnly(date);
     return _doseHistory.any(
@@ -402,6 +420,48 @@ class SupplementNotifier extends ChangeNotifier {
   bool isAllDoneOn(DateTime date) {
     if (_supplements.isEmpty) return false;
     return _supplements.every((s) => isDoneOn(s.name, date));
+  }
+
+  /// 특정 인덱스 복용 토글 (다회 복용용)
+  void toggleDoseIndex(String supplementName, int doseIndex, {DateTime? date}) {
+    final targetDate = date ?? DateTime.now();
+    final idx = _supplements.indexWhere((s) => s.name == supplementName);
+    if (idx == -1) return;
+
+    final supplement = _supplements[idx];
+    final alreadyDone = isDoneOnIndex(supplementName, targetDate, doseIndex);
+
+    if (alreadyDone) {
+      _doseHistory.removeWhere(
+        (r) =>
+            r.supplementName == supplementName &&
+            _dateOnly(r.date) == _dateOnly(targetDate) &&
+            r.doseIndex == doseIndex,
+      );
+      _supplements[idx] = supplement.copyWith(
+        remaining:
+            supplement.remaining +
+            (supplement.dailyDose / supplement.dailyFrequency).ceil(),
+      );
+    } else {
+      _doseHistory.add(
+        DoseRecord(
+          supplementName: supplementName,
+          date: targetDate,
+          doseIndex: doseIndex,
+        ),
+      );
+      final dosePerTime = (supplement.dailyDose / supplement.dailyFrequency)
+          .ceil();
+      final newRemaining = (supplement.remaining - dosePerTime).clamp(
+        0,
+        supplement.total,
+      );
+      _supplements[idx] = supplement.copyWith(remaining: newRemaining);
+    }
+
+    _saveDoseHistory();
+    notifyListeners();
   }
 
   /// 복용 체크/해제 토글.
