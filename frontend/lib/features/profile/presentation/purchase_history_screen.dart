@@ -338,6 +338,7 @@ class _PurchaseHistoryScreenState extends State<PurchaseHistoryScreen> {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Row(
+            mainAxisSize: MainAxisSize.min,
             children: [
               Text(
                 '총 결제',
@@ -394,40 +395,47 @@ class _PurchaseHistoryScreenState extends State<PurchaseHistoryScreen> {
     required VoidCallback onTap,
     required bool outlined,
   }) {
+    // IntrinsicWidth으로 감싸서 버튼이 무한 너비가 되는 것을 방지
     if (outlined) {
-      return OutlinedButton.icon(
-        onPressed: onTap,
-        style: OutlinedButton.styleFrom(
-          side: const BorderSide(color: AppColors.primary),
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
+      return IntrinsicWidth(
+        child: OutlinedButton.icon(
+          onPressed: onTap,
+          style: OutlinedButton.styleFrom(
+            side: const BorderSide(color: AppColors.primary),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
           ),
-        ),
-        icon: Icon(icon, size: 14, color: AppColors.primary),
-        label: Text(
-          label,
-          style: const TextStyle(
-            fontSize: 12,
-            color: AppColors.primary,
-            fontWeight: FontWeight.bold,
+          icon: Icon(icon, size: 14, color: AppColors.primary),
+          label: Text(
+            label,
+            style: const TextStyle(
+              fontSize: 12,
+              color: AppColors.primary,
+              fontWeight: FontWeight.bold,
+            ),
           ),
         ),
       );
     }
-    return ElevatedButton.icon(
-      onPressed: onTap,
-      style: ElevatedButton.styleFrom(
-        backgroundColor: AppColors.primary,
-        foregroundColor: Colors.white,
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-        elevation: 0,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      ),
-      icon: Icon(icon, size: 14),
-      label: Text(
-        label,
-        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+    return IntrinsicWidth(
+      child: ElevatedButton.icon(
+        onPressed: onTap,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: AppColors.primary,
+          foregroundColor: Colors.white,
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+        ),
+        icon: Icon(icon, size: 14),
+        label: Text(
+          label,
+          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+        ),
       ),
     );
   }

@@ -24,26 +24,30 @@ void main() async {
   // 앱 시작 시 저장된 데이터 복원
   await notifier.loadFromStorage();
 
-  runApp(SupplementProvider(notifier: notifier, child: const MyApp()));
+  runApp(MyApp(notifier: notifier));
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  final SupplementNotifier notifier;
+  const MyApp({super.key, required this.notifier});
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp.router(
-      title: 'OnePerDay 영양제 관리',
-      debugShowCheckedModeBanner: false,
-      localizationsDelegates: const [
-        GlobalMaterialLocalizations.delegate,
-        GlobalWidgetsLocalizations.delegate,
-        GlobalCupertinoLocalizations.delegate,
-      ],
-      supportedLocales: const [Locale('ko', 'KR')],
-      locale: const Locale('ko', 'KR'),
-      theme: AppTheme.light,
-      routerConfig: AppRouter.router,
+    return SupplementProvider(
+      notifier: notifier,
+      child: MaterialApp.router(
+        title: 'OnePerDay 영양제 관리',
+        debugShowCheckedModeBanner: false,
+        localizationsDelegates: const [
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
+        supportedLocales: const [Locale('ko', 'KR')],
+        locale: const Locale('ko', 'KR'),
+        theme: AppTheme.light,
+        routerConfig: AppRouter.router,
+      ),
     );
   }
 }
