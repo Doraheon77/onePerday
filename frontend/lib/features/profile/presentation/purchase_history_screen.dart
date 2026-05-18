@@ -3,9 +3,14 @@ import 'package:go_router/go_router.dart';
 import 'package:simcap/core/constant/app_constants.dart';
 import 'package:simcap/providers/supplement_provider.dart';
 
-class PurchaseHistoryScreen extends StatelessWidget {
+class PurchaseHistoryScreen extends StatefulWidget {
   const PurchaseHistoryScreen({super.key});
 
+  @override
+  State<PurchaseHistoryScreen> createState() => _PurchaseHistoryScreenState();
+}
+
+class _PurchaseHistoryScreenState extends State<PurchaseHistoryScreen> {
   @override
   Widget build(BuildContext context) {
     final purchases = SupplementProvider.of(context).purchases;
@@ -31,7 +36,6 @@ class PurchaseHistoryScreen extends StatelessWidget {
     );
   }
 
-  // 빈 상태
   Widget _buildEmptyState(BuildContext context) {
     return Center(
       child: Column(
@@ -85,9 +89,7 @@ class PurchaseHistoryScreen extends StatelessWidget {
     );
   }
 
-  // 구매 기록 리스트
   Widget _buildList(BuildContext context, List<PurchaseRecord> purchases) {
-    // 날짜(일) 기준으로 그룹핑
     final Map<String, List<PurchaseRecord>> grouped = {};
     for (final r in purchases) {
       final key = _dateLabel(r.orderedAt);
@@ -105,7 +107,6 @@ class PurchaseHistoryScreen extends StatelessWidget {
     );
   }
 
-  // 날짜 그룹 헤더 + 카드 목록
   Widget _buildDateGroup(
     BuildContext context,
     String dateLabel,
@@ -114,7 +115,6 @@ class PurchaseHistoryScreen extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // 날짜 헤더
         Padding(
           padding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
           child: Text(
@@ -126,14 +126,12 @@ class PurchaseHistoryScreen extends StatelessWidget {
             ),
           ),
         ),
-        // 해당 날짜의 주문 카드들
         ...records.map((r) => _buildOrderCard(context, r)),
         const SizedBox(height: 8),
       ],
     );
   }
 
-  // 주문 카드
   Widget _buildOrderCard(BuildContext context, PurchaseRecord record) {
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 0, 16, 10),
@@ -149,14 +147,12 @@ class PurchaseHistoryScreen extends StatelessWidget {
         ],
       ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 카드 헤더 (주문번호 + 상태 배지)
           _buildCardHeader(record),
           const Divider(height: 1),
-          // 상품 목록
           _buildItemList(record),
           const Divider(height: 1),
-          // 카드 푸터 (총액 + 버튼)
           _buildCardFooter(context, record),
         ],
       ),
@@ -168,7 +164,6 @@ class PurchaseHistoryScreen extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
       child: Row(
         children: [
-          // 주문 아이콘
           Container(
             width: 36,
             height: 36,
@@ -208,7 +203,6 @@ class PurchaseHistoryScreen extends StatelessWidget {
               ],
             ),
           ),
-          // 상태 배지
           _buildStatusBadge(record.status),
         ],
       ),
@@ -218,7 +212,6 @@ class PurchaseHistoryScreen extends StatelessWidget {
   Widget _buildStatusBadge(PurchaseStatus status) {
     Color bg, fg;
     IconData icon;
-
     switch (status) {
       case PurchaseStatus.ordered:
         bg = const Color(0xFFFFF3CD);
@@ -241,7 +234,6 @@ class PurchaseHistoryScreen extends StatelessWidget {
         icon = Icons.cancel_outlined;
         break;
     }
-
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
@@ -279,7 +271,6 @@ class PurchaseHistoryScreen extends StatelessWidget {
             ),
             child: Row(
               children: [
-                // 상품 이미지 자리
                 Container(
                   width: 48,
                   height: 48,
@@ -346,7 +337,6 @@ class PurchaseHistoryScreen extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          // 총 결제 금액
           Row(
             children: [
               Text(
@@ -364,7 +354,6 @@ class PurchaseHistoryScreen extends StatelessWidget {
               ),
             ],
           ),
-          // 액션 버튼 — 상태별 분기
           _buildActionButton(context, record),
         ],
       ),
@@ -375,7 +364,6 @@ class PurchaseHistoryScreen extends StatelessWidget {
     switch (record.status) {
       case PurchaseStatus.ordered:
       case PurchaseStatus.shipping:
-        // 배송 조회 (백엔드 연동 후 실제 배송 추적 연결)
         return _actionBtn(
           label: '배송 조회',
           icon: Icons.local_shipping_outlined,
@@ -383,12 +371,12 @@ class PurchaseHistoryScreen extends StatelessWidget {
             const SnackBar(
               content: Text('배송 조회는 백엔드 연동 후 지원됩니다.'),
               behavior: SnackBarBehavior.floating,
+              duration: Duration(milliseconds: 1500),
             ),
           ),
           outlined: true,
         );
       case PurchaseStatus.delivered:
-        // 재구매 → 스토어로 이동
         return _actionBtn(
           label: '재구매',
           icon: Icons.refresh_rounded,
@@ -444,16 +432,14 @@ class PurchaseHistoryScreen extends StatelessWidget {
     );
   }
 
-  // 헬퍼
   String _dateLabel(DateTime dt) {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     final day = DateTime(dt.year, dt.month, dt.day);
     final diff = today.difference(day).inDays;
-
     if (diff == 0) return '오늘';
     if (diff == 1) return '어제';
-    if (diff < 7) return '$diff일 전';
+    if (diff < 7) return '${diff}일 전';
     return '${dt.year}.${dt.month.toString().padLeft(2, '0')}.${dt.day.toString().padLeft(2, '0')}';
   }
 

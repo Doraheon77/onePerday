@@ -1,17 +1,23 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
-import 'package:go_router/go_router.dart';
 import 'package:intl/date_symbol_data_local.dart';
-import 'package:simcap/core/constant/app_constants.dart';
 import 'package:simcap/core/theme/app_theme.dart';
 import 'package:simcap/providers/supplement_provider.dart';
 import 'package:simcap/routes/app_router.dart';
 import 'package:simcap/services/notification_service.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await initializeDateFormatting('ko_KR', null);
+
+  await Supabase.initialize(
+    url: 'https://saibkbyicokuwdgjcmyy.supabase.co',
+    anonKey: 'sb_publishable_exeVSswIS-6R1qiLm4L--Q_9LmesJbM',
+    authOptions: const FlutterAuthClientOptions(
+      authFlowType: AuthFlowType.pkce,
+    ),
+  );
 
   final notifier = SupplementNotifier();
 
@@ -38,131 +44,6 @@ class MyApp extends StatelessWidget {
       locale: const Locale('ko', 'KR'),
       theme: AppTheme.light,
       routerConfig: AppRouter.router,
-    );
-  }
-}
-
-class ScaffoldWithNavBar extends StatelessWidget {
-  final Widget child;
-  const ScaffoldWithNavBar({super.key, required this.child});
-
-  @override
-  Widget build(BuildContext context) {
-    final bottomPad = MediaQuery.of(context).padding.bottom;
-
-    return Scaffold(
-      body: child,
-      bottomNavigationBar: SizedBox(
-        height: 70 + bottomPad,
-        child: Stack(
-          clipBehavior: Clip.none,
-          children: [
-            // 네비게이션 바 배경
-            Container(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.06),
-                    blurRadius: 12,
-                    offset: const Offset(0, -3),
-                  ),
-                ],
-              ),
-              child: SafeArea(
-                top: false,
-                child: SizedBox(
-                  height: 70,
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceAround,
-                    children: [
-                      _buildNavItem(context, Icons.home_filled, '홈', '/home'),
-                      _buildNavItem(
-                        context,
-                        Icons.shopping_bag_outlined,
-                        '스토어',
-                        '/store',
-                      ),
-                      const SizedBox(width: 64),
-                      _buildNavItem(
-                        context,
-                        Icons.inventory_2_outlined,
-                        '내 영양제',
-                        '/cabinet',
-                      ),
-                      _buildNavItem(
-                        context,
-                        Icons.person_outline,
-                        '프로필',
-                        '/profile',
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-            // FAB — 바 안에 완전히 위치
-            Positioned(
-              top: 0,
-              bottom: MediaQuery.of(context).padding.bottom,
-              left: 0,
-              right: 0,
-              child: Center(
-                child: FloatingActionButton(
-                  backgroundColor: AppColors.primary,
-                  elevation: 4,
-                  shape: const CircleBorder(),
-                  child: const Icon(
-                    Icons.smart_toy_outlined,
-                    color: Colors.white,
-                  ),
-                  onPressed: () {
-                    HapticFeedback.mediumImpact();
-                    context.push('/chatbot');
-                  },
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildNavItem(
-    BuildContext context,
-    IconData icon,
-    String label,
-    String path,
-  ) {
-    final String currentUri = GoRouterState.of(context).uri.toString();
-    final bool isSelected = currentUri.startsWith(path);
-
-    return InkWell(
-      onTap: () {
-        HapticFeedback.lightImpact();
-        context.go(path);
-      },
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            icon,
-            color: isSelected ? AppColors.primary : Colors.grey,
-            size: 24,
-          ),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            style: TextStyle(
-              color: isSelected ? AppColors.primary : Colors.grey,
-              fontSize: 10,
-              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-            ),
-          ),
-        ],
-      ),
     );
   }
 }

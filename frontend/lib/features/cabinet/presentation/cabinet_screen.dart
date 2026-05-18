@@ -165,7 +165,9 @@ class _CabinetScreenState extends State<CabinetScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('${newSupplement.name}이(가) 등록되었습니다!'),
-            duration: const Duration(seconds: 2),
+            duration: const Duration(milliseconds: 1500),
+            behavior: SnackBarBehavior.floating,
+            dismissDirection: DismissDirection.horizontal,
           ),
         );
       }
@@ -342,8 +344,9 @@ class _CabinetScreenState extends State<CabinetScreen> {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
                             content: Text('${supp.name}이(가) 삭제되었습니다.'),
-                            duration: const Duration(seconds: 2),
+                            duration: const Duration(milliseconds: 1500),
                             behavior: SnackBarBehavior.floating,
+                            dismissDirection: DismissDirection.horizontal,
                           ),
                         );
                       },
