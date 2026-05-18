@@ -1,50 +1,5 @@
 import 'package:flutter/material.dart';
 
-/// 복용 시점
-enum MealTiming {
-  beforeMeal, // 식전
-  afterMeal, // 식후
-  beforeSleep, // 취침 전
-  anytime, // 무관
-}
-
-extension MealTimingExtension on MealTiming {
-  /// DB 저장 / API 송수신용 문자열
-  String get value {
-    switch (this) {
-      case MealTiming.beforeMeal:
-        return 'before_meal';
-      case MealTiming.afterMeal:
-        return 'after_meal';
-      case MealTiming.beforeSleep:
-        return 'before_sleep';
-      case MealTiming.anytime:
-        return 'anytime';
-    }
-  }
-
-  /// UI 표시용 한국어 라벨
-  String get label {
-    switch (this) {
-      case MealTiming.beforeMeal:
-        return '식전';
-      case MealTiming.afterMeal:
-        return '식후';
-      case MealTiming.beforeSleep:
-        return '취침 전';
-      case MealTiming.anytime:
-        return '무관';
-    }
-  }
-
-  static MealTiming fromValue(String? value) {
-    return MealTiming.values.firstWhere(
-      (e) => e.value == value,
-      orElse: () => MealTiming.anytime,
-    );
-  }
-}
-
 class Nutrient {
   final String name;
   final double value;
@@ -96,15 +51,11 @@ class Supplement {
   /// 하루 복용 횟수. 기본값 1.
   final int dailyFrequency;
 
-  /// 복용 시점 (식전 / 식후 / 취침 전 / 무관). 기본값 anytime.
-  final MealTiming mealTiming;
-
   final List<Nutrient> nutrients;
   final String analysisGuide;
   final String aiSummary;
 
   /// 사용자 지정 알림 시간 목록 (dailyFrequency에 맞게 설정)
-  /// 비어있으면 mealTiming 기반 기본 시간 사용
   final List<TimeOfDay> alarmTimes;
 
   Supplement({
@@ -117,7 +68,6 @@ class Supplement {
     required this.total,
     this.dailyDose = 1,
     this.dailyFrequency = 1,
-    this.mealTiming = MealTiming.anytime,
     required this.nutrients,
     this.analysisGuide = '이 영양제는 정해진 시간에 복용하는 것이 좋습니다.',
     this.aiSummary = '리뷰를 분석 중입니다.',
@@ -151,7 +101,6 @@ class Supplement {
       total: json['total'] ?? 0,
       dailyDose: json['dailyDose'] ?? 1,
       dailyFrequency: json['dailyFrequency'] ?? 1,
-      mealTiming: MealTimingExtension.fromValue(json['mealTiming'] as String?),
       nutrients: (json['nutrients'] as List? ?? [])
           .map((n) => Nutrient.fromJson(n as Map<String, dynamic>))
           .toList(),
@@ -177,7 +126,6 @@ class Supplement {
     'total': total,
     'dailyDose': dailyDose,
     'dailyFrequency': dailyFrequency,
-    'mealTiming': mealTiming.value,
     'nutrients': nutrients.map((n) => n.toJson()).toList(),
     'analysisGuide': analysisGuide,
     'aiSummary': aiSummary,
@@ -194,7 +142,6 @@ class Supplement {
     int? total,
     int? dailyDose,
     int? dailyFrequency,
-    MealTiming? mealTiming,
     List<Nutrient>? nutrients,
     String? analysisGuide,
     String? aiSummary,
@@ -210,7 +157,6 @@ class Supplement {
       total: total ?? this.total,
       dailyDose: dailyDose ?? this.dailyDose,
       dailyFrequency: dailyFrequency ?? this.dailyFrequency,
-      mealTiming: mealTiming ?? this.mealTiming,
       nutrients: nutrients ?? this.nutrients,
       analysisGuide: analysisGuide ?? this.analysisGuide,
       alarmTimes: alarmTimes ?? this.alarmTimes,

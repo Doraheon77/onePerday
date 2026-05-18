@@ -27,20 +27,6 @@ class _NotifTime {
   const _NotifTime(this.hour, this.minute);
 }
 
-// MealTiming별 기본 복용 시간
-_NotifTime _defaultTimeFor(MealTiming timing) {
-  switch (timing) {
-    case MealTiming.beforeMeal:
-      return const _NotifTime(7, 30); // 오전 7:30
-    case MealTiming.afterMeal:
-      return const _NotifTime(8, 30); // 오전 8:30
-    case MealTiming.beforeSleep:
-      return const _NotifTime(22, 0); // 오후 10:00
-    case MealTiming.anytime:
-      return const _NotifTime(9, 0); // 오전 9:00
-  }
-}
-
 /// 앱 전역 알림 서비스 싱글톤
 class NotificationService {
   NotificationService._();
@@ -207,10 +193,14 @@ class NotificationService {
     debugPrint('[NotificationService] 복용 알림 ${supplements.length}개 등록');
   }
 
-  /// 개별 영양제 복용 알림 등록 (매일 반복)
+  /// 개별 영양제 복용 알림 등록 — alarmTimes 기반 (매일 반복)
   Future<void> scheduleDoseAlarm(Supplement supplement, int index) async {
-    final time = _defaultTimeFor(supplement.mealTiming);
-    final id = _doseNotificationId(index);
+    // alarmTimes가 있으면 각 시간마다 알림, 없으면 기본값 오전 9시
+    final times = supplement.alarmTimes.isNotEmpty
+        ? supplement.alarmTimes
+              .map((t) => _NotifTime(t.hour, t.minute))
+              .toList()
+        : [const _NotifTime(9, 0)];
 
     final androidDetails = AndroidNotificationDetails(
       _doseChannelId,
@@ -226,17 +216,31 @@ class NotificationService {
       presentSound: true,
     );
 
-    await _plugin.zonedSchedule(
-      id,
-      '💊 ${supplement.name} 복용 시간이에요',
-      '${supplement.mealTiming.label} 복용을 잊지 마세요!',
-      _nextInstanceOf(time.hour, time.minute),
-      NotificationDetails(android: androidDetails, iOS: iosDetails),
-      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-      uiLocalNotificationDateInterpretation:
-          UILocalNotificationDateInterpretation.absoluteTime,
-      matchDateTimeComponents: DateTimeComponents.time, // 매일 반복
-    );
+    for (int i = 0; i < times.length; i++) {
+      final time = times[i];
+      // 알림 ID: 기본 ID + 회차 (최대 10회차)
+      final id = _doseNotificationId(index * 10 + i);
+      final timeLabel = _formatTime(time);
+
+      await _plugin.zonedSchedule(
+        id,
+        '💊 ${supplement.name} 복용 시간이에요',
+        '$timeLabel 복용을 잊지 마세요!',
+        _nextInstanceOf(time.hour, time.minute),
+        NotificationDetails(android: androidDetails, iOS: iosDetails),
+        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+        uiLocalNotificationDateInterpretation:
+            UILocalNotificationDateInterpretation.absoluteTime,
+        matchDateTimeComponents: DateTimeComponents.time,
+      );
+    }
+  }
+
+  String _formatTime(_NotifTime t) {
+    final isPm = t.hour >= 12;
+    final h = t.hour == 0 ? 12 : (t.hour > 12 ? t.hour - 12 : t.hour);
+    final m = t.minute.toString().padLeft(2, '0');
+    return '\${isPm ? "오후" : "오전"} \$h:\$m';
   }
 
   /// 특정 영양제 복용 알림 취소

@@ -44,7 +44,6 @@ class StoreProduct {
       remaining: 0, // 등록 직후 수량은 0 — 사용자가 add_supplement에서 직접 입력
       total: 0,
       dailyDose: 1,
-      mealTiming: MealTiming.anytime,
       nutrients: nutrients
           .map(
             (n) => Nutrient(
@@ -335,7 +334,7 @@ class _SupplementDetailScreenState extends State<SupplementDetailScreen> {
               ],
             ),
           ),
-          userCode: 'imp24258048',
+          userCode: 'imp_xxxxxxxxxx', // TODO: 포트원 가맹점 식별코드로 교체
           data: PaymentData(
             pg: pg,
             payMethod: pg.startsWith('kakaopay')

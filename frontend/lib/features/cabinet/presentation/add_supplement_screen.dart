@@ -180,7 +180,6 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
       dailyDose: _dailyDose,
       dailyFrequency: _dailyFrequency,
       alarmTimes: _alarmTimes,
-      mealTiming: MealTiming.anytime,
       nutrients: _nutrientController.text
           .split(',')
           .where((e) => e.trim().isNotEmpty)
