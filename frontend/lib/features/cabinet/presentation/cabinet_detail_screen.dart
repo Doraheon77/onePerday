@@ -103,7 +103,7 @@ class _CabinetDetailScreenState extends State<CabinetDetailScreen> {
 
     if (confirmed != true || !context.mounted) return;
 
-    SupplementProvider.of(context).removeSupplement(item.name);
+    SupplementProvider.of(context).removeSupplement(item.id);
 
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(

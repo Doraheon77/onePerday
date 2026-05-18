@@ -1,30 +1,39 @@
 import 'package:flutter/material.dart';
+
 /// 복용 시점
 enum MealTiming {
-  beforeMeal,   // 식전
-  afterMeal,    // 식후
-  beforeSleep,  // 취침 전
-  anytime,      // 무관
+  beforeMeal, // 식전
+  afterMeal, // 식후
+  beforeSleep, // 취침 전
+  anytime, // 무관
 }
 
 extension MealTimingExtension on MealTiming {
   /// DB 저장 / API 송수신용 문자열
   String get value {
     switch (this) {
-      case MealTiming.beforeMeal:  return 'before_meal';
-      case MealTiming.afterMeal:   return 'after_meal';
-      case MealTiming.beforeSleep: return 'before_sleep';
-      case MealTiming.anytime:     return 'anytime';
+      case MealTiming.beforeMeal:
+        return 'before_meal';
+      case MealTiming.afterMeal:
+        return 'after_meal';
+      case MealTiming.beforeSleep:
+        return 'before_sleep';
+      case MealTiming.anytime:
+        return 'anytime';
     }
   }
 
   /// UI 표시용 한국어 라벨
   String get label {
     switch (this) {
-      case MealTiming.beforeMeal:  return '식전';
-      case MealTiming.afterMeal:   return '식후';
-      case MealTiming.beforeSleep: return '취침 전';
-      case MealTiming.anytime:     return '무관';
+      case MealTiming.beforeMeal:
+        return '식전';
+      case MealTiming.afterMeal:
+        return '식후';
+      case MealTiming.beforeSleep:
+        return '취침 전';
+      case MealTiming.anytime:
+        return '무관';
     }
   }
 
@@ -51,22 +60,23 @@ class Nutrient {
 
   factory Nutrient.fromJson(Map<String, dynamic> json) {
     return Nutrient(
-      name:    json['name'] ?? '',
-      value:   (json['value'] ?? 0).toDouble(),
-      unit:    json['unit'] ?? '',
+      name: json['name'] ?? '',
+      value: (json['value'] ?? 0).toDouble(),
+      unit: json['unit'] ?? '',
       percent: (json['percent'] ?? 0.0).toDouble(),
     );
   }
 
   Map<String, dynamic> toJson() => {
-    'name':    name,
-    'value':   value,
-    'unit':    unit,
+    'name': name,
+    'value': value,
+    'unit': unit,
     'percent': percent,
   };
 }
 
 class Supplement {
+  final String id; // 고유 식별자
   final String name;
   final String brand;
 
@@ -98,6 +108,7 @@ class Supplement {
   final List<TimeOfDay> alarmTimes;
 
   Supplement({
+    String? id,
     required this.name,
     required this.brand,
     this.imagePath,
@@ -111,7 +122,7 @@ class Supplement {
     this.analysisGuide = '이 영양제는 정해진 시간에 복용하는 것이 좋습니다.',
     this.aiSummary = '리뷰를 분석 중입니다.',
     this.alarmTimes = const [],
-  });
+  }) : id = id ?? DateTime.now().microsecondsSinceEpoch.toString();
 
   /// 오늘부터 소진까지 남은 일수. dailyDose <= 0이면 null.
   int? get daysUntilEmpty {
@@ -131,75 +142,79 @@ class Supplement {
 
   factory Supplement.fromJson(Map<String, dynamic> json) {
     return Supplement(
-      name:          json['name'] ?? '',
-      brand:         json['brand'] ?? '',
-      imagePath:     json['imagePath'] as String?,
-      imageUrl:      json['imageUrl'] as String?,
-      remaining:     json['remaining'] ?? 0,
-      total:         json['total'] ?? 0,
-      dailyDose:      json['dailyDose'] ?? 1,
+      id: json['id'] as String?,
+      name: json['name'] ?? '',
+      brand: json['brand'] ?? '',
+      imagePath: json['imagePath'] as String?,
+      imageUrl: json['imageUrl'] as String?,
+      remaining: json['remaining'] ?? 0,
+      total: json['total'] ?? 0,
+      dailyDose: json['dailyDose'] ?? 1,
       dailyFrequency: json['dailyFrequency'] ?? 1,
-      mealTiming:    MealTimingExtension.fromValue(json['mealTiming'] as String?),
-      nutrients:     (json['nutrients'] as List? ?? [])
-                         .map((n) => Nutrient.fromJson(n as Map<String, dynamic>))
-                         .toList(),
+      mealTiming: MealTimingExtension.fromValue(json['mealTiming'] as String?),
+      nutrients: (json['nutrients'] as List? ?? [])
+          .map((n) => Nutrient.fromJson(n as Map<String, dynamic>))
+          .toList(),
       analysisGuide: json['analysisGuide'] ?? '이 영양제는 복합 성분 설계로 흡수율을 높였습니다.',
-      aiSummary:     json['aiSummary'] ?? '리뷰를 분석 중입니다.',
-      alarmTimes:    (json['alarmTimes'] as List? ?? []).map((t) {
-                       final parts = (t as String).split(':');
-                       return TimeOfDay(
-                         hour:   int.parse(parts[0]),
-                         minute: int.parse(parts[1]),
-                       );
-                     }).toList(),
+      aiSummary: json['aiSummary'] ?? '리뷰를 분석 중입니다.',
+      alarmTimes: (json['alarmTimes'] as List? ?? []).map((t) {
+        final parts = (t as String).split(':');
+        return TimeOfDay(
+          hour: int.parse(parts[0]),
+          minute: int.parse(parts[1]),
+        );
+      }).toList(),
     );
   }
 
   Map<String, dynamic> toJson() => {
-    'name':          name,
-    'brand':         brand,
+    'id': id,
+    'name': name,
+    'brand': brand,
     if (imagePath != null) 'imagePath': imagePath,
-    if (imageUrl  != null) 'imageUrl':  imageUrl,
-    'remaining':     remaining,
-    'total':         total,
-    'dailyDose':      dailyDose,
+    if (imageUrl != null) 'imageUrl': imageUrl,
+    'remaining': remaining,
+    'total': total,
+    'dailyDose': dailyDose,
     'dailyFrequency': dailyFrequency,
-    'mealTiming':    mealTiming.value,
-    'nutrients':     nutrients.map((n) => n.toJson()).toList(),
+    'mealTiming': mealTiming.value,
+    'nutrients': nutrients.map((n) => n.toJson()).toList(),
     'analysisGuide': analysisGuide,
-    'aiSummary':     aiSummary,
-    'alarmTimes':    alarmTimes.map((t) => '${t.hour}:${t.minute}').toList(),
+    'aiSummary': aiSummary,
+    'alarmTimes': alarmTimes.map((t) => '${t.hour}:${t.minute}').toList(),
   };
 
   Supplement copyWith({
-    String?         name,
-    String?         brand,
-    String?         imagePath,
-    String?         imageUrl,
-    int?            remaining,
-    int?            total,
-    int?            dailyDose,
-    int?            dailyFrequency,
-    MealTiming?     mealTiming,
+    String? id,
+    String? name,
+    String? brand,
+    String? imagePath,
+    String? imageUrl,
+    int? remaining,
+    int? total,
+    int? dailyDose,
+    int? dailyFrequency,
+    MealTiming? mealTiming,
     List<Nutrient>? nutrients,
-    String?         analysisGuide,
-    String?         aiSummary,
+    String? analysisGuide,
+    String? aiSummary,
     List<TimeOfDay>? alarmTimes,
   }) {
     return Supplement(
-      name:          name          ?? this.name,
-      brand:         brand         ?? this.brand,
-      imagePath:     imagePath     ?? this.imagePath,
-      imageUrl:      imageUrl      ?? this.imageUrl,
-      remaining:     remaining     ?? this.remaining,
-      total:         total         ?? this.total,
-      dailyDose:      dailyDose      ?? this.dailyDose,
+      id: id ?? this.id,
+      name: name ?? this.name,
+      brand: brand ?? this.brand,
+      imagePath: imagePath ?? this.imagePath,
+      imageUrl: imageUrl ?? this.imageUrl,
+      remaining: remaining ?? this.remaining,
+      total: total ?? this.total,
+      dailyDose: dailyDose ?? this.dailyDose,
       dailyFrequency: dailyFrequency ?? this.dailyFrequency,
-      mealTiming:    mealTiming    ?? this.mealTiming,
-      nutrients:     nutrients     ?? this.nutrients,
+      mealTiming: mealTiming ?? this.mealTiming,
+      nutrients: nutrients ?? this.nutrients,
       analysisGuide: analysisGuide ?? this.analysisGuide,
-      alarmTimes:    alarmTimes    ?? this.alarmTimes,
-      aiSummary:     aiSummary     ?? this.aiSummary,
+      alarmTimes: alarmTimes ?? this.alarmTimes,
+      aiSummary: aiSummary ?? this.aiSummary,
     );
   }
 }
