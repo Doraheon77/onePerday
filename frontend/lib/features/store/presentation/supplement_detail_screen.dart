@@ -334,7 +334,7 @@ class _SupplementDetailScreenState extends State<SupplementDetailScreen> {
               ],
             ),
           ),
-          userCode: 'imp_xxxxxxxxxx', // TODO: 포트원 가맹점 식별코드로 교체
+          userCode: 'imp24258048',
           data: PaymentData(
             pg: pg,
             payMethod: pg.startsWith('kakaopay')
@@ -450,30 +450,37 @@ class _SupplementDetailScreenState extends State<SupplementDetailScreen> {
                           ),
                         ],
                       ),
+                      actionsAlignment: MainAxisAlignment.spaceBetween,
                       actions: [
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-                          child: ElevatedButton(
-                            onPressed: () {
-                              Navigator.pop(dialogContext);
-                              Future.microtask(() {
-                                final c = AppRouter.navigatorKey.currentContext;
-                                if (c != null) c.push('/profile/purchases');
-                              });
-                            },
-                            style: ElevatedButton.styleFrom(
-                              minimumSize: const Size.fromHeight(48),
-                              backgroundColor: AppColors.primary,
-                              foregroundColor: Colors.white,
-                              elevation: 0,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
+                        TextButton(
+                          onPressed: () => Navigator.pop(dialogContext),
+                          child: const Text(
+                            '닫기',
+                            style: TextStyle(
+                              color: Colors.grey,
+                              fontWeight: FontWeight.w600,
                             ),
-                            child: const Text(
-                              '구매 기록 확인',
-                              style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                        ElevatedButton(
+                          onPressed: () {
+                            Navigator.pop(dialogContext);
+                            Future.microtask(() {
+                              final c = AppRouter.navigatorKey.currentContext;
+                              if (c != null) c.push('/profile/purchases');
+                            });
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primary,
+                            foregroundColor: Colors.white,
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
                             ),
+                          ),
+                          child: const Text(
+                            '구매 기록 보기',
+                            style: TextStyle(fontWeight: FontWeight.bold),
                           ),
                         ),
                       ],
@@ -594,27 +601,51 @@ class _SupplementDetailScreenState extends State<SupplementDetailScreen> {
               ),
               actions: [
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-                  child: ElevatedButton(
-                    onPressed: () {
-                      Navigator.pop(dialogContext);
-                      Future.microtask(() {
-                        if (mounted) context.push('/profile/purchases');
-                      });
-                    },
-                    style: ElevatedButton.styleFrom(
-                      minimumSize: const Size.fromHeight(48),
-                      backgroundColor: AppColors.primary,
-                      foregroundColor: Colors.white,
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                  padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () => Navigator.pop(context),
+                          style: OutlinedButton.styleFrom(
+                            side: BorderSide(color: Colors.grey.shade300),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                          ),
+                          child: const Text(
+                            '닫기',
+                            style: TextStyle(
+                              color: Colors.grey,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
                       ),
-                    ),
-                    child: const Text(
-                      '구매 기록 확인',
-                      style: TextStyle(fontWeight: FontWeight.bold),
-                    ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: () {
+                            Navigator.pop(context);
+                            context.push('/profile/purchases');
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primary,
+                            foregroundColor: Colors.white,
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                          ),
+                          child: const Text(
+                            '구매 기록 보기',
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],

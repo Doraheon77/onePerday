@@ -450,13 +450,16 @@ class _BasketScreenState extends State<BasketScreen> {
             ),
           ],
         ),
+        actionsAlignment: MainAxisAlignment.spaceBetween,
         actions: [
           TextButton(
             onPressed: () {
               Navigator.pop(context);
-              context.push('/profile/purchases');
             },
-            child: const Text('구매 기록 보기', style: TextStyle(color: Colors.grey)),
+            child: const Text(
+              '닫기',
+              style: TextStyle(color: Colors.grey, fontWeight: FontWeight.w600),
+            ),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
@@ -469,9 +472,12 @@ class _BasketScreenState extends State<BasketScreen> {
             ),
             onPressed: () {
               Navigator.pop(context);
-              context.pop();
+              context.push('/profile/purchases');
             },
-            child: const Text('확인'),
+            child: const Text(
+              '구매 기록 보기',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
           ),
         ],
       ),

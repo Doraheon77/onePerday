@@ -9,7 +9,7 @@ import 'package:simcap/features/cabinet/presentation/barcode_scan_screen.dart';
 import 'package:simcap/features/cabinet/widgets/drum_roll_time_picker.dart';
 
 // ── 탭 인덱스 상수 ───────────────────────────────────────────────────────────
-// 0: 라벨 촬영  /  1: 직접 입력
+// 0: 영양제 촬영  /  1: 직접 검색
 const int _tabLabel = 0;
 const int _tabManual = 1;
 
@@ -40,6 +40,7 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
   final _nutrientController = TextEditingController();
   int _dailyDose = 1; // 1회 복용량
   int _dailyFrequency = 1; // 하루 복용 횟수
+  bool _isEditMode = false; // 수정 모드 여부
   List<TimeOfDay> _alarmTimes = []; // 사용자 지정 알림 시간
   final _remainingController = TextEditingController(text: '30');
 
@@ -55,6 +56,7 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
     // 편집 모드: 기존 데이터로 폼 초기화 + 직접 입력 탭으로 고정
     final item = widget.initialItem;
     if (item != null) {
+      _isEditMode = true;
       _nameController.text = item.name;
       _brandController.text = item.brand;
       _nutrientController.text = item.nutrients.map((n) => n.name).join(', ');
@@ -236,7 +238,7 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
   // ── AppBar ──────────────────────────────────────────────────────────────
   PreferredSizeWidget _buildAppBar() {
     final isEditMode = widget.initialItem != null;
-    const tabTitles = ['라벨 촬영', '직접 입력'];
+    const tabTitles = ['영양제 촬영', '직접 검색'];
     return AppBar(
       title: Text(
         isEditMode ? '영양제 수정' : tabTitles[_selectedTab],
@@ -275,7 +277,7 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
         indicatorColor: AppColors.primary,
         indicatorWeight: 2.5,
         tabs: const [
-          Tab(icon: Icon(Icons.camera_alt_rounded, size: 18), text: '라벨 촬영'),
+          Tab(icon: Icon(Icons.camera_alt_rounded, size: 18), text: '영양제 촬영'),
           Tab(icon: Icon(Icons.edit_note_rounded, size: 18), text: '직접 입력'),
         ],
       ),
@@ -295,7 +297,7 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
   }
 
   // ════════════════════════════════════════════════════════════════════════
-  //  탭 0 — 라벨 촬영
+  //  탭 0 — 영양제 촬영
   // ════════════════════════════════════════════════════════════════════════
   Widget _buildLabelTab() {
     return SingleChildScrollView(
@@ -400,7 +402,7 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
         ),
         const SizedBox(height: 8),
         Text(
-          'AI가 성분 정보를 자동으로 분석해요',
+          '영양제를 촬영하면 데이터를 자동으로 찾아요',
           style: TextStyle(fontSize: 13, color: Colors.grey[500]),
         ),
         const SizedBox(height: 16),
@@ -457,7 +459,7 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
         const CircularProgressIndicator(color: AppColors.primary),
         const SizedBox(height: 20),
         const Text(
-          'AI가 성분을 분석하고 있어요...',
+          '데이터 찾는 중...',
           style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 6),
@@ -538,15 +540,17 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
         // 바코드 인식 결과 뱃지
         _buildSectionTitle('기본 정보'),
         _buildInputField(
-          '제품명 입력',
+          '제품명',
           _nameController,
           hasError: _showNameError && _nameController.text.isEmpty,
+          readOnly: _isEditMode,
         ),
-        _buildInputField('브랜드명 입력 (선택사항)', _brandController),
+        _buildInputField('브랜드명', _brandController, readOnly: _isEditMode),
         _buildInputField(
-          '주요 성분 (예: 비타민C, 아연)',
+          '주요 성분',
           _nutrientController,
           isMultiLine: true,
+          readOnly: _isEditMode,
         ),
 
         const SizedBox(height: 24),
@@ -555,6 +559,7 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
           '1회 복용량 (정/캡슐)',
           _dailyDose,
           (v) => setState(() => _dailyDose = v),
+          readOnly: _isEditMode,
         ),
         _buildQuantityStepper('하루 복용 횟수', _dailyFrequency, (v) {
           setState(() {
@@ -578,8 +583,9 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
   Widget _buildQuantityStepper(
     String label,
     int value,
-    void Function(int) onChanged,
-  ) {
+    void Function(int) onChanged, {
+    bool readOnly = false,
+  }) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -972,12 +978,13 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
     bool isMultiLine = false,
     bool isNumber = false,
     bool hasError = false,
+    bool readOnly = false,
   }) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.symmetric(horizontal: 16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: readOnly ? Colors.grey.shade100 : Colors.white,
         borderRadius: BorderRadius.circular(15),
         border: Border.all(
           color: hasError ? AppColors.danger : AppColors.border,
@@ -986,6 +993,7 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
       ),
       child: TextField(
         controller: controller,
+        readOnly: readOnly,
         onChanged: (val) {
           if (hasError && val.isNotEmpty) {
             setState(() => _showNameError = false);
