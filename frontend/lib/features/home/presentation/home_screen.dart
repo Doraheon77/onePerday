@@ -5,6 +5,7 @@ import 'package:simcap/core/constant/app_constants.dart';
 import 'package:simcap/features/cabinet/domain/dataModels/supplement_model.dart';
 import 'package:simcap/providers/supplement_provider.dart';
 import 'notification_sheet.dart';
+import 'package:simcap/services/intake_api_service.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -16,9 +17,64 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   DateTime _selectedDate = DateTime.now();
 
+  bool _isNutritionChecking = false;
+  bool _hasNutritionWarning = false;
+  bool _hasNutritionDanger = false;
+
   Future<void> _handleRefresh() async {
     await Future.delayed(const Duration(milliseconds: 800));
     if (mounted) setState(() {});
+  }
+
+  Future<void> _checkHomeNutritionSafety() async {
+    if (_isNutritionChecking) return;
+
+    final notifier = SupplementProvider.of(context);
+    final supplements = notifier.supplements;
+
+    if (supplements.isEmpty) return;
+
+    setState(() {
+      _isNutritionChecking = true;
+    });
+
+    try {
+      final api = IntakeApiService();
+
+      final cartItems = supplements.map((s) {
+        return {
+          'productId': s.productId,
+          'name': s.name,
+          'brand': s.brand,
+          'count': 1,
+        };
+      }).toList();
+
+      final results = await api.checkOverdoseByCartItems(
+        cartItems: cartItems,
+        age: 24,
+        gender: 'female',
+      );
+
+      setState(() {
+        _hasNutritionDanger = results.any((r) => r.status == 'danger');
+        _hasNutritionWarning = results.any((r) => r.status == 'warning');
+        _isNutritionChecking = false;
+     });
+    } 
+    catch (_) {
+      setState(() {
+        _isNutritionChecking = false;
+      });
+    }
+  }
+
+  @override
+  void initState(){
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkHomeNutritionSafety();
+    });
   }
 
   @override

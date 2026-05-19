@@ -67,6 +67,8 @@ class Nutrient {
 }
 
 class Supplement {
+  final int productId;
+  
   final String name;
   final String brand;
 
@@ -98,6 +100,7 @@ class Supplement {
   final List<TimeOfDay> alarmTimes;
 
   Supplement({
+    required this.productId,
     required this.name,
     required this.brand,
     this.imagePath,
@@ -131,6 +134,7 @@ class Supplement {
 
   factory Supplement.fromJson(Map<String, dynamic> json) {
     return Supplement(
+      productId: json['productId'] ?? 0,
       name:          json['name'] ?? '',
       brand:         json['brand'] ?? '',
       imagePath:     json['imagePath'] as String?,
@@ -156,6 +160,7 @@ class Supplement {
   }
 
   Map<String, dynamic> toJson() => {
+    'productId':    productId,
     'name':          name,
     'brand':         brand,
     if (imagePath != null) 'imagePath': imagePath,
@@ -172,6 +177,7 @@ class Supplement {
   };
 
   Supplement copyWith({
+    int?           productId,
     String?         name,
     String?         brand,
     String?         imagePath,
@@ -187,6 +193,7 @@ class Supplement {
     List<TimeOfDay>? alarmTimes,
   }) {
     return Supplement(
+      productId: productId         ?? this.productId,
       name:          name          ?? this.name,
       brand:         brand         ?? this.brand,
       imagePath:     imagePath     ?? this.imagePath,
