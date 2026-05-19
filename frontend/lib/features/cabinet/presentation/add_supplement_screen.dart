@@ -42,7 +42,7 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
   int _dailyFrequency = 1; // 하루 복용 횟수
   bool _isEditMode = false; // 수정 모드 여부
   List<TimeOfDay> _alarmTimes = []; // 사용자 지정 알림 시간
-  final _remainingController = TextEditingController(text: '30');
+  final _remainingController = TextEditingController();
 
   @override
   void initState() {
@@ -278,7 +278,7 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
         indicatorWeight: 2.5,
         tabs: const [
           Tab(icon: Icon(Icons.camera_alt_rounded, size: 18), text: '영양제 촬영'),
-          Tab(icon: Icon(Icons.edit_note_rounded, size: 18), text: '직접 입력'),
+          Tab(icon: Icon(Icons.search_rounded, size: 18), text: '직접 검색'),
         ],
       ),
     );
@@ -543,31 +543,20 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
           '제품명',
           _nameController,
           hasError: _showNameError && _nameController.text.isEmpty,
-          readOnly: _isEditMode,
+          readOnly: true,
         ),
-        _buildInputField('브랜드명', _brandController, readOnly: _isEditMode),
+        _buildInputField('브랜드명', _brandController, readOnly: true),
         _buildInputField(
           '주요 성분',
           _nutrientController,
           isMultiLine: true,
-          readOnly: _isEditMode,
+          readOnly: true,
         ),
 
         const SizedBox(height: 24),
-        _buildSectionTitle('복용 및 수량 설정'),
-        _buildQuantityStepper(
-          '1회 복용량 (정/캡슐)',
-          _dailyDose,
-          (v) => setState(() => _dailyDose = v),
-          readOnly: _isEditMode,
-        ),
-        _buildQuantityStepper('하루 복용 횟수', _dailyFrequency, (v) {
-          setState(() {
-            _dailyFrequency = v;
-            // 횟수가 바뀌면 알림 시간 초기화 (기본값으로)
-            _alarmTimes = [];
-          });
-        }),
+        _buildSectionTitle('복용 및 수량'),
+        _buildReadOnlyInfoRow('1회 복용량', '$_dailyDose정'),
+        _buildReadOnlyInfoRow('하루 복용 횟수', '${_dailyFrequency}회'),
 
         const SizedBox(height: 8),
         _buildAlarmTimesSection(),
@@ -580,6 +569,36 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
   }
 
   // 바코드 인식 결과 뱃지 (직접 입력 탭 상단)
+  // 수정 불가 정보 표시 위젯
+  Widget _buildReadOnlyInfoRow(String label, String value) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(15),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            label,
+            style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14),
+          ),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+              color: Colors.grey[600],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildQuantityStepper(
     String label,
     int value,
@@ -590,7 +609,7 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: readOnly ? Colors.white : Colors.grey.shade50,
         borderRadius: BorderRadius.circular(15),
         border: Border.all(color: AppColors.border),
       ),
@@ -886,9 +905,10 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _buildInputField(
-          '현재 남은 수량 (정/캡슐)',
+          '영양제 잔여 개수',
           _remainingController,
           isNumber: true,
+          editable: true,
         ),
         const SizedBox(height: 10),
         SingleChildScrollView(
@@ -979,12 +999,15 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
     bool isNumber = false,
     bool hasError = false,
     bool readOnly = false,
+    bool editable = false, // 수정 가능 필드 강조 (회색 배경)
   }) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       decoration: BoxDecoration(
-        color: readOnly ? Colors.grey.shade100 : Colors.white,
+        color: readOnly
+            ? Colors.white
+            : (editable ? Colors.grey.shade100 : Colors.white),
         borderRadius: BorderRadius.circular(15),
         border: Border.all(
           color: hasError ? AppColors.danger : AppColors.border,

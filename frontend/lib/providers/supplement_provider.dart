@@ -491,7 +491,8 @@ class SupplementNotifier extends ChangeNotifier {
             r.supplementId == supplementId &&
             _dateOnly(r.date) == _dateOnly(targetDate),
       );
-      if (supplement.remaining > 0 || supplement.total == 0) {
+      // remaining이 0이면 복구하지 않음 (소진 후 해제 버그 방지)
+      if (supplement.remaining > 0) {
         _supplements[idx] = supplement.copyWith(
           remaining: supplement.remaining + supplement.dailyDose,
         );

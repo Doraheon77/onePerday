@@ -5,6 +5,8 @@ import 'package:simcap/core/constant/app_constants.dart';
 import 'package:simcap/features/cabinet/domain/dataModels/supplement_model.dart';
 import 'package:simcap/providers/supplement_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:simcap/features/store/data/store_product_data.dart';
+import 'package:simcap/features/store/presentation/supplement_detail_screen.dart';
 
 class CabinetDetailScreen extends StatefulWidget {
   final Supplement item;
@@ -80,50 +82,28 @@ class _CabinetDetailScreenState extends State<CabinetDetailScreen> {
           '${item.name}을(를) 삭제하시겠습니까?\n복용 기록도 함께 삭제됩니다.',
           style: const TextStyle(height: 1.5),
         ),
+        actionsAlignment: MainAxisAlignment.spaceBetween,
         actions: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(8, 0, 8, 4),
-            child: Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: () => Navigator.pop(ctx, false),
-                    style: OutlinedButton.styleFrom(
-                      side: BorderSide(color: Colors.grey.shade300),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                    ),
-                    child: const Text(
-                      '취소',
-                      style: TextStyle(
-                        color: Colors.black54,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: () => Navigator.pop(ctx, true),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.danger,
-                      foregroundColor: Colors.white,
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                    ),
-                    child: const Text(
-                      '삭제',
-                      style: TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                ),
-              ],
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text(
+              '취소',
+              style: TextStyle(color: Colors.grey, fontWeight: FontWeight.w600),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.danger,
+              foregroundColor: Colors.white,
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+            child: const Text(
+              '삭제',
+              style: TextStyle(fontWeight: FontWeight.bold),
             ),
           ),
         ],
@@ -271,6 +251,42 @@ class _CabinetDetailScreenState extends State<CabinetDetailScreen> {
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 4),
+                GestureDetector(
+                  onTap: () {
+                    final matched = allProducts
+                        .where(
+                          (p) =>
+                              p.name.contains(item.name) ||
+                              item.name.contains(p.name),
+                        )
+                        .toList();
+                    if (matched.isNotEmpty) {
+                      context.push('/store/detail', extra: matched.first);
+                    } else {
+                      context.push('/store/search');
+                    }
+                  },
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        '스토어 상세 보기',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: AppColors.primary,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      const SizedBox(width: 2),
+                      Icon(
+                        Icons.chevron_right_rounded,
+                        size: 14,
+                        color: AppColors.primary,
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
