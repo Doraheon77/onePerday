@@ -777,8 +777,9 @@ class _HomeScreenState extends State<HomeScreen> {
     // 1회 복용 — 기존 방식
     if (freq <= 1) {
       final isDone = notifier.isDoneOn(supplement.id, _selectedDate);
+      final isEmpty = supplement.remaining <= 0 && !isDone;
       return GestureDetector(
-        onTap: isToday
+        onTap: (isToday && (!isEmpty || isDone))
             ? () => notifier.toggleDose(supplement.id, date: _selectedDate)
             : null,
         child: _buildMedicationCard(
@@ -786,6 +787,7 @@ class _HomeScreenState extends State<HomeScreen> {
           isDone,
           isToday,
           doseLabel: null,
+          isEmpty: isEmpty,
         ),
       );
     }
@@ -848,22 +850,28 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
             // 카드
-            GestureDetector(
-              onTap: isToday
-                  ? () => notifier.toggleDoseIndex(
-                      supplement.name,
-                      i,
-                      date: _selectedDate,
-                    )
-                  : null,
-              child: _buildMedicationCard(
-                supplement,
-                isDone,
-                isToday,
-                doseLabel: null,
-                doseIndex: i,
-                totalDose: freq,
-              ),
+            Builder(
+              builder: (ctx) {
+                final isEmpty = supplement.remaining <= 0 && !isDone;
+                return GestureDetector(
+                  onTap: (isToday && (!isEmpty || isDone))
+                      ? () => notifier.toggleDoseIndex(
+                          supplement.id,
+                          i,
+                          date: _selectedDate,
+                        )
+                      : null,
+                  child: _buildMedicationCard(
+                    supplement,
+                    isDone,
+                    isToday,
+                    doseLabel: null,
+                    doseIndex: i,
+                    totalDose: freq,
+                    isEmpty: isEmpty,
+                  ),
+                );
+              },
             ),
           ],
         );
@@ -878,15 +886,22 @@ class _HomeScreenState extends State<HomeScreen> {
     String? doseLabel,
     int doseIndex = 0,
     int totalDose = 1,
+    bool isEmpty = false,
   }) {
     return AnimatedContainer(
       duration: const Duration(milliseconds: 250),
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: isDone ? AppColors.primary.withOpacity(0.12) : Colors.white,
+        color: isEmpty
+            ? Colors.grey.shade50
+            : isDone
+            ? AppColors.primary.withOpacity(0.12)
+            : Colors.white,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: isDone
+          color: isEmpty
+              ? Colors.grey.shade300
+              : isDone
               ? AppColors.primary.withOpacity(0.4)
               : Colors.grey.withOpacity(0.1),
           width: isDone ? 1.5 : 1,
@@ -899,7 +914,9 @@ class _HomeScreenState extends State<HomeScreen> {
           width: 42,
           height: 42,
           decoration: BoxDecoration(
-            color: isDone
+            color: isEmpty
+                ? Colors.grey.shade200
+                : isDone
                 ? AppColors.primary
                 : isToday
                 ? AppColors.dangerBg
@@ -907,8 +924,14 @@ class _HomeScreenState extends State<HomeScreen> {
             shape: BoxShape.circle,
           ),
           child: Icon(
-            isDone ? Icons.check_rounded : Icons.medication_rounded,
-            color: isDone
+            isEmpty
+                ? Icons.warning_amber_rounded
+                : isDone
+                ? Icons.check_rounded
+                : Icons.medication_rounded,
+            color: isEmpty
+                ? Colors.orange
+                : isDone
                 ? Colors.white
                 : isToday
                 ? AppColors.danger
@@ -921,25 +944,53 @@ class _HomeScreenState extends State<HomeScreen> {
           style: TextStyle(
             fontWeight: FontWeight.bold,
             decoration: isDone ? TextDecoration.lineThrough : null,
-            color: isDone ? Colors.grey[500] : Colors.black87,
+            color: isEmpty
+                ? Colors.grey[400]
+                : isDone
+                ? Colors.grey[500]
+                : Colors.black87,
           ),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
         subtitle: Text(
-          isDone
+          isEmpty
+              ? '재고 소진 · 구매가 필요해요'
+              : isDone
               ? '복용 완료 · ${supplement.remaining}정 남음'
               : '${supplement.remaining}정 남음',
           style: TextStyle(
             fontSize: 12,
-            color: isDone ? Colors.grey[400] : Colors.grey[600],
+            color: isEmpty
+                ? Colors.orange
+                : isDone
+                ? Colors.grey[400]
+                : Colors.grey[600],
           ),
         ),
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
+            // 재고 소진 뱃지
+            if (isEmpty)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.orange.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.orange.withOpacity(0.4)),
+                ),
+                child: const Text(
+                  '구매 필요',
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: Colors.orange,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              )
             // 재고 임박 뱃지
-            if (!isDone && supplement.remaining <= 7)
+            else if (!isDone && supplement.remaining <= 7)
               Container(
                 margin: const EdgeInsets.only(right: 8),
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),

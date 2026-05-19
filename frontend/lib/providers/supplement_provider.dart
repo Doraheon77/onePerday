@@ -443,14 +443,15 @@ class SupplementNotifier extends ChangeNotifier {
             _dateOnly(r.date) == _dateOnly(targetDate) &&
             r.doseIndex == doseIndex,
       );
-      // 소진 후 체크 해제 시 남은 용량 복구 안 함 (버그 방지)
-      if (supplement.remaining > 0) {
-        final dosePerTime = (supplement.dailyDose / supplement.dailyFrequency)
-            .ceil();
-        _supplements[idx] = supplement.copyWith(
-          remaining: supplement.remaining + dosePerTime,
-        );
-      }
+      // 오늘 체크해서 0이 된 경우도 복구 (잘못 체크한 경우 대비)
+      final dosePerTime = (supplement.dailyDose / supplement.dailyFrequency)
+          .ceil();
+      _supplements[idx] = supplement.copyWith(
+        remaining: (supplement.remaining + dosePerTime).clamp(
+          0,
+          supplement.total == 0 ? 9999 : supplement.total,
+        ),
+      );
     } else {
       _doseHistory.add(
         DoseRecord(
@@ -485,18 +486,19 @@ class SupplementNotifier extends ChangeNotifier {
     final alreadyDone = isDoneOn(supplementId, targetDate);
 
     if (alreadyDone) {
-      // 복용 해제: 기록 삭제 + remaining 복구 (소진 시 복구 안 함)
+      // 복용 해제: 기록 삭제 + remaining 복구
       _doseHistory.removeWhere(
         (r) =>
             r.supplementId == supplementId &&
             _dateOnly(r.date) == _dateOnly(targetDate),
       );
-      // remaining이 0이면 복구하지 않음 (소진 후 해제 버그 방지)
-      if (supplement.remaining > 0) {
-        _supplements[idx] = supplement.copyWith(
-          remaining: supplement.remaining + supplement.dailyDose,
-        );
-      }
+      // 오늘 체크해서 0이 된 경우도 복구 (잘못 체크한 경우 대비)
+      _supplements[idx] = supplement.copyWith(
+        remaining: (supplement.remaining + supplement.dailyDose).clamp(
+          0,
+          supplement.total == 0 ? 9999 : supplement.total,
+        ),
+      );
     } else {
       // 복용 완료: 기록 추가 + remaining 차감
       _doseHistory.add(
