@@ -186,15 +186,19 @@ class NotificationService {
   Future<void> scheduleAllDoseAlarms(List<Supplement> supplements) async {
     if (!_initialized) return;
     await cancelAllDoseAlarms();
-    for (int i = 0; i < supplements.length; i++) {
-      await scheduleDoseAlarm(supplements[i], i);
+    // remaining > 0인 영양제만 알림 등록
+    final active = supplements.where((s) => s.remaining > 0).toList();
+    for (int i = 0; i < active.length; i++) {
+      await scheduleDoseAlarm(active[i], i);
     }
-    _scheduledDoseCount = supplements.length;
-    debugPrint('[NotificationService] 복용 알림 ${supplements.length}개 등록');
+    _scheduledDoseCount = active.length;
+    debugPrint('[NotificationService] 복용 알림 \${active.length}개 등록 (소진 제외)');
   }
 
   /// 개별 영양제 복용 알림 등록 — alarmTimes 기반 (매일 반복)
   Future<void> scheduleDoseAlarm(Supplement supplement, int index) async {
+    // 재고 소진 시 알림 등록 안 함
+    if (supplement.remaining <= 0) return;
     // alarmTimes가 있으면 각 시간마다 알림, 없으면 기본값 오전 9시
     final times = supplement.alarmTimes.isNotEmpty
         ? supplement.alarmTimes

@@ -173,6 +173,18 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
       return;
     }
 
+    // 알림 시간 필수 검증
+    if (_alarmTimes.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('복용 알림 시간을 설정해주세요!'),
+          backgroundColor: AppColors.danger,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
     final newSupplement = Supplement(
       name: name,
       brand: _brandController.text.trim(),
@@ -703,9 +715,20 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
               const Icon(Icons.alarm, size: 18, color: AppColors.primary),
               const SizedBox(width: 8),
               const Expanded(
-                child: Text(
-                  '복용 알림 시간',
-                  style: TextStyle(fontWeight: FontWeight.w600),
+                child: Text.rich(
+                  TextSpan(
+                    text: '복용 알림 시간',
+                    style: TextStyle(fontWeight: FontWeight.w600),
+                    children: [
+                      TextSpan(
+                        text: ' *',
+                        style: TextStyle(
+                          color: AppColors.danger,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
               if (_alarmTimes.isEmpty)
@@ -829,9 +852,7 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
           ),
           const SizedBox(height: 8),
           Text(
-            _alarmTimes.isEmpty
-                ? '기본 시간으로 알림이 설정됩니다. 탭해서 직접 설정하세요.'
-                : '알림 시간을 탭하면 변경할 수 있습니다.',
+            _alarmTimes.isEmpty ? '알림 시간을 설정해주세요.' : '알림 시간을 탭하면 변경할 수 있습니다.',
             style: TextStyle(fontSize: 11, color: Colors.grey[500]),
           ),
         ],

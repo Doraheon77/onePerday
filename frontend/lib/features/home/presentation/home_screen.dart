@@ -760,11 +760,78 @@ class _HomeScreenState extends State<HomeScreen> {
       );
     }
 
-    return Column(
-      children: supplements
-          .map((s) => _buildMedicationToggleCard(s, notifier))
-          .toList(),
-    );
+    // 알림 시간 기준 정렬 (첫 번째 알림 시간, 없으면 맨 뒤)
+    final sorted = [...supplements]
+      ..sort((a, b) {
+        final aTime = a.alarmTimes.isNotEmpty
+            ? a.alarmTimes.first.hour * 60 + a.alarmTimes.first.minute
+            : 9999;
+        final bTime = b.alarmTimes.isNotEmpty
+            ? b.alarmTimes.first.hour * 60 + b.alarmTimes.first.minute
+            : 9999;
+        return aTime.compareTo(bTime);
+      });
+
+    // 오전/오후 구분 헤더 추가
+    final List<Widget> items = [];
+    String? lastPeriod;
+
+    for (final s in sorted) {
+      final firstAlarm = s.alarmTimes.isNotEmpty ? s.alarmTimes.first : null;
+      String? period;
+      if (firstAlarm != null) {
+        final isPm = firstAlarm.hour >= 12;
+        final h = firstAlarm.hour == 0
+            ? 12
+            : firstAlarm.hour > 12
+            ? firstAlarm.hour - 12
+            : firstAlarm.hour;
+        final m = firstAlarm.minute.toString().padLeft(2, '0');
+        period = '${isPm ? "오후" : "오전"} $h:$m';
+      }
+
+      if (period != null && period != lastPeriod) {
+        if (lastPeriod != null) {
+          items.add(const SizedBox(height: 4));
+        }
+        items.add(
+          Padding(
+            padding: const EdgeInsets.only(left: 4, bottom: 8, top: 4),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppColors.primaryLight,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    period,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Divider(color: Colors.grey.shade200, height: 1),
+                ),
+              ],
+            ),
+          ),
+        );
+        lastPeriod = period;
+      }
+
+      items.add(_buildMedicationToggleCard(s, notifier));
+    }
+
+    return Column(children: items);
   }
 
   Widget _buildMedicationToggleCard(
@@ -971,7 +1038,6 @@ class _HomeScreenState extends State<HomeScreen> {
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // 재고 소진 뱃지
             if (isEmpty)
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -989,7 +1055,6 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
               )
-            // 재고 임박 뱃지
             else if (!isDone && supplement.remaining <= 7)
               Container(
                 margin: const EdgeInsets.only(right: 8),

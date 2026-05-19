@@ -293,7 +293,7 @@ class _CabinetScreenState extends State<CabinetScreen> {
                   itemBuilder: (context, index) {
                     final supp = sorted[index];
                     return Dismissible(
-                      key: ValueKey(supp.name),
+                      key: ValueKey(supp.id),
                       direction: DismissDirection.endToStart,
                       confirmDismiss: (_) async {
                         final confirmed = await showDialog<bool>(
