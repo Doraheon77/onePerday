@@ -24,10 +24,19 @@ class NotificationSheet extends StatelessWidget {
     final notifier = SupplementProvider.of(context);
     final supplements = notifier.supplements;
 
-    // 오늘 미복용 영양제
-    final List<Supplement> undoneTodayList = supplements
-        .where((s) => !notifier.isDoneToday(s.name))
-        .toList();
+    // 오늘 미복용 회차 목록 (영양제 + 회차 인덱스)
+    final List<({Supplement s, int index, TimeOfDay? time})> undoneTodayList =
+        [];
+    final today = DateTime.now();
+    for (final s in supplements) {
+      if (s.remaining <= 0) continue; // 소진 영양제 제외
+      for (int i = 0; i < s.dailyFrequency; i++) {
+        if (!notifier.isDoneOnIndex(s.id, today, i)) {
+          final time = s.alarmTimes.length > i ? s.alarmTimes[i] : null;
+          undoneTodayList.add((s: s, index: i, time: time));
+        }
+      }
+    }
 
     // 잔여량 7정 이하 (재구매 필요)
     final List<Supplement> lowStockList = supplements
@@ -91,7 +100,10 @@ class NotificationSheet extends StatelessWidget {
                       // 섹션 1: 오늘 미복용 알림
                       if (undoneTodayList.isNotEmpty) ...[
                         _buildSectionLabel('오늘 복용 알림', Icons.medication_liquid),
-                        ...undoneTodayList.map((s) => _buildPillItem(s)),
+                        ...undoneTodayList.map(
+                          (item) =>
+                              _buildPillItem(item.s, item.index, item.time),
+                        ),
                         const SizedBox(height: 8),
                       ],
 
@@ -134,7 +146,22 @@ class NotificationSheet extends StatelessWidget {
   }
 
   // 미복용 알림 카드
-  Widget _buildPillItem(Supplement s) {
+  Widget _buildPillItem(Supplement s, int doseIndex, TimeOfDay? time) {
+    String timeLabel = '';
+    if (time != null) {
+      final isPm = time.hour >= 12;
+      final h = time.hour == 0
+          ? 12
+          : (time.hour > 12 ? time.hour - 12 : time.hour);
+      final m = time.minute.toString().padLeft(2, '0');
+      timeLabel = '${isPm ? "오후" : "오전"} $h:$m';
+    }
+    final doseLabel = s.dailyFrequency > 1
+        ? ' (${doseIndex + 1}회차${timeLabel.isNotEmpty ? " · $timeLabel" : ""})'
+        : timeLabel.isNotEmpty
+        ? ' · $timeLabel'
+        : '';
+
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
@@ -155,14 +182,9 @@ class NotificationSheet extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text(
-                      '복용 알림',
-                      style: TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                  ],
+                Text(
+                  '복용 알림$doseLabel',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 4),
                 Text(

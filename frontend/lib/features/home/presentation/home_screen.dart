@@ -43,7 +43,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
       final cartItems = supplements.map((s) {
         return {
-          'productId': s.productId,
+          'productId': s.id,
           'name': s.name,
           'brand': s.brand,
           'count': 1,
@@ -60,9 +60,8 @@ class _HomeScreenState extends State<HomeScreen> {
         _hasNutritionDanger = results.any((r) => r.status == 'danger');
         _hasNutritionWarning = results.any((r) => r.status == 'warning');
         _isNutritionChecking = false;
-     });
-    } 
-    catch (_) {
+      });
+    } catch (_) {
       setState(() {
         _isNutritionChecking = false;
       });
@@ -70,7 +69,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   @override
-  void initState(){
+  void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _checkHomeNutritionSafety();

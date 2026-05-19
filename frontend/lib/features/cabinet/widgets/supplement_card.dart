@@ -133,7 +133,7 @@ class SupplementCard extends StatelessWidget {
                   borderRadius: BorderRadius.circular(4),
                 ),
                 child: Text(
-                  item.mealTiming.label,
+                  '${remaining}정 남음',
                   style: const TextStyle(
                     fontSize: 10,
                     color: AppColors.primary,

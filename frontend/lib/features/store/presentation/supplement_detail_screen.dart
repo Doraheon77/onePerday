@@ -18,6 +18,8 @@ class StoreProduct {
   final List<String> contraindications;
   final List<StoreProduct> similarProducts;
   final String? purchaseUrl;
+  final int dailyDose;
+  final int dailyFrequency;
 
   const StoreProduct({
     required this.id,
@@ -29,6 +31,8 @@ class StoreProduct {
     this.contraindications = const [],
     this.similarProducts = const [],
     this.purchaseUrl,
+    this.dailyDose = 1,
+    this.dailyFrequency = 1,
   });
 
   /// StoreProduct → Supplement 변환
@@ -39,8 +43,8 @@ class StoreProduct {
       brand: brand,
       remaining: 0, // 등록 직후 수량은 0 — 사용자가 add_supplement에서 직접 입력
       total: 0,
-      dailyDose: 1,
-      mealTiming: MealTiming.anytime,
+      dailyDose: dailyDose,
+      dailyFrequency: dailyFrequency,
       nutrients: nutrients
           .map(
             (n) => Nutrient(

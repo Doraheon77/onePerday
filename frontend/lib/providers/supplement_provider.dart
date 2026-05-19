@@ -8,23 +8,28 @@ import 'package:simcap/services/notification_service.dart';
 // 복용 기록 모델
 // 날짜별로 어떤 영양제를 복용했는지 추적
 class DoseRecord {
-  final String supplementName;
+  final String supplementId; // 고유 ID 기반 식별
+  final String supplementName; // 표시용
   final DateTime date;
-  final int doseIndex; // 복용 횟수 인덱스 (0부터 시작)
+  final int doseIndex;
 
   const DoseRecord({
+    required this.supplementId,
     required this.supplementName,
     required this.date,
     this.doseIndex = 0,
   });
 
   Map<String, dynamic> toJson() => {
+    'supplementId': supplementId,
     'supplementName': supplementName,
     'date': date.toIso8601String(),
     'doseIndex': doseIndex,
   };
 
   factory DoseRecord.fromJson(Map<String, dynamic> json) => DoseRecord(
+    supplementId:
+        json['supplementId'] as String? ?? json['supplementName'] as String,
     supplementName: json['supplementName'] as String,
     date: DateTime.parse(json['date'] as String),
     doseIndex: json['doseIndex'] as int? ?? 0,
@@ -308,7 +313,18 @@ class SupplementNotifier extends ChangeNotifier {
       List.unmodifiable(_purchases.reversed.toList());
 
   // 복용 여부 조회
-  int get undoneCount => _supplements.where((s) => !isDoneToday(s.name)).length;
+  // 오늘 미완료 복용 횟수 (영양제별 전체 회차 기준)
+  int get undoneCount {
+    int count = 0;
+    final today = DateTime.now();
+    for (final s in _supplements) {
+      if (s.remaining <= 0) continue; // 소진 영양제 제외
+      for (int i = 0; i < s.dailyFrequency; i++) {
+        if (!isDoneOnIndex(s.id, today, i)) count++;
+      }
+    }
+    return count;
+  }
 
   // 재고가 7정 이하로 남은 영양제 개수
   int get lowStockCount => _supplements.where((s) => s.remaining <= 7).length;
@@ -318,14 +334,24 @@ class SupplementNotifier extends ChangeNotifier {
 
   // ── 통계 ─────────────────────────────────────────────────────────────────
 
-  /// 오늘 복용 완료 수
+  /// 오늘 복용 완료 횟수 (회차 기준)
   int get todayDoneCount {
     if (_supplements.isEmpty) return 0;
-    return _supplements.where((s) => isDoneToday(s.name)).length;
+    int count = 0;
+    final today = DateTime.now();
+    for (final s in _supplements) {
+      for (int i = 0; i < s.dailyFrequency; i++) {
+        if (isDoneOnIndex(s.id, today, i)) count++;
+      }
+    }
+    return count;
   }
 
-  /// 오늘 전체 영양제 수 (= supplements.length)
-  int get todayTotalCount => _supplements.length;
+  /// 오늘 전체 복용 횟수 (회차 기준)
+  int get todayTotalCount {
+    if (_supplements.isEmpty) return 0;
+    return _supplements.fold(0, (sum, s) => sum + s.dailyFrequency);
+  }
 
   /// 연속 복용 스트릭 (일) — 오늘 포함 연속으로 모든 영양제를 복용한 날 수
   int get currentStreak {
@@ -389,26 +415,26 @@ class SupplementNotifier extends ChangeNotifier {
 
   /// 특정 날짜에 해당 영양제를 복용했는지 여부
   /// 특정 날짜 + 인덱스 복용 여부
-  bool isDoneOnIndex(String supplementName, DateTime date, int doseIndex) {
+  bool isDoneOnIndex(String supplementId, DateTime date, int doseIndex) {
     final day = _dateOnly(date);
     return _doseHistory.any(
       (r) =>
-          r.supplementName == supplementName &&
+          r.supplementId == supplementId &&
           _dateOnly(r.date) == day &&
           r.doseIndex == doseIndex,
     );
   }
 
-  bool isDoneOn(String supplementName, DateTime date) {
+  bool isDoneOn(String supplementId, DateTime date) {
     final day = _dateOnly(date);
     return _doseHistory.any(
-      (r) => r.supplementName == supplementName && _dateOnly(r.date) == day,
+      (r) => r.supplementId == supplementId && _dateOnly(r.date) == day,
     );
   }
 
   /// 오늘 해당 영양제를 복용했는지 여부
-  bool isDoneToday(String supplementName) =>
-      isDoneOn(supplementName, DateTime.now());
+  bool isDoneToday(String supplementId) =>
+      isDoneOn(supplementId, DateTime.now());
 
   /// 특정 날짜에 복용 기록이 하나라도 있는지 여부 (캘린더 도트용)
   bool hasDoseRecordOn(DateTime date) {
@@ -416,37 +442,46 @@ class SupplementNotifier extends ChangeNotifier {
     return _doseHistory.any((r) => _dateOnly(r.date) == day);
   }
 
-  /// 특정 날짜에 모든 영양제를 복용 완료했는지 여부 (완전 완료 도트용)
+  /// 특정 날짜에 모든 영양제의 모든 회차를 완료했는지 여부
   bool isAllDoneOn(DateTime date) {
     if (_supplements.isEmpty) return false;
-    return _supplements.every((s) => isDoneOn(s.name, date));
+    return _supplements.every((s) {
+      for (int i = 0; i < s.dailyFrequency; i++) {
+        if (!isDoneOnIndex(s.id, date, i)) return false;
+      }
+      return true;
+    });
   }
 
   /// 특정 인덱스 복용 토글 (다회 복용용)
-  void toggleDoseIndex(String supplementName, int doseIndex, {DateTime? date}) {
+  void toggleDoseIndex(String supplementId, int doseIndex, {DateTime? date}) {
     final targetDate = date ?? DateTime.now();
-    final idx = _supplements.indexWhere((s) => s.name == supplementName);
+    final idx = _supplements.indexWhere((s) => s.id == supplementId);
     if (idx == -1) return;
 
     final supplement = _supplements[idx];
-    final alreadyDone = isDoneOnIndex(supplementName, targetDate, doseIndex);
+    final alreadyDone = isDoneOnIndex(supplementId, targetDate, doseIndex);
 
     if (alreadyDone) {
       _doseHistory.removeWhere(
         (r) =>
-            r.supplementName == supplementName &&
+            r.supplementId == supplementId &&
             _dateOnly(r.date) == _dateOnly(targetDate) &&
             r.doseIndex == doseIndex,
       );
-      _supplements[idx] = supplement.copyWith(
-        remaining:
-            supplement.remaining +
-            (supplement.dailyDose / supplement.dailyFrequency).ceil(),
-      );
+      // 소진 후 체크 해제 시 남은 용량 복구 안 함 (버그 방지)
+      if (supplement.remaining > 0) {
+        final dosePerTime = (supplement.dailyDose / supplement.dailyFrequency)
+            .ceil();
+        _supplements[idx] = supplement.copyWith(
+          remaining: supplement.remaining + dosePerTime,
+        );
+      }
     } else {
       _doseHistory.add(
         DoseRecord(
-          supplementName: supplementName,
+          supplementId: supplementId,
+          supplementName: supplement.name,
           date: targetDate,
           doseIndex: doseIndex,
         ),
@@ -467,28 +502,34 @@ class SupplementNotifier extends ChangeNotifier {
   /// 복용 체크/해제 토글.
   /// - 체크 시: 복용 기록 추가 + remaining -= dailyDose
   /// - 해제 시: 복용 기록 삭제 + remaining += dailyDose (되돌리기)
-  void toggleDose(String supplementName, {DateTime? date}) {
+  void toggleDose(String supplementId, {DateTime? date}) {
     final targetDate = date ?? DateTime.now();
-    final idx = _supplements.indexWhere((s) => s.name == supplementName);
+    final idx = _supplements.indexWhere((s) => s.id == supplementId);
     if (idx == -1) return;
 
     final supplement = _supplements[idx];
-    final alreadyDone = isDoneOn(supplementName, targetDate);
+    final alreadyDone = isDoneOn(supplementId, targetDate);
 
     if (alreadyDone) {
-      // 복용 해제: 기록 삭제 + remaining 복구
+      // 복용 해제: 기록 삭제 + remaining 복구 (소진 시 복구 안 함)
       _doseHistory.removeWhere(
         (r) =>
-            r.supplementName == supplementName &&
+            r.supplementId == supplementId &&
             _dateOnly(r.date) == _dateOnly(targetDate),
       );
-      _supplements[idx] = supplement.copyWith(
-        remaining: supplement.remaining + supplement.dailyDose,
-      );
+      if (supplement.remaining > 0 || supplement.total == 0) {
+        _supplements[idx] = supplement.copyWith(
+          remaining: supplement.remaining + supplement.dailyDose,
+        );
+      }
     } else {
-      // 복용 완료: 기록 추가 + remaining 차감 (0 미만 방지)
+      // 복용 완료: 기록 추가 + remaining 차감
       _doseHistory.add(
-        DoseRecord(supplementName: supplementName, date: targetDate),
+        DoseRecord(
+          supplementId: supplementId,
+          supplementName: supplement.name,
+          date: targetDate,
+        ),
       );
       final newRemaining = (supplement.remaining - supplement.dailyDose).clamp(
         0,
@@ -526,10 +567,9 @@ class SupplementNotifier extends ChangeNotifier {
     _saveSupplements();
   }
 
-  void removeSupplement(String name) {
-    _supplements.removeWhere((s) => s.name == name);
-    _doseHistory.removeWhere((r) => r.supplementName == name);
-    // 삭제된 영양제 알림 정리 후 재스케줄
+  void removeSupplement(String id) {
+    _supplements.removeWhere((s) => s.id == id);
+    _doseHistory.removeWhere((r) => r.supplementId == id);
     NotificationService.instance.scheduleAllDoseAlarms(_supplements);
     notifyListeners();
     _saveSupplements();
