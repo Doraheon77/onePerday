@@ -597,6 +597,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   // 내가 쓴 리뷰 섹션
   Widget _buildMyReviewsSection() {
+    // 백엔드 연동 전: 리뷰 없음으로 처리
+    const bool hasReviews = false;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -608,11 +610,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             TextButton(
-              onPressed: () => context.push('/profile/my-reviews'),
-              child: const Text(
+              // 리뷰가 없으면 비활성화 (백엔드 연동 후 활성화)
+              onPressed: hasReviews
+                  ? () => context.push('/profile/my-reviews')
+                  : null,
+              child: Text(
                 '전체보기',
                 style: TextStyle(
-                  color: AppColors.primary,
+                  color: hasReviews ? AppColors.primary : Colors.grey[400],
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -856,33 +861,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
           ),
           const SizedBox(height: 20),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 48),
-            child: OutlinedButton.icon(
-              onPressed: () => context.go('/store'),
-              style: OutlinedButton.styleFrom(
-                side: const BorderSide(color: AppColors.primary),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                minimumSize: const Size(0, 40),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 8,
-                ),
+          OutlinedButton.icon(
+            onPressed: () => context.go('/store'),
+            style: OutlinedButton.styleFrom(
+              side: const BorderSide(color: AppColors.primary),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
               ),
-              icon: const Icon(
-                Icons.storefront_outlined,
-                size: 15,
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+            ),
+            icon: const Icon(
+              Icons.storefront_outlined,
+              size: 16,
+              color: AppColors.primary,
+            ),
+            label: const Text(
+              '스토어 바로가기',
+              style: TextStyle(
                 color: AppColors.primary,
-              ),
-              label: const Text(
-                '스토어 바로가기',
-                style: TextStyle(
-                  fontSize: 13,
-                  color: AppColors.primary,
-                  fontWeight: FontWeight.bold,
-                ),
+                fontWeight: FontWeight.bold,
               ),
             ),
           ),
