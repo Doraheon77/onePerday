@@ -47,7 +47,7 @@ class _CabinetDetailScreenState extends State<CabinetDetailScreen> {
   /// 편집 화면으로 이동 — 수정 완료 시 updateSupplement() 호출
   Future<void> _navigateToEdit(BuildContext context) async {
     final notifier = SupplementProvider.of(context);
-    final idx = notifier.supplements.indexWhere((s) => s.name == item.name);
+    final idx = notifier.supplements.indexWhere((s) => s.id == item.id);
     if (idx == -1) return;
 
     final updated = await context.push<Supplement>('/cabinet/add', extra: item);
@@ -162,8 +162,14 @@ class _CabinetDetailScreenState extends State<CabinetDetailScreen> {
     );
   }
 
-  // StatefulWidget이므로 item은 widget.item으로 접근
-  Supplement get item => widget.item;
+  // provider에서 최신 데이터 실시간 반영
+  Supplement get item {
+    final notifier = SupplementProvider.of(context);
+    final found = notifier.supplements
+        .where((s) => s.id == widget.item.id)
+        .toList();
+    return found.isNotEmpty ? found.first : widget.item;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -369,7 +375,11 @@ class _CabinetDetailScreenState extends State<CabinetDetailScreen> {
             '하루 복용 횟수',
             '${item.dailyFrequency}회',
           ),
-          _buildInfoRow(Icons.inventory_2_outlined, '전체 용량', '${item.total}정'),
+          _buildInfoRow(
+            Icons.inventory_2_outlined,
+            '전체 용량',
+            item.total == 0 ? '미설정' : '${item.total}정',
+          ),
           _buildInfoRow(
             Icons.notifications_active_outlined,
             '알림 설정',
@@ -395,8 +405,13 @@ class _CabinetDetailScreenState extends State<CabinetDetailScreen> {
   }
 
   Widget _buildRemainingBar() {
-    final int total = item.total == 0 ? 1 : item.total;
-    final double progress = (item.remaining / total).clamp(0.0, 1.0);
+    final int total = item.total;
+    final int remaining = item.remaining;
+    // remaining > total이면 데이터 이상 — total을 remaining으로 보정
+    final int displayTotal = total == 0 ? remaining : total;
+    final double progress = displayTotal == 0
+        ? 0.0
+        : (remaining / displayTotal).clamp(0.0, 1.0);
     final Color barColor = progress <= 0.2
         ? AppColors.danger
         : progress <= 0.5
@@ -429,7 +444,7 @@ class _CabinetDetailScreenState extends State<CabinetDetailScreen> {
                 ],
               ),
               Text(
-                '${item.remaining}정 / ${item.total}정',
+                '${item.remaining}정 / ${displayTotal}정',
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.bold,

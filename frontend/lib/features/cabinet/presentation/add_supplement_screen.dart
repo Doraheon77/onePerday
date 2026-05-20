@@ -43,6 +43,7 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
   bool _isEditMode = false; // 수정 모드 여부
   List<TimeOfDay> _alarmTimes = []; // 사용자 지정 알림 시간
   final _remainingController = TextEditingController();
+  final _totalController = TextEditingController();
 
   @override
   void initState() {
@@ -57,6 +58,7 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
     final item = widget.initialItem;
     if (item != null) {
       _isEditMode = true;
+      _selectedTab = _tabManual;
       _nameController.text = item.name;
       _brandController.text = item.brand;
       _nutrientController.text = item.nutrients.map((n) => n.name).join(', ');
@@ -64,14 +66,16 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
       _dailyDose = item.dailyDose;
       _dailyFrequency = item.dailyFrequency;
       _alarmTimes = List.from(item.alarmTimes);
+      _totalController.text = item.total.toString();
+      // 전체 개수 입력 시 잔여 개수 비어있으면 자동 반영
+      _totalController.addListener(() {
+        if (_remainingController.text.isEmpty) {
+          setState(() => _remainingController.text = _totalController.text);
+        }
+      });
       // 편집 모드는 직접 입력 탭으로 시작
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _tabController.animateTo(_tabManual);
-      });
-    } else {
-      // 신규 등록: 화면 진입 시 바로 카메라 자동 실행
-      WidgetsBinding.instance.addPostFrameCallback((_) async {
-        await _navigateToScan();
       });
     }
   }
@@ -83,6 +87,7 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
     _brandController.dispose();
     _nutrientController.dispose();
     _remainingController.dispose();
+    _totalController.dispose();
     super.dispose();
   }
 
@@ -195,7 +200,10 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
       brand: _brandController.text.trim(),
       imagePath: _selectedImage?.path,
       remaining: int.tryParse(_remainingController.text) ?? 0,
-      total: (int.tryParse(_remainingController.text) ?? 0) + 30,
+      total:
+          int.tryParse(_totalController.text) ??
+          int.tryParse(_remainingController.text) ??
+          0,
       dailyDose: _dailyDose,
       dailyFrequency: _dailyFrequency,
       alarmTimes: _alarmTimes,
@@ -224,9 +232,8 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
       appBar: _buildAppBar(),
       body: Column(
         children: [
-          // ── 상단 탭바 ───────────────────────────────────────────────
-          _buildTabBar(),
-          const Divider(height: 1),
+          // ── 상단 탭바 (수정 모드에서는 숨김) ────────────────────
+          if (!_isEditMode) ...[_buildTabBar(), const Divider(height: 1)],
           // ── 탭 콘텐츠 ───────────────────────────────────────────────
           Expanded(
             child: AnimatedSwitcher(
@@ -874,6 +881,13 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        _buildInputField(
+          '전체 개수 (정/캡슐)',
+          _totalController,
+          isNumber: true,
+          editable: true,
+        ),
+        const SizedBox(height: 4),
         _buildInputField(
           '영양제 잔여 개수',
           _remainingController,

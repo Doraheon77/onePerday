@@ -153,23 +153,8 @@ class _CabinetScreenState extends State<CabinetScreen> {
   }
 
   Future<void> _navigateAndAddSupplement() async {
-    final notifier = SupplementProvider.of(context);
-    final Supplement? newSupplement = await context.push<Supplement>(
-      '/cabinet/add',
-    );
-
-    if (newSupplement != null) {
-      notifier.addSupplement(newSupplement);
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('${newSupplement.name}이(가) 등록되었습니다!'),
-            duration: const Duration(seconds: 2),
-          ),
-        );
-      }
-    }
+    // 바로 카메라 화면으로 이동 — 뒤로가기 시 캐비닛으로 복귀
+    await context.push('/cabinet/scan');
   }
 
   @override

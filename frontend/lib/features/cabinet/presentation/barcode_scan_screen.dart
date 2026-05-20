@@ -6,6 +6,10 @@ import 'package:google_mlkit_barcode_scanning/google_mlkit_barcode_scanning.dart
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:simcap/core/constant/app_constants.dart';
+import 'package:simcap/features/cabinet/domain/dataModels/supplement_model.dart';
+import 'package:simcap/features/store/data/store_product_data.dart';
+import 'package:simcap/features/store/presentation/supplement_detail_screen.dart';
+import 'package:simcap/features/cabinet/presentation/supplement_info_screen.dart';
 
 /// 통합 스캔 결과
 class ScanResult {
@@ -38,6 +42,7 @@ class _BarcodeScanScreenState extends State<BarcodeScanScreen> {
   bool _hasScanned = false;
   bool _isTorchOn = false;
   bool _isCapturing = false;
+  bool _isProcessing = false;
 
   @override
   void initState() {
@@ -139,22 +144,57 @@ class _BarcodeScanScreenState extends State<BarcodeScanScreen> {
   // ── 라벨 촬영 버튼 ────────────────────────────────────────────────────────
   Future<void> _captureForOCR() async {
     if (_cameraController == null || !_isInitialized || _isCapturing) return;
-    setState(() => _isCapturing = true);
+    setState(() {
+      _isCapturing = true;
+      _isProcessing = true;
+    });
 
     try {
-      // 이미지 스트림 중지
       await _cameraController!.stopImageStream();
-
-      // 현재 화면 촬영
       final XFile photo = await _cameraController!.takePicture();
       if (!mounted) return;
-      context.pop(ScanResult(imageFile: File(photo.path)));
+
+      // 1.5초 로딩 후 영양제 정보 페이지로 이동
+      await Future.delayed(const Duration(milliseconds: 1500));
+      if (!mounted) return;
+
+      await context.push(
+        '/cabinet/info',
+        extra: Supplement(
+          name: '촬영된 영양제',
+          brand: 'OnePerDay',
+          remaining: 0,
+          total: 90,
+          dailyDose: 1,
+          dailyFrequency: 1,
+          nutrients: [
+            Nutrient(name: '비타민C', value: 500, unit: 'mg', percent: 50),
+            Nutrient(name: '비타민D', value: 1000, unit: 'IU', percent: 25),
+          ],
+          analysisGuide: 'OCR 서비스 연동 후 정확한 정보가 자동으로 채워집니다.',
+          aiSummary: '',
+        ),
+      );
+
+      // 정보 페이지에서 돌아온 경우 카메라 재시작
+      if (mounted) {
+        setState(() {
+          _isCapturing = false;
+          _isProcessing = false;
+          _hasScanned = false;
+        });
+        _startBarcodeScanning();
+      }
     } catch (e) {
       debugPrint('촬영 실패: $e');
-      setState(() => _isCapturing = false);
-      // 스트림 재시작
-      _hasScanned = false;
-      _startBarcodeScanning();
+      if (mounted) {
+        setState(() {
+          _isCapturing = false;
+          _isProcessing = false;
+          _hasScanned = false;
+        });
+        _startBarcodeScanning();
+      }
     }
   }
 
@@ -167,7 +207,36 @@ class _BarcodeScanScreenState extends State<BarcodeScanScreen> {
       return;
     }
     if (!mounted) return;
-    context.pop(ScanResult(imageFile: File(image.path)));
+    setState(() => _isProcessing = true);
+
+    await Future.delayed(const Duration(milliseconds: 1500));
+    if (!mounted) return;
+
+    await context.push(
+      '/cabinet/info',
+      extra: Supplement(
+        name: '촬영된 영양제',
+        brand: 'OnePerDay',
+        remaining: 0,
+        total: 90,
+        dailyDose: 1,
+        dailyFrequency: 1,
+        nutrients: [
+          Nutrient(name: '비타민C', value: 500, unit: 'mg', percent: 50),
+          Nutrient(name: '비타민D', value: 1000, unit: 'IU', percent: 25),
+        ],
+        analysisGuide: 'OCR 서비스 연동 후 정확한 정보가 자동으로 채워집니다.',
+        aiSummary: '',
+      ),
+    );
+
+    if (mounted) {
+      setState(() {
+        _isProcessing = false;
+        _hasScanned = false;
+      });
+      _startBarcodeScanning();
+    }
   }
 
   // ── 바코드 결과 바텀시트 ─────────────────────────────────────────────────
@@ -337,7 +406,167 @@ class _BarcodeScanScreenState extends State<BarcodeScanScreen> {
 
           // 하단 버튼
           Positioned(bottom: 0, left: 0, right: 0, child: _buildBottomBar()),
+
+          // 로딩 오버레이
+          if (_isProcessing)
+            Positioned.fill(
+              child: Container(
+                color: Colors.black.withOpacity(0.7),
+                child: const Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    CircularProgressIndicator(color: Colors.white),
+                    SizedBox(height: 20),
+                    Text(
+                      '데이터 찾는 중...',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
         ],
+      ),
+    );
+  }
+
+  void _showSearchSheet() {
+    final searchController = TextEditingController();
+    List<StoreProduct> results = List.from(allProducts);
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (sheetCtx) => StatefulBuilder(
+        builder: (ctx, setSheetState) => DraggableScrollableSheet(
+          initialChildSize: 0.75,
+          minChildSize: 0.5,
+          maxChildSize: 0.95,
+          expand: false,
+          builder: (_, scrollController) => Column(
+            children: [
+              Container(
+                margin: const EdgeInsets.only(top: 12, bottom: 8),
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 4, 20, 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      '영양제 검색',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: searchController,
+                      autofocus: true,
+                      decoration: InputDecoration(
+                        hintText: '제품명 또는 브랜드명 검색',
+                        prefixIcon: const Icon(
+                          Icons.search,
+                          color: Colors.grey,
+                        ),
+                        filled: true,
+                        fillColor: Colors.grey.shade100,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide.none,
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(
+                          vertical: 12,
+                        ),
+                      ),
+                      onChanged: (val) {
+                        setSheetState(() {
+                          results = val.isEmpty
+                              ? List.from(allProducts)
+                              : allProducts
+                                    .where(
+                                      (p) =>
+                                          p.name.contains(val) ||
+                                          p.brand.contains(val),
+                                    )
+                                    .toList();
+                        });
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              const Divider(height: 1),
+              Expanded(
+                child: results.isEmpty
+                    ? const Center(
+                        child: Text(
+                          '검색 결과가 없습니다',
+                          style: TextStyle(color: Colors.grey),
+                        ),
+                      )
+                    : ListView.separated(
+                        controller: scrollController,
+                        itemCount: results.length,
+                        separatorBuilder: (_, __) => const Divider(height: 1),
+                        itemBuilder: (_, i) {
+                          final p = results[i];
+                          return ListTile(
+                            leading: Container(
+                              width: 44,
+                              height: 44,
+                              decoration: const BoxDecoration(
+                                color: AppColors.primaryLight,
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(
+                                Icons.medication_rounded,
+                                color: AppColors.primary,
+                                size: 22,
+                              ),
+                            ),
+                            title: Text(
+                              p.name,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            subtitle: Text(
+                              p.brand,
+                              style: TextStyle(
+                                color: Colors.grey[500],
+                                fontSize: 12,
+                              ),
+                            ),
+                            onTap: () {
+                              Navigator.pop(sheetCtx);
+                              context.push(
+                                '/cabinet/info',
+                                extra: p.toSupplement(),
+                              );
+                            },
+                          );
+                        },
+                      ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -358,28 +587,60 @@ class _BarcodeScanScreenState extends State<BarcodeScanScreen> {
           colors: [Colors.black.withOpacity(0.8), Colors.transparent],
         ),
       ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        crossAxisAlignment: CrossAxisAlignment.end,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          _bottomButton(
-            icon: Icons.photo_library_outlined,
-            label: '갤러리',
-            size: 48,
-            onTap: _pickGalleryForOCR,
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              _bottomButton(
+                icon: Icons.photo_library_outlined,
+                label: '갤러리',
+                size: 48,
+                onTap: _pickGalleryForOCR,
+              ),
+              const SizedBox(width: 24),
+              _bottomButton(
+                icon: _isCapturing
+                    ? Icons.hourglass_top_rounded
+                    : Icons.camera_alt_rounded,
+                label: '라벨 촬영',
+                size: 72,
+                onTap: _isCapturing ? () {} : _captureForOCR,
+                primary: true,
+              ),
+              const SizedBox(width: 24),
+              const SizedBox(width: 48),
+            ],
           ),
-          const SizedBox(width: 24),
-          _bottomButton(
-            icon: _isCapturing
-                ? Icons.hourglass_top_rounded
-                : Icons.camera_alt_rounded,
-            label: '라벨 촬영',
-            size: 72,
-            onTap: _isCapturing ? () {} : _captureForOCR,
-            primary: true,
+          const SizedBox(height: 16),
+          GestureDetector(
+            onTap: _showSearchSheet,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: Colors.white.withOpacity(0.4)),
+              ),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.search_rounded, color: Colors.white, size: 16),
+                  SizedBox(width: 6),
+                  Text(
+                    '직접 검색',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
-          const SizedBox(width: 24),
-          const SizedBox(width: 48),
         ],
       ),
     );
