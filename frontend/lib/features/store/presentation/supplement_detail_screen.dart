@@ -455,37 +455,66 @@ class _SupplementDetailScreenState extends State<SupplementDetailScreen> {
                           ),
                         ],
                       ),
-                      actionsAlignment: MainAxisAlignment.spaceBetween,
                       actions: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(dialogContext),
-                          child: const Text(
-                            '닫기',
-                            style: TextStyle(
-                              color: Colors.grey,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                        ElevatedButton(
-                          onPressed: () {
-                            Navigator.pop(dialogContext);
-                            Future.microtask(() {
-                              final c = AppRouter.navigatorKey.currentContext;
-                              if (c != null) c.push('/profile/purchases');
-                            });
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.primary,
-                            foregroundColor: Colors.white,
-                            elevation: 0,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                          ),
-                          child: const Text(
-                            '구매 기록 보기',
-                            style: TextStyle(fontWeight: FontWeight.bold),
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(8, 0, 8, 4),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: OutlinedButton(
+                                  onPressed: () => Navigator.pop(dialogContext),
+                                  style: OutlinedButton.styleFrom(
+                                    side: BorderSide(
+                                      color: Colors.grey.shade300,
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 14,
+                                    ),
+                                  ),
+                                  child: const Text(
+                                    '닫기',
+                                    style: TextStyle(
+                                      color: Colors.black54,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: ElevatedButton(
+                                  onPressed: () {
+                                    Navigator.pop(dialogContext);
+                                    Future.microtask(() {
+                                      final c =
+                                          AppRouter.navigatorKey.currentContext;
+                                      if (c != null)
+                                        c.push('/profile/purchases');
+                                    });
+                                  },
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: AppColors.primary,
+                                    foregroundColor: Colors.white,
+                                    elevation: 0,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 14,
+                                    ),
+                                  ),
+                                  child: const Text(
+                                    '구매 기록 보기',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ],

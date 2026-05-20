@@ -173,11 +173,16 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
       return;
     }
 
-    // 알림 시간 필수 검증
-    if (_alarmTimes.isEmpty) {
+    // 알림 시간 필수 검증 — 모든 회차 설정 확인
+    if (_alarmTimes.length < _dailyFrequency) {
+      final remaining = _dailyFrequency - _alarmTimes.length;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('복용 알림 시간을 설정해주세요!'),
+        SnackBar(
+          content: Text(
+            _alarmTimes.isEmpty
+                ? '복용 알림 시간을 설정해주세요!'
+                : '알림 시간 ${remaining}개를 더 설정해주세요!',
+          ),
           backgroundColor: AppColors.danger,
           behavior: SnackBarBehavior.floating,
         ),
@@ -696,9 +701,6 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
 
   // ── 알림 시간 설정 섹션 ────────────────────────────────────────────────
   Widget _buildAlarmTimesSection() {
-    final defaultTimes = _getDefaultPreviewTimes();
-    final displayTimes = _alarmTimes.isNotEmpty ? _alarmTimes : defaultTimes;
-
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
@@ -731,26 +733,7 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
                   ),
                 ),
               ),
-              if (_alarmTimes.isEmpty)
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 3,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AppColors.primaryLight,
-                    borderRadius: BorderRadius.circular(99),
-                  ),
-                  child: const Text(
-                    '기본값',
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: AppColors.primary,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                )
-              else
+              if (_alarmTimes.isNotEmpty)
                 TextButton(
                   onPressed: () => setState(() => _alarmTimes = []),
                   style: TextButton.styleFrom(
@@ -772,87 +755,58 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
           Wrap(
             spacing: 8,
             runSpacing: 8,
-            children: [
-              ...List.generate(displayTimes.length, (i) {
-                final time = displayTimes[i];
-                final isCustom = _alarmTimes.isNotEmpty;
-                return GestureDetector(
-                  onTap: () => _pickAlarmTime(i),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 8,
-                    ),
-                    decoration: BoxDecoration(
-                      color: isCustom
-                          ? AppColors.primary
-                          : AppColors.primaryLight,
-                      borderRadius: BorderRadius.circular(99),
-                      border: Border.all(
-                        color: isCustom
-                            ? AppColors.primary
-                            : AppColors.primary.withOpacity(0.3),
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.access_time,
-                          size: 14,
-                          color: isCustom ? Colors.white : AppColors.primary,
-                        ),
-                        const SizedBox(width: 5),
-                        Text(
-                          _formatTime(time),
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.bold,
-                            color: isCustom
-                                ? Colors.white
-                                : AppColors.primaryDark,
-                          ),
-                        ),
-                      ],
+            children: List.generate(_dailyFrequency, (i) {
+              final isSet = _alarmTimes.length > i;
+              final label = _dailyFrequency == 1
+                  ? (isSet ? _formatTime(_alarmTimes[i]) : '알림 시간 설정하기')
+                  : (isSet
+                        ? '${i + 1}회차 · ${_formatTime(_alarmTimes[i])}'
+                        : '알림 시간${i + 1} 설정하기');
+
+              return GestureDetector(
+                onTap: () => _pickAlarmTime(i),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 8,
+                  ),
+                  decoration: BoxDecoration(
+                    color: isSet ? AppColors.primary : Colors.white,
+                    borderRadius: BorderRadius.circular(99),
+                    border: Border.all(
+                      color: isSet ? AppColors.primary : AppColors.border,
                     ),
                   ),
-                );
-              }),
-              if (_alarmTimes.isEmpty)
-                GestureDetector(
-                  onTap: () async {
-                    final defaults = _getDefaultPreviewTimes();
-                    setState(() => _alarmTimes = List.from(defaults));
-                    await _pickAlarmTime(0);
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 8,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(99),
-                      border: Border.all(color: AppColors.border),
-                    ),
-                    child: const Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.edit_outlined, size: 14, color: Colors.grey),
-                        SizedBox(width: 5),
-                        Text(
-                          '직접 설정',
-                          style: TextStyle(fontSize: 13, color: Colors.grey),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        isSet ? Icons.access_time : Icons.add_alarm_outlined,
+                        size: 14,
+                        color: isSet ? Colors.white : Colors.grey,
+                      ),
+                      const SizedBox(width: 5),
+                      Text(
+                        label,
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                          color: isSet ? Colors.white : Colors.grey,
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
                 ),
-            ],
+              );
+            }),
           ),
           const SizedBox(height: 8),
           Text(
-            _alarmTimes.isEmpty ? '알림 시간을 설정해주세요.' : '알림 시간을 탭하면 변경할 수 있습니다.',
+            _alarmTimes.isEmpty
+                ? '알림 시간을 설정해주세요.'
+                : _alarmTimes.length < _dailyFrequency
+                ? '나머지 알림 시간도 설정해주세요.'
+                : '알림 시간을 탭하면 변경할 수 있습니다.',
             style: TextStyle(fontSize: 11, color: Colors.grey[500]),
           ),
         ],
@@ -884,11 +838,9 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
   }
 
   Future<void> _pickAlarmTime(int index) async {
-    final currentTimes = _alarmTimes.isNotEmpty
-        ? _alarmTimes
-        : _getDefaultPreviewTimes();
-    final initial = index < currentTimes.length
-        ? currentTimes[index]
+    // 초기 시간: 이미 설정된 경우 해당 시간, 아니면 오전 9시
+    final initial = index < _alarmTimes.length
+        ? _alarmTimes[index]
         : const TimeOfDay(hour: 9, minute: 0);
 
     final picked = await showDialog<TimeOfDay>(
@@ -898,9 +850,6 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
 
     if (picked != null && mounted) {
       setState(() {
-        if (_alarmTimes.isEmpty) {
-          _alarmTimes = List.from(_getDefaultPreviewTimes());
-        }
         if (index < _alarmTimes.length) {
           _alarmTimes[index] = picked;
         } else {

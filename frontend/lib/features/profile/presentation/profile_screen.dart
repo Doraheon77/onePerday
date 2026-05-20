@@ -597,7 +597,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   // 내가 쓴 리뷰 섹션
   Widget _buildMyReviewsSection() {
-    // 백엔드 연동 전: 리뷰 없음으로 처리
     const bool hasReviews = false;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -610,7 +609,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             TextButton(
-              // 리뷰가 없으면 비활성화 (백엔드 연동 후 활성화)
               onPressed: hasReviews
                   ? () => context.push('/profile/my-reviews')
                   : null,
@@ -861,25 +859,33 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
           ),
           const SizedBox(height: 20),
-          OutlinedButton.icon(
-            onPressed: () => context.go('/store'),
-            style: OutlinedButton.styleFrom(
-              side: const BorderSide(color: AppColors.primary),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 48),
+            child: OutlinedButton.icon(
+              onPressed: () => context.go('/store'),
+              style: OutlinedButton.styleFrom(
+                side: const BorderSide(color: AppColors.primary),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                minimumSize: const Size(0, 40),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
               ),
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-            ),
-            icon: const Icon(
-              Icons.storefront_outlined,
-              size: 16,
-              color: AppColors.primary,
-            ),
-            label: const Text(
-              '스토어 바로가기',
-              style: TextStyle(
+              icon: const Icon(
+                Icons.storefront_outlined,
+                size: 15,
                 color: AppColors.primary,
-                fontWeight: FontWeight.bold,
+              ),
+              label: const Text(
+                '스토어 바로가기',
+                style: TextStyle(
+                  fontSize: 13,
+                  color: AppColors.primary,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
           ),
@@ -999,28 +1005,50 @@ class _ProfileScreenState extends State<ProfileScreen> {
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
         content: const Text('로그아웃하면 저장된 설문 정보가 초기화됩니다.\n계속하시겠습니까?'),
-        actionsAlignment: MainAxisAlignment.spaceBetween,
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text(
-              '취소',
-              style: TextStyle(color: Colors.grey, fontWeight: FontWeight.w600),
-            ),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.danger,
-              foregroundColor: Colors.white,
-              elevation: 0,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
-            ),
-            child: const Text(
-              '로그아웃',
-              style: TextStyle(fontWeight: FontWeight.bold),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(8, 0, 8, 4),
+            child: Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => Navigator.pop(ctx, false),
+                    style: OutlinedButton.styleFrom(
+                      side: BorderSide(color: Colors.grey.shade300),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                    ),
+                    child: const Text(
+                      '취소',
+                      style: TextStyle(
+                        color: Colors.black54,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.pop(ctx, true),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.danger,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                    ),
+                    child: const Text(
+                      '로그아웃',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         ],

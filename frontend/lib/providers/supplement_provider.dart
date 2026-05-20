@@ -313,7 +313,18 @@ class SupplementNotifier extends ChangeNotifier {
       List.unmodifiable(_purchases.reversed.toList());
 
   // 복용 여부 조회
-  int get undoneCount => _supplements.where((s) => !isDoneToday(s.name)).length;
+  // 오늘 미완료 복용 횟수 (영양제별 전체 회차 기준)
+  int get undoneCount {
+    int count = 0;
+    final today = DateTime.now();
+    for (final s in _supplements) {
+      if (s.remaining <= 0) continue; // 소진 영양제 제외
+      for (int i = 0; i < s.dailyFrequency; i++) {
+        if (!isDoneOnIndex(s.id, today, i)) count++;
+      }
+    }
+    return count;
+  }
 
   // 재고가 7정 이하로 남은 영양제 개수
   int get lowStockCount => _supplements.where((s) => s.remaining <= 7).length;
@@ -323,14 +334,24 @@ class SupplementNotifier extends ChangeNotifier {
 
   // ── 통계 ─────────────────────────────────────────────────────────────────
 
-  /// 오늘 복용 완료 수
+  /// 오늘 복용 완료 횟수 (회차 기준)
   int get todayDoneCount {
     if (_supplements.isEmpty) return 0;
-    return _supplements.where((s) => isDoneToday(s.name)).length;
+    int count = 0;
+    final today = DateTime.now();
+    for (final s in _supplements) {
+      for (int i = 0; i < s.dailyFrequency; i++) {
+        if (isDoneOnIndex(s.id, today, i)) count++;
+      }
+    }
+    return count;
   }
 
-  /// 오늘 전체 영양제 수 (= supplements.length)
-  int get todayTotalCount => _supplements.length;
+  /// 오늘 전체 복용 횟수 (회차 기준)
+  int get todayTotalCount {
+    if (_supplements.isEmpty) return 0;
+    return _supplements.fold(0, (sum, s) => sum + s.dailyFrequency);
+  }
 
   /// 연속 복용 스트릭 (일) — 오늘 포함 연속으로 모든 영양제를 복용한 날 수
   int get currentStreak {
@@ -421,10 +442,15 @@ class SupplementNotifier extends ChangeNotifier {
     return _doseHistory.any((r) => _dateOnly(r.date) == day);
   }
 
-  /// 특정 날짜에 모든 영양제를 복용 완료했는지 여부 (완전 완료 도트용)
+  /// 특정 날짜에 모든 영양제의 모든 회차를 완료했는지 여부
   bool isAllDoneOn(DateTime date) {
     if (_supplements.isEmpty) return false;
-    return _supplements.every((s) => isDoneOn(s.name, date));
+    return _supplements.every((s) {
+      for (int i = 0; i < s.dailyFrequency; i++) {
+        if (!isDoneOnIndex(s.id, date, i)) return false;
+      }
+      return true;
+    });
   }
 
   /// 특정 인덱스 복용 토글 (다회 복용용)
@@ -443,7 +469,7 @@ class SupplementNotifier extends ChangeNotifier {
             _dateOnly(r.date) == _dateOnly(targetDate) &&
             r.doseIndex == doseIndex,
       );
-      // 오늘 체크해서 0이 된 경우도 복구 (잘못 체크한 경우 대비)
+      // 오늘 체크해서 0이 된 경우도 복구 (잘못 체크한 경우 대비 방지)
       final dosePerTime = (supplement.dailyDose / supplement.dailyFrequency)
           .ceil();
       _supplements[idx] = supplement.copyWith(
@@ -487,12 +513,12 @@ class SupplementNotifier extends ChangeNotifier {
 
     if (alreadyDone) {
       // 복용 해제: 기록 삭제 + remaining 복구
+      // 오늘 체크해서 0이 된 경우도 복구 (잘못 체크한 경우 대비)
       _doseHistory.removeWhere(
         (r) =>
             r.supplementId == supplementId &&
             _dateOnly(r.date) == _dateOnly(targetDate),
       );
-      // 오늘 체크해서 0이 된 경우도 복구 (잘못 체크한 경우 대비)
       _supplements[idx] = supplement.copyWith(
         remaining: (supplement.remaining + supplement.dailyDose).clamp(
           0,
