@@ -280,42 +280,6 @@ class _CabinetDetailScreenState extends State<CabinetDetailScreen> {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
-                const SizedBox(height: 4),
-                GestureDetector(
-                  onTap: () {
-                    final matched = allProducts
-                        .where(
-                          (p) =>
-                              p.name.contains(item.name) ||
-                              item.name.contains(p.name),
-                        )
-                        .toList();
-                    if (matched.isNotEmpty) {
-                      context.push('/store/detail', extra: matched.first);
-                    } else {
-                      context.push('/store/search');
-                    }
-                  },
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        '스토어 상세 보기',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: AppColors.primary,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      const SizedBox(width: 2),
-                      Icon(
-                        Icons.chevron_right_rounded,
-                        size: 14,
-                        color: AppColors.primary,
-                      ),
-                    ],
-                  ),
-                ),
               ],
             ),
           ),
@@ -713,35 +677,38 @@ class _CabinetDetailScreenState extends State<CabinetDetailScreen> {
             ),
           ),
           const SizedBox(width: 12),
-          // 구매처 이동 — 네이버 쇼핑 검색 연동
+          // 스토어 이동 — 앱 내 스토어 상세 페이지
           Expanded(
             child: ElevatedButton(
-              onPressed: _isLaunching ? null : _launchPurchaseUrl,
+              onPressed: () {
+                final matched = allProducts
+                    .where(
+                      (p) =>
+                          p.name.contains(item.name) ||
+                          item.name.contains(p.name),
+                    )
+                    .toList();
+                if (matched.isNotEmpty) {
+                  context.push('/store/detail', extra: matched.first);
+                } else {
+                  context.push('/store/search');
+                }
+              },
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primary,
-                disabledBackgroundColor: Colors.grey[300],
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 elevation: 0,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(14),
                 ),
               ),
-              child: _isLaunching
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.white,
-                      ),
-                    )
-                  : const Text(
-                      '구매처 이동',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
+              child: const Text(
+                '스토어 이동',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
             ),
           ),
         ],

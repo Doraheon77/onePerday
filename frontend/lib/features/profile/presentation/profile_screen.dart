@@ -296,7 +296,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
 
                   // 7. 생활 습관 섹션
-                  _buildLifestyleSection(),
+                  _buildProfileSection(
+                    '생활 습관',
+                    [
+                          _smokingStatus,
+                          _drinkingStatus,
+                          if (_userGender == '여성') _pregnancyStatus,
+                        ]
+                        .where((s) => s != null && s.isNotEmpty)
+                        .cast<String>()
+                        .toList(),
+                    onEdit: () => _showLifestyleEditModal(),
+                  ),
                   const SizedBox(height: 40),
 
                   // 메뉴 버튼 (설문 다시하기 제거)
@@ -407,6 +418,160 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
         ),
       ],
+    );
+  }
+
+  void _showLifestyleEditModal() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setModalState) {
+          final isSmoker = _smokingStatus == '흡연자입니다';
+          final isDrinker = _drinkingStatus == '음주 중';
+          final isPregnant = _pregnancyStatus == '임신 중';
+          final isWoman = _userGender == '여성';
+
+          return Padding(
+            padding: EdgeInsets.fromLTRB(
+              24,
+              32,
+              24,
+              MediaQuery.of(ctx).padding.bottom + 24,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  '생활 습관 편집',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 20),
+
+                // 흡연
+                _buildLifestyleToggle(
+                  ctx: ctx,
+                  setModalState: setModalState,
+                  label: '흡연 여부',
+                  value: isSmoker,
+                  trueLabel: '흡연자',
+                  falseLabel: '비흡연자',
+                  onChanged: (v) async {
+                    await _updateSmokingStatus(v ? '흡연자입니다' : '비흡연자입니다');
+                    setModalState(() {});
+                  },
+                ),
+                const SizedBox(height: 12),
+
+                // 음주
+                _buildLifestyleToggle(
+                  ctx: ctx,
+                  setModalState: setModalState,
+                  label: '음주 여부',
+                  value: isDrinker,
+                  trueLabel: '음주 중',
+                  falseLabel: '마시지 않음',
+                  onChanged: (v) async {
+                    await _updateDrinkingStatus(v ? '음주 중' : '마시지 않음');
+                    setModalState(() {});
+                  },
+                ),
+
+                // 임신 (여성만)
+                if (isWoman) ...[
+                  const SizedBox(height: 12),
+                  _buildLifestyleToggle(
+                    ctx: ctx,
+                    setModalState: setModalState,
+                    label: '임신 여부',
+                    value: isPregnant,
+                    trueLabel: '임신 중',
+                    falseLabel: '해당 없음',
+                    onChanged: (v) async {
+                      await _updatePregnancyStatus(v ? '임신 중' : '해당 없음');
+                      setModalState(() {});
+                    },
+                  ),
+                ],
+                const SizedBox(height: 24),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.pop(ctx),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                    ),
+                    child: const Text(
+                      '완료',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildLifestyleToggle({
+    required BuildContext ctx,
+    required StateSetter setModalState,
+    required String label,
+    required bool value,
+    required String trueLabel,
+    required String falseLabel,
+    required Function(bool) onChanged,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade50,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            label,
+            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
+          ),
+          Row(
+            children: [
+              Text(
+                value ? trueLabel : falseLabel,
+                style: TextStyle(
+                  color: value ? AppColors.primary : Colors.grey,
+                  fontWeight: FontWeight.w500,
+                  fontSize: 13,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Switch(
+                value: value,
+                onChanged: onChanged,
+                activeColor: AppColors.primary,
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 

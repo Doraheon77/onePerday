@@ -455,66 +455,37 @@ class _SupplementDetailScreenState extends State<SupplementDetailScreen> {
                           ),
                         ],
                       ),
+                      actionsAlignment: MainAxisAlignment.spaceBetween,
                       actions: [
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(8, 0, 8, 4),
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: OutlinedButton(
-                                  onPressed: () => Navigator.pop(dialogContext),
-                                  style: OutlinedButton.styleFrom(
-                                    side: BorderSide(
-                                      color: Colors.grey.shade300,
-                                    ),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(10),
-                                    ),
-                                    padding: const EdgeInsets.symmetric(
-                                      vertical: 14,
-                                    ),
-                                  ),
-                                  child: const Text(
-                                    '닫기',
-                                    style: TextStyle(
-                                      color: Colors.black54,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: ElevatedButton(
-                                  onPressed: () {
-                                    Navigator.pop(dialogContext);
-                                    Future.microtask(() {
-                                      final c =
-                                          AppRouter.navigatorKey.currentContext;
-                                      if (c != null)
-                                        c.push('/profile/purchases');
-                                    });
-                                  },
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: AppColors.primary,
-                                    foregroundColor: Colors.white,
-                                    elevation: 0,
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(10),
-                                    ),
-                                    padding: const EdgeInsets.symmetric(
-                                      vertical: 14,
-                                    ),
-                                  ),
-                                  child: const Text(
-                                    '구매 기록 보기',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ],
+                        TextButton(
+                          onPressed: () => Navigator.pop(dialogContext),
+                          child: const Text(
+                            '닫기',
+                            style: TextStyle(
+                              color: Colors.grey,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                        ElevatedButton(
+                          onPressed: () {
+                            Navigator.pop(dialogContext);
+                            Future.microtask(() {
+                              final c = AppRouter.navigatorKey.currentContext;
+                              if (c != null) c.push('/profile/purchases');
+                            });
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primary,
+                            foregroundColor: Colors.white,
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                          child: const Text(
+                            '구매 기록 보기',
+                            style: TextStyle(fontWeight: FontWeight.bold),
                           ),
                         ),
                       ],
@@ -1038,19 +1009,152 @@ class _SupplementDetailScreenState extends State<SupplementDetailScreen> {
 
   // 병용 금지 정보
   Widget _buildContraindications(List<String> items) {
+    final cabinets = SupplementProvider.of(context).supplements;
+
+    // 캐비닛 영양제 성분 목록
+    final cabinetNutrients = cabinets
+        .expand((s) => s.nutrients.map((n) => n.name.toLowerCase()))
+        .toSet();
+
+    // 이 제품의 성분 중 병용금지 항목과 겹치는 것
+    final productNutrientNames = widget.product.nutrients
+        .map((n) => n.name.toLowerCase())
+        .toSet();
+
+    // 병용금지 충돌 (캐비닛 성분 vs 이 제품 병용금지 목록)
+    final conflictItems = items.where((item) {
+      final lower = item.toLowerCase();
+      return cabinetNutrients.any(
+        (n) => lower.contains(n) || n.contains(lower),
+      );
+    }).toList();
+
+    // 과다복용 위험 성분 (캐비닛에 동일 성분 있는 경우)
+    final overdoseRisks = widget.product.nutrients.where((n) {
+      final lower = n.name.toLowerCase();
+      return cabinetNutrients.any(
+        (cn) => lower.contains(cn) || cn.contains(lower),
+      );
+    }).toList();
+
     return _card(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _sectionTitle('병용 금지 약물·성분', icon: Icons.warning_amber_rounded),
+          _sectionTitle('병용금지 · 과다복용'),
           const SizedBox(height: 12),
+
+          // ── 과다복용 섹션 ─────────────────────────────────────────────
+          Row(
+            children: [
+              const Icon(
+                Icons.monitor_heart_outlined,
+                size: 16,
+                color: Colors.orange,
+              ),
+              const SizedBox(width: 6),
+              const Text(
+                '과다복용 위험',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          if (overdoseRisks.isEmpty)
+            _buildSafeItem('중복 성분 없음')
+          else
+            ...overdoseRisks
+                .map(
+                  (n) =>
+                      _buildContraItem('${n.name} — 캐비닛 영양제와 중복, 합산 섭취량 확인 필요'),
+                )
+                .toList(),
+
+          const SizedBox(height: 16),
+          const Divider(height: 1),
+          const SizedBox(height: 16),
+
+          // ── 병용금지 섹션 ─────────────────────────────────────────────
+          Row(
+            children: [
+              const Icon(
+                Icons.block_outlined,
+                size: 16,
+                color: AppColors.danger,
+              ),
+              const SizedBox(width: 6),
+              const Text(
+                '병용 금지 약물·성분',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+
+          // 캐비닛 충돌 항목
+          if (conflictItems.isNotEmpty) ...[
+            Container(
+              margin: const EdgeInsets.only(bottom: 8),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppColors.dangerBg,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Row(
+                    children: [
+                      Icon(
+                        Icons.warning_rounded,
+                        size: 16,
+                        color: AppColors.danger,
+                      ),
+                      SizedBox(width: 6),
+                      Text(
+                        '캐비닛 충돌 감지',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.danger,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  ...conflictItems
+                      .map(
+                        (item) => Padding(
+                          padding: const EdgeInsets.only(top: 4),
+                          child: Row(
+                            children: [
+                              const Text(
+                                '• ',
+                                style: TextStyle(color: AppColors.danger),
+                              ),
+                              Expanded(
+                                child: Text(
+                                  item,
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.grey[700],
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      )
+                      .toList(),
+                ],
+              ),
+            ),
+          ],
+
+          // 전체 병용금지 목록
           if (items.isEmpty)
-            Text(
-              '등록된 병용 금지 정보가 없습니다.',
-              style: TextStyle(fontSize: 14, color: Colors.grey[500]),
-            )
+            _buildSafeItem('등록된 병용 금지 정보가 없습니다')
           else ...[
-            // 처음 1개는 항상 표시, 나머지는 접기/펼치기
             _buildContraItem(items.first),
             if (items.length > 1) ...[
               AnimatedCrossFade(
@@ -1094,6 +1198,30 @@ class _SupplementDetailScreenState extends State<SupplementDetailScreen> {
     );
   }
 
+  Widget _safeChip(String text) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: AppColors.primaryLight,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        children: [
+          const Icon(
+            Icons.check_circle_outline,
+            size: 14,
+            color: AppColors.primary,
+          ),
+          const SizedBox(width: 6),
+          Text(
+            text,
+            style: const TextStyle(fontSize: 12, color: AppColors.primary),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildContraItem(String text) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
@@ -1102,13 +1230,44 @@ class _SupplementDetailScreenState extends State<SupplementDetailScreen> {
         children: [
           const Padding(
             padding: EdgeInsets.only(top: 3),
-            child: Icon(Icons.block, size: 15, color: AppColors.danger),
+            child: Icon(Icons.error_outline, size: 15, color: AppColors.danger),
           ),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
               text,
               style: const TextStyle(fontSize: 14, height: 1.4),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // 문제 없는 경우 — 체크 아이콘
+  Widget _buildSafeItem(String text) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Padding(
+            padding: EdgeInsets.only(top: 3),
+            child: Icon(
+              Icons.check_circle_outline,
+              size: 15,
+              color: AppColors.primary,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              text,
+              style: TextStyle(
+                fontSize: 14,
+                height: 1.4,
+                color: Colors.grey[600],
+              ),
             ),
           ),
         ],
@@ -1496,11 +1655,13 @@ class _SupplementDetailScreenState extends State<SupplementDetailScreen> {
     );
   }
 
-  Widget _sectionTitle(String title, {required IconData icon}) {
+  Widget _sectionTitle(String title, {IconData? icon}) {
     return Row(
       children: [
-        Icon(icon, size: 20, color: AppColors.primary),
-        const SizedBox(width: 8),
+        if (icon != null) ...[
+          Icon(icon, size: 20, color: AppColors.primary),
+          const SizedBox(width: 8),
+        ],
         Text(
           title,
           style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
