@@ -152,6 +152,38 @@ class _SupplementDetailScreenState extends State<SupplementDetailScreen> {
     return supplements.any((s) => s.name == widget.product.name);
   }
 
+   bool _hasOverdoseRiskWithCurrentProduct(BuildContext context) {
+    final cabinets = SupplementProvider.of(context).supplements;
+
+    final Map<String, double> totals = {};
+
+    for (final s in cabinets) {
+      for (final n in s.nutrients) {
+        final key = n.name.trim().toLowerCase();
+        totals[key] = (totals[key] ?? 0) + n.percent;
+      }
+    }
+
+    for (final n in widget.product.nutrients) {
+      final key = n.name.trim().toLowerCase();
+      final total = (totals[key] ?? 0) + n.dailyPercent;
+
+      if (total > 1.0) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  bool _blockIfOverdoseRisk(BuildContext context) {
+    if (_hasOverdoseRiskWithCurrentProduct(context)) {
+      return true;
+    }
+
+    return false;
+  }
+
   /// 이미 장바구니에 있는지 여부
   bool _isInCart(BuildContext context) =>
       SupplementProvider.of(context).isInCart(widget.product.id);
