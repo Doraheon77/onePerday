@@ -132,7 +132,7 @@ export class AppController {
         stderrData += data.toString();
       });
 
-      pyProcess.on('close', (code) => {
+      pyProcess.on('close', async (code) => {
         // 임시 파일 삭제
         try {
           fs.unlinkSync(filePath);
@@ -155,6 +155,75 @@ export class AppController {
         // 4. OCR 텍스트 파싱
         const rawText = stdoutData.trim();
         const parsed = this.parseOcrText(rawText);
+
+        // 5. DB 기반 스마트 매칭 및 보정 로직
+        if (parsed.productName !== '알 수 없는 영양제' && parsed.productName.trim() !== '') {
+          try {
+            const allSupplements = await this.prisma.supplements.findMany({
+              include: { supplements_ingredients: true }
+            });
+
+            const targetName = parsed.productName.replace(/\s+/g, '').toLowerCase();
+            let bestMatch: any = null;
+            let highestSimilarity = 0;
+
+            for (const supp of allSupplements) {
+              if (!supp.product_name) continue;
+              const dbName = supp.product_name.replace(/\s+/g, '').toLowerCase();
+              
+              // 1단계: 완전 일치 또는 부분 포함 검사 (공백 제거 후)
+              if (dbName === targetName || dbName.includes(targetName) || targetName.includes(dbName)) {
+                bestMatch = supp;
+                highestSimilarity = 1.0;
+                break;
+              }
+
+              // 2단계: 레벤슈타인 거리 기반 유사도 검사
+              const longer = dbName.length > targetName.length ? dbName : targetName;
+              const shorter = dbName.length > targetName.length ? targetName : dbName;
+              
+              if (longer.length === 0) continue;
+
+              const matrix: number[][] = [];
+              for (let i = 0; i <= shorter.length; i++) matrix[i] = [i];
+              for (let j = 0; j <= longer.length; j++) matrix[0][j] = j;
+              
+              for (let i = 1; i <= shorter.length; i++) {
+                for (let j = 1; j <= longer.length; j++) {
+                  if (shorter.charAt(i - 1) === longer.charAt(j - 1)) {
+                    matrix[i][j] = matrix[i - 1][j - 1];
+                  } else {
+                    matrix[i][j] = Math.min(
+                      matrix[i - 1][j - 1] + 1,
+                      Math.min(matrix[i][j - 1] + 1, matrix[i - 1][j] + 1)
+                    );
+                  }
+                }
+              }
+              const distance = matrix[shorter.length][longer.length];
+              const sim = (longer.length - distance) / longer.length;
+
+              if (sim > highestSimilarity) {
+                highestSimilarity = sim;
+                bestMatch = supp;
+              }
+            }
+
+            // 유사도가 70% 이상이면 해당 제품으로 정보 덮어쓰기
+            if (bestMatch && highestSimilarity >= 0.7) {
+              parsed.productName = bestMatch.product_name;
+              parsed.brandName = bestMatch.brand_name || parsed.brandName;
+              
+              if (bestMatch.supplements_ingredients && bestMatch.supplements_ingredients.length > 0) {
+                parsed.nutrients = bestMatch.supplements_ingredients.map(ing => ing.ingredient_name).join(', ');
+              }
+            }
+          } catch (e) {
+            console.error('DB 매칭 실패:', e);
+            // 에러 발생 시 원래 OCR 파싱값(Fallback) 유지
+          }
+        }
+
         resolve(parsed);
       });
     });
@@ -163,7 +232,7 @@ export class AppController {
   private parseOcrText(text: string): { productName: string; brandName: string; nutrients: string } {
     let productName = '알 수 없는 영양제';
     let brandName = '알 수 없는 브랜드';
-    let nutrients = '비타민C, 비타민D, 아연';
+    let nutrients = '영양제 성분을 찾을 수 없습니다.';
 
     const brandMatch = text.match(/Brand:\s*([^\n]+)/i);
     if (brandMatch) {
