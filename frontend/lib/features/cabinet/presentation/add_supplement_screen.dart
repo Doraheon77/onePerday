@@ -138,11 +138,19 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
 
   // ── 이미지 선택 ──────────────────────────────────────────────────────────
   Future<void> _pickFromCamera() async {
-    final XFile? image = await _picker.pickImage(
-      source: ImageSource.camera,
-      imageQuality: 90,
-    );
-    if (image != null) _handlePickedImage(File(image.path));
+    // ---- 기존 코드 주석 처리 시작 ----
+    // final XFile? image = await _picker.pickImage(
+    //   source: ImageSource.camera,
+    //   imageQuality: 90,
+    // );
+    // if (image != null) _handlePickedImage(File(image.path));
+    // ---- 기존 코드 주석 처리 끝 ----
+
+    // 앱 내장 카메라(In-App Camera) 화면으로 이동하여 결과 반환받기
+    final imagePath = await context.push<String>('/cabinet/label-camera');
+    if (imagePath != null && mounted) {
+      _handlePickedImage(File(imagePath));
+    }
   }
 
   Future<void> _pickFromGallery() async {

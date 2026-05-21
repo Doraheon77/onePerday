@@ -118,7 +118,9 @@ export class AppController {
     const pythonScript = 'c:\\capstone\\onePerday\\ai\\ocr.py';
     
     return new Promise((resolve) => {
-      const pyProcess = spawn('python', [pythonScript, filePath]);
+      const pyProcess = spawn('python', [pythonScript, filePath], {
+        env: { ...process.env, PYTHONIOENCODING: 'utf-8' }
+      });
       let stdoutData = '';
       let stderrData = '';
 
@@ -159,11 +161,25 @@ export class AppController {
   }
 
   private parseOcrText(text: string): { productName: string; brandName: string; nutrients: string } {
-    const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
-    
     let productName = '알 수 없는 영양제';
     let brandName = '알 수 없는 브랜드';
     let nutrients = '비타민C, 비타민D, 아연';
+
+    const brandMatch = text.match(/브랜드:\s*([^\n]+)/);
+    if (brandMatch) {
+      const parsedBrand = brandMatch[1].trim();
+      if (parsedBrand !== '알 수 없음' && parsedBrand !== '[브랜드명]') {
+        brandName = parsedBrand;
+      }
+    }
+
+    const productMatch = text.match(/제품명:\s*([^\n]+)/);
+    if (productMatch) {
+      const parsedProduct = productMatch[1].trim();
+      if (parsedProduct !== '알 수 없음' && parsedProduct !== '[제품명]') {
+        productName = parsedProduct;
+      }
+    }
 
     const nutrientList: string[] = [];
     const knownNutrients = [
@@ -176,16 +192,6 @@ export class AppController {
       if (text.includes(nut)) {
         nutrientList.push(nut);
       }
-    }
-
-    if (lines.length > 0) {
-      brandName = lines[0];
-    }
-
-    if (lines.length > 1) {
-      productName = lines[1];
-    } else if (lines.length === 1) {
-      productName = lines[0];
     }
 
     if (nutrientList.length > 0) {
