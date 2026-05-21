@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-
-/// 앱 전역 색상 상수
+import 'package:flutter/foundation.dart'; // kReleaseMode 사용을 위해 추가
 ///
 /// 사용법:
 ///   color: AppColors.primary
@@ -160,4 +159,18 @@ abstract class AppConstants {
 
   /// 긴급 재구매 기준 잔여량 (정 수)
   static const int criticalStockThreshold = 3;
+
+  /// API 기본 주소 (환경에 따라 동적 변경)
+  static String get apiBaseUrl {
+    // 1. 실제 출시(운영) 환경
+    if (kReleaseMode) {
+      return 'https://api.oneperday.com'; // TODO: 실제 클라우드 서버 주소로 변경
+    }
+    
+    // 2. 개발 및 테스트 환경 (디버그 모드)
+    // TODO: [팀원분] 스마트폰으로 테스트 시 아래 10.0.2.2를 PC의 실제 IP 주소(예: 192.168.0.5)로 변경하세요.
+    // [유저님] 유저님의 데스크탑(안드로이드 에뮬레이터) 환경에서는 10.0.2.2 그대로 두시면 완벽하게 작동합니다.
+    const String localIp = '10.0.2.2'; 
+    return 'http://$localIp:3000';
+  }
 }

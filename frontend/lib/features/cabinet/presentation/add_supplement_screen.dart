@@ -93,8 +93,8 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
   Future<void> _processOCR(File imageFile) async {
     setState(() => _isLoadingOCR = true);
     try {
-      // 실제 NestJS 백엔드 OCR API 호출
-      final uri = Uri.parse('http://10.0.2.2:3000/supplements/ocr');
+      // 실제 NestJS 백엔드 OCR API 호출 (동적 환경 주소 사용)
+      final uri = Uri.parse('${AppConstants.apiBaseUrl}/supplements/ocr');
       final request = http.MultipartRequest('POST', uri);
 
       // 파일 추가
