@@ -36,6 +36,28 @@ class StoreProduct {
   });
 
   factory StoreProduct.fromJson(Map<String, dynamic> json) {
+    // 백엔드의 supplements_ingredients 또는 ingredients 파싱
+    List<NutrientInfo> parsedNutrients = [];
+    if (json['supplements_ingredients'] != null) {
+      parsedNutrients = (json['supplements_ingredients'] as List)
+          .map((si) => NutrientInfo(
+                name: si['ingredient_name']?.toString() ?? '',
+                amount: double.tryParse(si['amount']?.toString() ?? '0') ?? 0.0,
+                unit: si['unit']?.toString() ?? '',
+                dailyPercent: double.tryParse(si['dailyPercent']?.toString() ?? '0') ?? 0.0,
+              ))
+          .toList();
+    } else if (json['ingredients'] != null) {
+      parsedNutrients = (json['ingredients'] as List)
+          .map((ing) => NutrientInfo(
+                name: ing.toString(),
+                amount: 0.0,
+                unit: '',
+                dailyPercent: 0.0,
+              ))
+          .toList();
+    }
+
     return StoreProduct(
       id: json['id']?.toString() ?? '',
       name: json['product_name'] ?? json['name'] ?? '',
@@ -45,8 +67,7 @@ class StoreProduct {
           ? int.tryParse(json['price'].toString()) ?? 0
           : 0,
       description: json['description'] ?? '',
-      // 아직 DB 연동되지 않은 필드들은 기본값 처리
-      nutrients: [],
+      nutrients: parsedNutrients,
       contraindications: [],
       similarProducts: [],
       purchaseUrl: json['shop_url'],

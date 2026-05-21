@@ -25,6 +25,7 @@ def capture_image_from_camera():
         raise Exception("카메라를 열 수 없습니다. 카메라 연결 상태를 확인해주세요.")
         
     print("\n📷 카메라가 켜졌습니다.")
+    print("👉 영양제 패키지나 성분표가 잘 보이도록 카메라에 비춰주세요.")
     print("👉 사진을 찍으려면 'Spacebar'를 누르세요.")
     print("👉 촬영을 취소하려면 'q'를 누르세요.\n")
     
@@ -64,7 +65,7 @@ def get_text_from_image(image):
                 {"type": "image"},
                 {
                     "type": "text", 
-                    "text": "Text Recognition:" # 필요시 이전에 최적화한 프롬프트로 변경 가능
+                    "text": "Text Recognition: Extract the product name, nutritional ingredients, and dosage instructions from this dietary supplement image." # 영양제 정보 추출에 맞춰 프롬프트 최적화
                 }
             ]
         }
@@ -85,32 +86,21 @@ def get_text_from_image(image):
     generated_ids = output_ids[:, inputs['input_ids'].shape[1]:]
     return processor.batch_decode(generated_ids, skip_special_tokens=True)[0]
 
-import sys
-
 if __name__ == "__main__":
     try:
-        # 인자(sys.argv)가 넘어오면 파일 경로로 열고, 없으면 기존 카메라 웹캠 호출!
-        if len(sys.argv) > 1:
-            image_path = sys.argv[1]
-            img = Image.open(image_path)
-            device_print = False
-        else:
-            img = capture_image_from_camera()
-            device_print = True
+        # Step 1 & 2: 카메라 호출 및 이미지 캡처
+        img = capture_image_from_camera()
         
-        # Step 3: 이미지가 정상적으로 로드/캡처되었다면 OCR 수행
+        # Step 3: 이미지가 정상적으로 캡처되었다면 OCR 수행
         if img is not None:
-            if device_print:
-                print(f"\n[{device.upper()}] 장치에서 OCR 분석을 시작합니다... 잠시만 기다려주세요.")
+            print(f"\n[{device.upper()}] 장치에서 OCR 분석을 시작합니다... 잠시만 기다려주세요.")
             result = get_text_from_image(img)
             
-            if device_print:
-                print("\n" + "=" * 40)
-                print("📝 분석 결과")
-                print("=" * 40)
+            print("\n" + "=" * 40)
+            print("📝 분석 결과")
+            print("=" * 40)
             print(result)
-            if device_print:
-                print("=" * 40)
+            print("=" * 40)
         else:
             print("이미지가 캡처되지 않아 OCR을 수행하지 않고 종료합니다.")
             

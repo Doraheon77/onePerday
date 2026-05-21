@@ -198,9 +198,45 @@ export class RecommendService {
     // 상위 10개만 반환 (필요시 조절 가능)
     const topRecommendations = recommendedList.slice(0, 10);
 
+    // 6. 유저 연령/성별 기반 일일 권장량(dailyPercent) 계산 추가
+    const currentYear = new Date().getFullYear();
+    const userAge = userInfo.birth_year ? currentYear - userInfo.birth_year : 30;
+    const userGender = userInfo.gender || '남자';
+
+    const standards = await this.prisma.nutrientStandards.findMany({
+      where: {
+        gender: userGender,
+        age_min: { lte: userAge },
+        age_max: { gte: userAge },
+      }
+    });
+
+    const enrichedRecommendations = topRecommendations.map((product) => {
+      const mappedIngredients = product.supplements_ingredients.map((ing) => {
+        const std = standards.find((s) => s.nutrient_name === ing.ingredient_name);
+        const dri = std?.recommended_intake || std?.adequate_intake || std?.avg_requirement || null;
+        const amount = ing.amount || 0;
+
+        let dailyPercent = 0;
+        if (dri && dri > 0) {
+          dailyPercent = Number((amount / dri).toFixed(4));
+        }
+
+        return {
+          ...ing,
+          dailyPercent,
+        };
+      });
+
+      return {
+        ...product,
+        supplements_ingredients: mappedIngredients,
+      };
+    });
+
     // BigInt 직렬화 처리 (JSON 파싱/문자열화)
     return JSON.parse(
-      JSON.stringify(topRecommendations, (key, value) =>
+      JSON.stringify(enrichedRecommendations, (key, value) =>
         typeof value === 'bigint' ? value.toString() : value,
       ),
     );

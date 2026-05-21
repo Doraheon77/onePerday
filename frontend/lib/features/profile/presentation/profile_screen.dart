@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:go_router/go_router.dart';
 import 'package:simcap/core/constant/app_constants.dart';
-import 'package:simcap/core/constant/app_constants.dart';
 import 'package:simcap/providers/supplement_provider.dart';
 import 'package:simcap/features/profile/widgets/survey_chip_group.dart';
 import 'package:simcap/features/profile/data/survey_data.dart';
 import 'package:simcap/services/auth_service.dart';
+import 'package:simcap/core/supabase/supabase_client.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -27,6 +27,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String _pregnancyStatus = '해당 없음';
   String _userGender = '';
   bool _isLoading = true;
+
+  // 알림 및 설정 관련 상태 변수
+  bool _durNotificationEnabled = true;
+  bool _intakeReminderEnabled = true;
 
   @override
   void initState() {
@@ -52,6 +56,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
       _smokingStatus = prefs.getString('smokingStatus') ?? '비흡연자입니다';
       _drinkingStatus = prefs.getString('drinkingStatus') ?? '마시지 않음';
       _pregnancyStatus = prefs.getString('pregnancyStatus') ?? '해당 없음';
+
+      // 앱 설정 데이터 로드
+      _durNotificationEnabled = prefs.getBool('durNotificationEnabled') ?? true;
+      _intakeReminderEnabled = prefs.getBool('intakeReminderEnabled') ?? true;
+
       _isLoading = false;
     });
   }
@@ -74,7 +83,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 SizedBox(
                   width: 16,
                   height: 16,
-                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Colors.white,
+                  ),
                 ),
                 SizedBox(width: 12),
                 Text('클라우드에 변경사항 동기화 중...'),
@@ -91,9 +103,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
         final allergies = prefs.getStringList('selectedAllergies') ?? [];
 
         final name = prefs.getString('userName') ?? _userName;
-        final gender = prefs.getString('gender') ?? prefs.getString('userGender') ?? _userGender;
+        final gender =
+            prefs.getString('gender') ??
+            prefs.getString('userGender') ??
+            _userGender;
         final ageStr = prefs.getString('userAge') ?? _userAge;
-        
+
         int birthYearVal = int.tryParse(ageStr) ?? 0;
         if (birthYearVal > 0 && birthYearVal < 120) {
           birthYearVal = DateTime.now().year - birthYearVal;
@@ -341,6 +356,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   _buildProfileSection(
                     '주의가 필요한 질환',
                     _healthIssues,
+                    isGoal: true,
                     onEdit: () => _showEditModal(
                       title: '보유 질환',
                       options: SurveyData.healthIssues,
@@ -354,6 +370,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   _buildProfileSection(
                     '나의 알레르기',
                     _allergies,
+                    isGoal: true,
                     onEdit: () => _showEditModal(
                       title: '알레르기',
                       options: SurveyData.allergies,
@@ -368,7 +385,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   const SizedBox(height: 40),
 
                   // 메뉴 버튼 (설문 다시하기 제거)
-                  _buildMenuButton('앱 설정', Icons.settings, onTap: () {}),
+                  // 기존 코드: _buildMenuButton('앱 설정', Icons.settings, onTap: () {}),
+                  _buildMenuButton(
+                    '앱 설정',
+                    Icons.settings,
+                    onTap: () {
+                      // TODO: 팀원이 새로 구현한 앱 설정 라우팅 연결
+                    },
+                  ),
                   const SizedBox(height: 24),
                   _buildLogoutButton(),
                 ],
@@ -1046,7 +1070,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  // 메뉴 버튼 공통 위젯
   // ── 로그아웃 ────────────────────────────────────────────────────────────
   Future<void> _logout() async {
     final confirmed = await showDialog<bool>(

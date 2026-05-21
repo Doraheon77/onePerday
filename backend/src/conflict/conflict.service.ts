@@ -91,6 +91,56 @@ export class ConflictService {
     '대두': ['대두', '콩', 'soy', '이소플라본'],
   };
 
+  // 6) 한글 -> 영문 (DUR API 성분명) 표준 매핑 사전
+  private readonly ingredientTranslationMap: Record<string, string> = {
+    // 주요 미네랄 및 영양소 (한글 DB명 -> 영문 DUR 표준명)
+    '비타민 k': 'phytomenadione',  // DUR API의 비타민 K 공식 성분명 (피토나디온)
+    '비타민 k1': 'phytomenadione',
+    '비타민k': 'phytomenadione',
+    '비타민k1': 'phytomenadione',
+    '칼슘': 'calcium',
+    '철': 'iron',
+    '철분': 'iron',
+    '아연': 'zinc',
+    '마그네슘': 'magnesium',
+    '칼륨': 'potassium',
+    '나트륨': 'sodium',
+    
+    // 주요 다빈도 한글 약물명 -> 영문 DUR 표준명
+    '아스피린': 'aspirin',
+    '와파린': 'warfarin',
+    '세레콕시브': 'celecoxib',
+    '이부프로펜': 'ibuprofen',
+    '나프록센': 'naproxen',
+    '아세트아미노펜': 'acetaminophen',
+    '케토롤락': 'ketorolac',
+    '케토롤락트로메타민': 'ketorolac tromethamine',
+  };
+
+  private normalizeIngredientName(ing: string): string {
+    if (!ing) return '';
+    
+    // 1. 소문자화 및 양끝 공백 정제
+    let normalized = ing.trim().toLowerCase();
+    
+    // 2. 한글 -> 영문 사전에 등록되어 있다면 영문 표준명으로 매핑 치환
+    if (this.ingredientTranslationMap[normalized]) {
+      return this.ingredientTranslationMap[normalized];
+    }
+    
+    // 3. 띄어쓰기 무관한 세밀 대조 (예: '비타민 k' -> '비타민k' 매칭)
+    const noSpace = normalized.replace(/\s+/g, '');
+    for (const [key, value] of Object.entries(this.ingredientTranslationMap)) {
+      const keyNoSpace = key.replace(/\s+/g, '');
+      if (noSpace === keyNoSpace) {
+        return value;
+      }
+    }
+    
+    // 4. 사전 매핑이 없을 경우 소문자로 통일된 원래 성분명 반환 (영문 성분은 그대로 소문자로 유지)
+    return normalized;
+  }
+
   async checkConflictsByIds(
     supplementIds: number[],
     cabinetSupplements: { name: string; ingredients: string[] }[] = [],
@@ -230,16 +280,19 @@ export class ConflictService {
   }
 
   private async checkPairConflict(ingA: string, ingB: string): Promise<string | null> {
-    const cacheKey1 = `${ingA}-${ingB}`;
-    const cacheKey2 = `${ingB}-${ingA}`;
+    const normalizedA = this.normalizeIngredientName(ingA);
+    const normalizedB = this.normalizeIngredientName(ingB);
+
+    const cacheKey1 = `${normalizedA}-${normalizedB}`;
+    const cacheKey2 = `${normalizedB}-${normalizedA}`;
 
     // 이미 조회된 성분 조합은 캐시에서 바로 반환
     if (this.pairCache.has(cacheKey1)) return this.pairCache.get(cacheKey1)!;
     if (this.pairCache.has(cacheKey2)) return this.pairCache.get(cacheKey2)!;
 
     try {
-      const url1 = `${this.baseUrl}?page=1&perPage=1&serviceKey=${this.durApiKey}&cond[성분명1::EQ]=${encodeURIComponent(ingA)}&cond[성분명2::EQ]=${encodeURIComponent(ingB)}`;
-      const url2 = `${this.baseUrl}?page=1&perPage=1&serviceKey=${this.durApiKey}&cond[성분명1::EQ]=${encodeURIComponent(ingB)}&cond[성분명2::EQ]=${encodeURIComponent(ingA)}`;
+      const url1 = `${this.baseUrl}?page=1&perPage=1&serviceKey=${this.durApiKey}&cond[성분명1::EQ]=${encodeURIComponent(normalizedA)}&cond[성분명2::EQ]=${encodeURIComponent(normalizedB)}`;
+      const url2 = `${this.baseUrl}?page=1&perPage=1&serviceKey=${this.durApiKey}&cond[성분명1::EQ]=${encodeURIComponent(normalizedB)}&cond[성분명2::EQ]=${encodeURIComponent(normalizedA)}`;
 
       const [res1, res2] = await Promise.all([
         firstValueFrom(this.httpService.get(url1)),
@@ -258,7 +311,7 @@ export class ConflictService {
       this.pairCache.set(cacheKey1, reason);
       return reason;
     } catch (error) {
-      this.logger.error(`Failed to check pair conflict for: ${ingA} and ${ingB}`, error);
+      this.logger.error(`Failed to check pair conflict for: ${ingA} (normalized: ${normalizedA}) and ${ingB} (normalized: ${normalizedB})`, error);
       return null; // 방어
     }
   }

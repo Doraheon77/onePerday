@@ -25,13 +25,17 @@ export class AppController {
   async getSupplements(
     @Query('keyword') keyword?: string,
     @Query('record') record?: string,
+    @Query('gender') gender?: string,
+    @Query('age') age?: string,
   ) {
     // 실시간 검색 키워드 기록 (record 파라미터가 'true'로 명시된 경우에만 기록)
     if (keyword && keyword.trim().length > 0 && record === 'true') {
       this.appService.recordSearch(keyword);
     }
 
-    // 1. 검색어(keyword)가 있으면 해당 상품명/브랜드명 검색, 없으면 기존처럼 price 있는 것 3개 노출
+    const userAge = age ? parseInt(age, 10) : 30; // 기본값 30세
+    const userGender = gender ? gender : '남자'; // 기본값 남자
+
     const data = await this.prisma.supplements.findMany({
       take: keyword ? 20 : 3, // 검색 시에는 더 많이 가져옴
       where: {
@@ -43,11 +47,46 @@ export class AppController {
           ]
         } : {})
       },
+      include: {
+        supplements_ingredients: true, // 프론트엔드 파싱을 위해 성분 데이터 포함
+      },
+    });
+
+    const standards = await this.prisma.nutrientStandards.findMany({
+      where: {
+        gender: userGender,
+        age_min: { lte: userAge },
+        age_max: { gte: userAge },
+      }
+    });
+
+    const enrichedData = data.map(product => {
+      const mappedIngredients = product.supplements_ingredients.map(ing => {
+        const std = standards.find(s => s.nutrient_name === ing.ingredient_name);
+        // 권장섭취량 -> 충분섭취량 -> 평균필요량 순서로 기준치 적용
+        const dri = std?.recommended_intake || std?.adequate_intake || std?.avg_requirement || null;
+        const amount = ing.amount || 0;
+        
+        let dailyPercent = 0;
+        if (dri && dri > 0) {
+          dailyPercent = Number((amount / dri).toFixed(4));
+        }
+
+        return {
+          ...ing,
+          dailyPercent,
+        };
+      });
+
+      return {
+        ...product,
+        supplements_ingredients: mappedIngredients,
+      };
     });
 
     // BigInt 처리 (JSON 변환)
     return JSON.parse(
-      JSON.stringify(data, (key, value) =>
+      JSON.stringify(enrichedData, (key, value) =>
         typeof value === 'bigint' ? value.toString() : value,
       ),
     );

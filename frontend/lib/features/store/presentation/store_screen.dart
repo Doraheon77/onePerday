@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:simcap/core/constant/app_constants.dart';
 import 'package:simcap/features/store/presentation/supplement_detail_screen.dart';
 import 'package:simcap/services/store_api_service.dart';
+import 'package:simcap/services/auth_service.dart';
 
 class StoreScreen extends StatefulWidget {
   const StoreScreen({super.key});
@@ -63,8 +64,10 @@ class _StoreScreenState extends State<StoreScreen> {
     try {
       final service = StoreApiService();
 
-      // 테스트를 위해 DB에 있는 사용자 UUID 하드코딩 (향후 Supabase Auth 연동)
-      final String currentUserId = 'bc49b355-8ea3-4e6e-9331-52d1d4c46d99';
+      // Supabase Auth 연동을 통한 로그인 사용자별 동적 UUID 로드 (비로그인 상태일 시 기존 하드코딩 UUID를 폴백으로 사용)
+      final authService = AuthService();
+      final user = authService.currentUser;
+      final String currentUserId = user?.id ?? 'bc49b355-8ea3-4e6e-9331-52d1d4c46d99';
 
       // [개선된 코드] 전체 리스트와 맞춤 추천 리스트를 동시에 조회
       final results = await Future.wait([
