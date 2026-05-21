@@ -16,6 +16,10 @@ class IntakeApiService {
         'age': age,
         'gender': gender,
         'cartItems': cartItems.map((item) {
+          if (item is Map<String, dynamic>) {
+            return item;
+          }
+
           return {
             'productId': item.productId,
             'name': item.name,
@@ -42,25 +46,34 @@ class IntakeApiService {
 class IntakeResult {
   final String nutrientName;
   final double currentTotal;
+  final double recommendedIntake;
+  final double adequateIntake;
   final double upperLimit;
   final bool isExceeded;
   final String unit;
+  final String status;
 
   IntakeResult({
     required this.nutrientName,
     required this.currentTotal,
+    required this.recommendedIntake,
+    required this.adequateIntake,
     required this.upperLimit,
     required this.isExceeded,
     required this.unit,
+    required this.status,
   });
 
   factory IntakeResult.fromJson(Map<String, dynamic> json) {
     return IntakeResult(
       nutrientName: json['nutrientName'] ?? '',
       currentTotal: (json['currentTotal'] ?? 0).toDouble(),
+      recommendedIntake: (json['recommendedIntake'] ?? 0).toDouble(),
+      adequateIntake: (json['adequateIntake'] ?? 0).toDouble(),
       upperLimit: (json['upperLimit'] ?? 0).toDouble(),
-      isExceeded: json['isExceeded'] ?? false,
+      isExceeded: json['isExceeded'] ?? json['status'] == 'danger',
       unit: json['unit'] ?? '',
+      status: json['status'] ?? 'safe',
     );
   }
 }
