@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
+import 'package:simcap/core/constant/app_constants.dart';
 import 'package:simcap/features/chatbot/presentation/chatbot_screen.dart';
 import 'package:simcap/features/home/presentation/home_screen.dart';
 import 'package:simcap/features/cabinet/presentation/cabinet_screen.dart';
 import 'package:simcap/features/cabinet/presentation/cabinet_detail_screen.dart';
 import 'package:simcap/features/cabinet/presentation/add_supplement_screen.dart';
+import 'package:simcap/features/cabinet/presentation/supplement_info_screen.dart';
 import 'package:simcap/features/cabinet/presentation/barcode_scan_screen.dart';
 import 'package:simcap/features/cabinet/domain/dataModels/supplement_model.dart';
 import 'package:simcap/features/profile/presentation/login_screen.dart';
@@ -178,7 +181,6 @@ class AppRouter {
               GoRoute(
                 path: 'add',
                 pageBuilder: (context, state) {
-                  // extra로 Supplement 전달 시 편집 모드
                   final item = state.extra is Supplement
                       ? state.extra as Supplement
                       : null;
@@ -193,6 +195,17 @@ class AppRouter {
                 path: 'scan',
                 pageBuilder: (context, state) =>
                     _slideUp(context, state, const BarcodeScanScreen()),
+              ),
+              GoRoute(
+                path: 'info',
+                pageBuilder: (context, state) {
+                  final supplement = state.extra as Supplement;
+                  return _slideUp(
+                    context,
+                    state,
+                    SupplementInfoScreen(supplement: supplement),
+                  );
+                },
               ),
             ],
           ),
@@ -221,4 +234,128 @@ class AppRouter {
       ),
     ],
   );
+}
+
+// ── 바텀 네비게이션 바 래퍼 ────────────────────────────────────────────────────
+class ScaffoldWithNavBar extends StatelessWidget {
+  final Widget child;
+  const ScaffoldWithNavBar({super.key, required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    final bottomPad = MediaQuery.of(context).padding.bottom;
+
+    return Scaffold(
+      body: child,
+      bottomNavigationBar: SizedBox(
+        height: 70 + bottomPad,
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.06),
+                    blurRadius: 12,
+                    offset: const Offset(0, -3),
+                  ),
+                ],
+              ),
+              child: SafeArea(
+                top: false,
+                child: SizedBox(
+                  height: 70,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    children: [
+                      _buildNavItem(context, Icons.home_filled, '홈', '/home'),
+                      _buildNavItem(
+                        context,
+                        Icons.shopping_bag_outlined,
+                        '스토어',
+                        '/store',
+                      ),
+                      const SizedBox(width: 64),
+                      _buildNavItem(
+                        context,
+                        Icons.inventory_2_outlined,
+                        '내 영양제',
+                        '/cabinet',
+                      ),
+                      _buildNavItem(
+                        context,
+                        Icons.person_outline,
+                        '프로필',
+                        '/profile',
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            Positioned(
+              top: 0,
+              bottom: MediaQuery.of(context).padding.bottom,
+              left: 0,
+              right: 0,
+              child: Center(
+                child: FloatingActionButton(
+                  backgroundColor: AppColors.primary,
+                  elevation: 4,
+                  shape: const CircleBorder(),
+                  child: const Icon(
+                    Icons.smart_toy_outlined,
+                    color: Colors.white,
+                  ),
+                  onPressed: () {
+                    HapticFeedback.mediumImpact();
+                    context.push('/chatbot');
+                  },
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNavItem(
+    BuildContext context,
+    IconData icon,
+    String label,
+    String path,
+  ) {
+    final String currentUri = GoRouterState.of(context).uri.toString();
+    final bool isSelected = currentUri.startsWith(path);
+
+    return InkWell(
+      onTap: () {
+        HapticFeedback.lightImpact();
+        context.go(path);
+      },
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            icon,
+            color: isSelected ? AppColors.primary : Colors.grey,
+            size: 24,
+          ),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: TextStyle(
+              color: isSelected ? AppColors.primary : Colors.grey,
+              fontSize: 10,
+              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }

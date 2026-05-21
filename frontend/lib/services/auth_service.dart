@@ -43,27 +43,27 @@ class AuthService {
   }
 
   Future<void> completeOnboarding({
-  required String name,
-  required String gender,
-  required int birthYear,
-  required String healthStatus,
-  required List<String> symptoms,
-}) async {
-  final user = supabase.auth.currentUser;
+    required String name,
+    required String gender,
+    required int birthYear,
+    required String healthStatus,
+    required List<String> symptoms,
+  }) async {
+    final user = supabase.auth.currentUser;
 
-  if (user == null) {
-    throw Exception('로그인된 사용자가 없습니다.');
+    if (user == null) {
+      throw Exception('로그인된 사용자가 없습니다.');
+    }
+
+    await supabase.from('users_info').upsert({
+      'id': user.id,
+      'name': name,
+      'gender': gender,
+      'birth_year': birthYear,
+      'health_status': healthStatus,
+      'symptoms': symptoms,
+    });
   }
-
-  await supabase.from('users_info').upsert({
-    'id': user.id,
-    'name': name,
-    'gender': gender,
-    'birth_year': birthYear,
-    'health_status': healthStatus,
-    'symptoms': symptoms,
-  });
-}
 
   Future<void> signOut() async {
     await supabase.auth.signOut();

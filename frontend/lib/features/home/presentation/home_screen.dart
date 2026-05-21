@@ -815,11 +815,78 @@ class _HomeScreenState extends State<HomeScreen> {
       );
     }
 
-    return Column(
-      children: supplements
-          .map((s) => _buildMedicationToggleCard(s, notifier))
-          .toList(),
-    );
+    // 알림 시간 기준 정렬 (첫 번째 알림 시간, 없으면 맨 뒤)
+    final sorted = [...supplements]
+      ..sort((a, b) {
+        final aTime = a.alarmTimes.isNotEmpty
+            ? a.alarmTimes.first.hour * 60 + a.alarmTimes.first.minute
+            : 9999;
+        final bTime = b.alarmTimes.isNotEmpty
+            ? b.alarmTimes.first.hour * 60 + b.alarmTimes.first.minute
+            : 9999;
+        return aTime.compareTo(bTime);
+      });
+
+    // 오전/오후 구분 헤더 추가
+    final List<Widget> items = [];
+    String? lastPeriod;
+
+    for (final s in sorted) {
+      final firstAlarm = s.alarmTimes.isNotEmpty ? s.alarmTimes.first : null;
+      String? period;
+      if (firstAlarm != null) {
+        final isPm = firstAlarm.hour >= 12;
+        final h = firstAlarm.hour == 0
+            ? 12
+            : firstAlarm.hour > 12
+            ? firstAlarm.hour - 12
+            : firstAlarm.hour;
+        final m = firstAlarm.minute.toString().padLeft(2, '0');
+        period = '${isPm ? "오후" : "오전"} $h:$m';
+      }
+
+      if (period != null && period != lastPeriod) {
+        if (lastPeriod != null) {
+          items.add(const SizedBox(height: 4));
+        }
+        items.add(
+          Padding(
+            padding: const EdgeInsets.only(left: 4, bottom: 8, top: 4),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppColors.primaryLight,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    period,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Divider(color: Colors.grey.shade200, height: 1),
+                ),
+              ],
+            ),
+          ),
+        );
+        lastPeriod = period;
+      }
+
+      items.add(_buildMedicationToggleCard(s, notifier));
+    }
+
+    return Column(children: items);
   }
 
   Widget _buildMedicationToggleCard(
@@ -831,16 +898,18 @@ class _HomeScreenState extends State<HomeScreen> {
 
     // 1회 복용 — 기존 방식
     if (freq <= 1) {
-      final isDone = notifier.isDoneOn(supplement.name, _selectedDate);
+      final isDone = notifier.isDoneOn(supplement.id, _selectedDate);
+      final isEmpty = supplement.remaining <= 0 && !isDone;
       return GestureDetector(
-        onTap: isToday
-            ? () => notifier.toggleDose(supplement.name, date: _selectedDate)
+        onTap: (isToday && (!isEmpty || isDone))
+            ? () => notifier.toggleDose(supplement.id, date: _selectedDate)
             : null,
         child: _buildMedicationCard(
           supplement,
           isDone,
           isToday,
           doseLabel: null,
+          isEmpty: isEmpty,
         ),
       );
     }
@@ -863,11 +932,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: List.generate(freq, (i) {
-        final isDone = notifier.isDoneOnIndex(
-          supplement.name,
-          _selectedDate,
-          i,
-        );
+        final isDone = notifier.isDoneOnIndex(supplement.id, _selectedDate, i);
         final t = i < alarmTimes.length
             ? alarmTimes[i]
             : TimeOfDay(hour: (8 + i * 4) % 24, minute: 0);
@@ -907,22 +972,28 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
             // 카드
-            GestureDetector(
-              onTap: isToday
-                  ? () => notifier.toggleDoseIndex(
-                      supplement.name,
-                      i,
-                      date: _selectedDate,
-                    )
-                  : null,
-              child: _buildMedicationCard(
-                supplement,
-                isDone,
-                isToday,
-                doseLabel: null,
-                doseIndex: i,
-                totalDose: freq,
-              ),
+            Builder(
+              builder: (ctx) {
+                final isEmpty = supplement.remaining <= 0 && !isDone;
+                return GestureDetector(
+                  onTap: (isToday && (!isEmpty || isDone))
+                      ? () => notifier.toggleDoseIndex(
+                          supplement.id,
+                          i,
+                          date: _selectedDate,
+                        )
+                      : null,
+                  child: _buildMedicationCard(
+                    supplement,
+                    isDone,
+                    isToday,
+                    doseLabel: null,
+                    doseIndex: i,
+                    totalDose: freq,
+                    isEmpty: isEmpty,
+                  ),
+                );
+              },
             ),
           ],
         );
@@ -937,30 +1008,57 @@ class _HomeScreenState extends State<HomeScreen> {
     String? doseLabel,
     int doseIndex = 0,
     int totalDose = 1,
+    bool isEmpty = false,
   }) {
     return AnimatedContainer(
       duration: const Duration(milliseconds: 250),
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: isDone ? AppColors.primaryFaint : Colors.white,
+        color: isEmpty
+            ? Colors.grey.shade50
+            : isDone
+            ? AppColors.primary.withOpacity(0.12)
+            : Colors.white,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: isDone
-              ? AppColors.primary.withOpacity(0.5)
+          color: isEmpty
+              ? Colors.grey.shade300
+              : isDone
+              ? AppColors.primary.withOpacity(0.4)
               : Colors.grey.withOpacity(0.1),
+          width: isDone ? 1.5 : 1,
         ),
       ),
       child: ListTile(
-        leading: CircleAvatar(
-          backgroundColor: isDone
-              ? AppColors.primary
-              : isToday
-              ? AppColors.dangerBg
-              : Colors.grey.shade200,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+        leading: AnimatedContainer(
+          duration: const Duration(milliseconds: 250),
+          width: 42,
+          height: 42,
+          decoration: BoxDecoration(
+            color: isEmpty
+                ? Colors.grey.shade200
+                : isDone
+                ? AppColors.primary
+                : isToday
+                ? AppColors.dangerBg
+                : Colors.grey.shade100,
+            shape: BoxShape.circle,
+          ),
           child: Icon(
-            isDone ? Icons.check : Icons.priority_high,
-            color: Colors.white,
-            size: 20,
+            isEmpty
+                ? Icons.warning_amber_rounded
+                : isDone
+                ? Icons.check_rounded
+                : Icons.medication_rounded,
+            color: isEmpty
+                ? Colors.orange
+                : isDone
+                ? Colors.white
+                : isToday
+                ? AppColors.danger
+                : Colors.grey[400],
+            size: 22,
           ),
         ),
         title: Text(
@@ -968,24 +1066,51 @@ class _HomeScreenState extends State<HomeScreen> {
           style: TextStyle(
             fontWeight: FontWeight.bold,
             decoration: isDone ? TextDecoration.lineThrough : null,
-            color: isDone ? Colors.grey : Colors.black87,
+            color: isEmpty
+                ? Colors.grey[400]
+                : isDone
+                ? Colors.grey[500]
+                : Colors.black87,
           ),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
         subtitle: Text(
-          doseLabel != null
-              ? isDone
-                    ? '$doseLabel 복용 완료 · ${supplement.remaining}정 남음'
-                    : '$doseLabel · ${supplement.remaining}정 남음'
+          isEmpty
+              ? '재고 소진 · 구매가 필요해요'
               : isDone
               ? '복용 완료 · ${supplement.remaining}정 남음'
               : '${supplement.remaining}정 남음',
+          style: TextStyle(
+            fontSize: 12,
+            color: isEmpty
+                ? Colors.orange
+                : isDone
+                ? Colors.grey[400]
+                : Colors.grey[600],
+          ),
         ),
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            if (!isDone && supplement.remaining <= 7)
+            if (isEmpty)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.orange.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.orange.withOpacity(0.4)),
+                ),
+                child: const Text(
+                  '구매 필요',
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: Colors.orange,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              )
+            else if (!isDone && supplement.remaining <= 7)
               Container(
                 margin: const EdgeInsets.only(right: 8),
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
@@ -1002,17 +1127,6 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
               ),
-            Icon(
-              isDone
-                  ? Icons.check_box_rounded
-                  : Icons.check_box_outline_blank_rounded,
-              color: isDone
-                  ? AppColors.primary
-                  : isToday
-                  ? Colors.grey[400]
-                  : Colors.grey[200],
-              size: 28,
-            ),
           ],
         ),
       ),

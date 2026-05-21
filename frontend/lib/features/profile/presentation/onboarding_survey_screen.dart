@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
+import 'package:simcap/routes/app_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:simcap/core/constant/app_constants.dart';
+import 'package:simcap/features/store/data/store_product_data.dart';
+import 'package:simcap/features/store/presentation/supplement_detail_screen.dart';
 import '../widgets/survey_chip_group.dart';
 import '../data/survey_data.dart';
 import 'package:simcap/services/auth_service.dart';
@@ -20,6 +24,7 @@ class _OnboardingSurveyScreenState extends State<OnboardingSurveyScreen> {
   final TextEditingController _ageController = TextEditingController();
 
   int _currentPage = 0;
+  bool _showRecommendAfterLoad = false;
   String _searchQuery = "";
 
   String? userName;
@@ -90,8 +95,6 @@ class _OnboardingSurveyScreenState extends State<OnboardingSurveyScreen> {
         duration: const Duration(milliseconds: 400),
         curve: Curves.easeInOut,
       );
-    } else {
-      context.go('/home');
     }
   }
 
@@ -125,6 +128,213 @@ class _OnboardingSurveyScreenState extends State<OnboardingSurveyScreen> {
     return filtered;
   }
 
+  void _showRecommendSheet() {
+    // 목표 기반 추천 로직
+    final Map<String, List<String>> goalKeywords = {
+      '다이어트': ['오메가', '코큐텐', '유산균'],
+      '근육': ['멀티비타민', '마그네슘'],
+      '면역': ['비타민D', '멀티비타민', '유산균'],
+      '피로': ['코큐텐', '마그네슘', '멀티비타민'],
+      '눈 건강': ['루테인'],
+      '장 건강': ['유산균'],
+      '뼈 건강': ['비타민D', '마그네슘'],
+      '혈관': ['오메가', '코큐텐'],
+      '간 건강': ['밀크씨슬'],
+      '수면': ['마그네슘'],
+    };
+    final Set<String> keywords = {};
+    for (final goal in selectedGoals) {
+      for (final entry in goalKeywords.entries) {
+        if (goal.contains(entry.key) || entry.key.contains(goal)) {
+          keywords.addAll(entry.value);
+        }
+      }
+    }
+    final recommended = keywords.isEmpty
+        ? allProducts.take(4).toList()
+        : allProducts
+              .where((p) => keywords.any((k) => p.name.contains(k)))
+              .take(4)
+              .toList();
+    final display = recommended.isEmpty
+        ? allProducts.take(4).toList()
+        : recommended;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      builder: (sheetCtx) => Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        ),
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(sheetCtx).padding.bottom + 16,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              margin: const EdgeInsets.only(top: 12, bottom: 8),
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey[300],
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 12, 24, 0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        width: 40,
+                        height: 40,
+                        decoration: const BoxDecoration(
+                          color: AppColors.primaryLight,
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.auto_awesome,
+                          color: AppColors.primary,
+                          size: 20,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              '맞춤 영양제 추천',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 18,
+                              ),
+                            ),
+                            Text(
+                              selectedGoals.isNotEmpty
+                                  ? selectedGoals.join('/') + ' 목표에 맞는 영양제예요'
+                                  : '건강 목표에 맞는 영양제예요',
+                              style: TextStyle(
+                                color: Colors.grey[500],
+                                fontSize: 13,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  ...display
+                      .map(
+                        (p) => GestureDetector(
+                          onTap: () {
+                            Navigator.of(sheetCtx).pop();
+                            Future.delayed(
+                              const Duration(milliseconds: 300),
+                              () {
+                                final ctx =
+                                    AppRouter.navigatorKey.currentContext;
+                                if (ctx != null)
+                                  ctx.push('/store/detail', extra: p);
+                              },
+                            );
+                          },
+                          child: Container(
+                            margin: const EdgeInsets.only(bottom: 12),
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(color: Colors.grey.shade200),
+                            ),
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 44,
+                                  height: 44,
+                                  decoration: BoxDecoration(
+                                    color: AppColors.primaryLight,
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: const Icon(
+                                    Icons.medication_rounded,
+                                    color: AppColors.primary,
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        p.name,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                      Text(
+                                        p.brand,
+                                        style: TextStyle(
+                                          color: Colors.grey[500],
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                Text(
+                                  p.price.toString() + '원',
+                                  style: const TextStyle(
+                                    color: AppColors.primary,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                const SizedBox(width: 4),
+                                const Icon(
+                                  Icons.chevron_right,
+                                  color: AppColors.primary,
+                                  size: 18,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      )
+                      .toList(),
+                  const SizedBox(height: 8),
+                  Center(
+                    child: TextButton(
+                      onPressed: () => Navigator.of(sheetCtx).pop(),
+                      child: const Text(
+                        '건너뛰고 홈으로',
+                        style: TextStyle(color: Colors.grey, fontSize: 13),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    ).then((_) {
+      if (mounted) context.go('/home');
+    });
+  }
+
   void _showSummaryModal() {
     showModalBottomSheet(
       context: context,
@@ -133,8 +343,8 @@ class _OnboardingSurveyScreenState extends State<OnboardingSurveyScreen> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
-      builder: (context) {
-        final bottomPad = MediaQuery.of(context).padding.bottom;
+      builder: (sheetCtx) {
+        final bottomPad = MediaQuery.of(sheetCtx).padding.bottom;
         return Padding(
           padding: EdgeInsets.fromLTRB(
             24,
@@ -191,14 +401,19 @@ class _OnboardingSurveyScreenState extends State<OnboardingSurveyScreen> {
                 );
 
                 if (!mounted) return;
-                Navigator.pop(context);
-                context.go('/home');
+                setState(() => _showRecommendAfterLoad = true);
+                Navigator.of(sheetCtx).pop(); // 바텀시트만 닫기
               }),
             ],
           ),
         );
       },
-    );
+    ).then((_) {
+      if (!mounted) return;
+      if (_showRecommendAfterLoad) {
+        _pageController.jumpToPage(5);
+      }
+    });
   }
 
   Widget _buildSummaryRow(String title, String content, int stepIndex) {
@@ -279,7 +494,15 @@ class _OnboardingSurveyScreenState extends State<OnboardingSurveyScreen> {
             child: PageView(
               controller: _pageController,
               physics: const NeverScrollableScrollPhysics(),
-              onPageChanged: (idx) => setState(() => _currentPage = idx),
+              onPageChanged: (idx) {
+                setState(() => _currentPage = idx);
+                if (idx == 5 && _showRecommendAfterLoad) {
+                  Future.delayed(const Duration(seconds: 2), () {
+                    if (!mounted) return;
+                    _showRecommendSheet();
+                  });
+                }
+              },
               children: [
                 _buildBasicInfoStep(),
                 _buildGoalStep(),

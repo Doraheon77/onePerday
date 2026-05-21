@@ -2,9 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:simcap/core/constant/app_constants.dart';
 import 'package:simcap/features/cabinet/domain/dataModels/supplement_model.dart';
+import 'package:simcap/routes/app_router.dart';
 import 'package:simcap/features/store/presentation/review_screen.dart';
 import 'package:simcap/providers/supplement_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:portone_flutter/v1.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 
 // 스토어 상품 데이터 모델
 // TODO: 백엔드 연동 후 API 응답 모델로 교체
@@ -18,8 +22,8 @@ class StoreProduct {
   final List<String> contraindications;
   final List<StoreProduct> similarProducts;
   final String? purchaseUrl;
-  final int dailyDose;
-  final int dailyFrequency;
+  final int dailyDose; // 1회 복용량
+  final int dailyFrequency; // 하루 복용 횟수
 
   const StoreProduct({
     required this.id,
@@ -41,7 +45,7 @@ class StoreProduct {
     return Supplement(
       name: name,
       brand: brand,
-      remaining: 0, // 등록 직후 수량은 0 — 사용자가 add_supplement에서 직접 입력
+      remaining: 0,
       total: 0,
       dailyDose: dailyDose,
       dailyFrequency: dailyFrequency,
@@ -140,6 +144,7 @@ class SupplementDetailScreen extends StatefulWidget {
 class _SupplementDetailScreenState extends State<SupplementDetailScreen> {
   bool _contraExpanded = false;
   bool _isPurchaseLoading = false;
+  bool _isPaymentLoading = false;
 
   /// 이미 캐비닛에 등록된 영양제인지 여부 (이름 기준 비교)
   bool _isAlreadyInCabinet(BuildContext context) {
@@ -207,6 +212,529 @@ class _SupplementDetailScreenState extends State<SupplementDetailScreen> {
         ),
       ),
     );
+  }
+
+  // ── 결제 수단 선택 바텀시트 ──────────────────────────────────────────────
+  Future<void> _showPaymentMethodSheet(
+    BuildContext context,
+    StoreProduct product,
+  ) async {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => Padding(
+        padding: EdgeInsets.only(
+          left: 24,
+          right: 24,
+          top: 24,
+          bottom: MediaQuery.of(context).padding.bottom + 24,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              '결제 수단 선택',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              '${_formatPrice(product.price)}원',
+              style: const TextStyle(
+                fontSize: 15,
+                color: AppColors.primary,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 20),
+            // 카카오페이
+            _paymentMethodTile(
+              context: context,
+              product: product,
+              label: '카카오페이',
+              pg: 'kakaopay.TC0ONETIME',
+              color: const Color(0xFFFEE500),
+              textColor: Colors.black87,
+              icon: Icons.chat_bubble_rounded,
+            ),
+            const SizedBox(height: 12),
+            // 토스페이
+            _paymentMethodTile(
+              context: context,
+              product: product,
+              label: '토스페이',
+              pg: 'tosspay.tosstest',
+              color: const Color(0xFF0064FF),
+              textColor: Colors.white,
+              icon: Icons.payment_rounded,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _paymentMethodTile({
+    required BuildContext context,
+    required StoreProduct product,
+    required String label,
+    required String pg,
+    required Color color,
+    required Color textColor,
+    required IconData icon,
+  }) {
+    return SizedBox(
+      width: double.infinity,
+      height: 54,
+      child: ElevatedButton.icon(
+        onPressed: () {
+          Navigator.pop(context); // 바텀시트 닫기
+          _startPayment(context, product, pg: pg);
+        },
+        style: ElevatedButton.styleFrom(
+          backgroundColor: color,
+          foregroundColor: textColor,
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
+        ),
+        icon: Icon(icon, size: 20),
+        label: Text(
+          label,
+          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+        ),
+      ),
+    );
+  }
+
+  // ── 포트원 결제 ────────────────────────────────────────────────────────
+  Future<void> _startPayment(
+    BuildContext context,
+    StoreProduct product, {
+    String pg = 'kakaopay.TC0ONETIME',
+  }) async {
+    final merchantUid = 'order_\${DateTime.now().millisecondsSinceEpoch}';
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => IamportPayment(
+          appBar: AppBar(
+            title: const Text('결제'),
+            backgroundColor: Colors.white,
+            foregroundColor: Colors.black,
+            elevation: 0,
+          ),
+          initialChild: const Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                CircularProgressIndicator(color: AppColors.primary),
+                SizedBox(height: 16),
+                Text('결제창 로딩 중...', style: TextStyle(color: Colors.grey)),
+              ],
+            ),
+          ),
+          userCode: 'imp24258048',
+          data: PaymentData(
+            pg: pg,
+            payMethod: pg.startsWith('kakaopay')
+                ? 'kakaopay'
+                : pg.startsWith('tosspay')
+                ? 'tosspay'
+                : 'card',
+            name: product.name,
+            amount: product.price,
+            merchantUid: merchantUid,
+            buyerName: '구매자',
+            buyerTel: '010-0000-0000',
+            appScheme: 'com.example.simcap',
+          ),
+          callback: (Map<String, String> result) async {
+            debugPrint('결제 콜백 수신: $result');
+            // 결과 먼저 처리 후 창 닫기
+            final navContext = AppRouter.navigatorKey.currentContext;
+            if (navContext == null) {
+              Navigator.pop(context);
+              return;
+            }
+            final notifier = SupplementProvider.of(navContext);
+
+            final isSuccess =
+                result['imp_success'] == 'true' ||
+                result['success'] == 'true' ||
+                result['imp_uid'] != null;
+
+            if (isSuccess) {
+              final impUid = result['imp_uid'] ?? '';
+              bool verified = false;
+              try {
+                verified = await _verifyPayment(
+                  impUid: impUid,
+                  merchantUid: merchantUid,
+                  amount: product.price,
+                  productId: product.id,
+                );
+              } catch (e) {
+                verified = true; // 백엔드 미연동 시 성공 처리
+              }
+
+              if (verified) {
+                notifier.addPurchase([
+                  PurchaseItem(
+                    name: product.name,
+                    brand: product.brand,
+                    price: product.price,
+                    count: 1,
+                  ),
+                ]);
+              }
+
+              // 결제창 닫기
+              Navigator.pop(context);
+
+              // 구매 완료 다이얼로그
+              if (verified) {
+                await Future.delayed(const Duration(milliseconds: 300));
+                final ctx = AppRouter.navigatorKey.currentContext;
+                if (ctx != null) {
+                  showDialog(
+                    context: ctx,
+                    barrierDismissible: false,
+                    builder: (dialogContext) => AlertDialog(
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      content: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            width: 72,
+                            height: 72,
+                            decoration: const BoxDecoration(
+                              color: AppColors.primaryLight,
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.check_circle_rounded,
+                              color: AppColors.primary,
+                              size: 44,
+                            ),
+                          ),
+                          const SizedBox(height: 20),
+                          const Text(
+                            '구매 완료!',
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            product.name,
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.grey[600],
+                            ),
+                            textAlign: TextAlign.center,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            '${_formatPrice(product.price)}원',
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.primary,
+                            ),
+                          ),
+                        ],
+                      ),
+                      actions: [
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(8, 0, 8, 4),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: OutlinedButton(
+                                  onPressed: () => Navigator.pop(dialogContext),
+                                  style: OutlinedButton.styleFrom(
+                                    side: BorderSide(
+                                      color: Colors.grey.shade300,
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 14,
+                                    ),
+                                  ),
+                                  child: const Text(
+                                    '닫기',
+                                    style: TextStyle(
+                                      color: Colors.black54,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: ElevatedButton(
+                                  onPressed: () {
+                                    Navigator.pop(dialogContext);
+                                    Future.microtask(() {
+                                      final c =
+                                          AppRouter.navigatorKey.currentContext;
+                                      if (c != null)
+                                        c.push('/profile/purchases');
+                                    });
+                                  },
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: AppColors.primary,
+                                    foregroundColor: Colors.white,
+                                    elevation: 0,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 14,
+                                    ),
+                                  ),
+                                  child: const Text(
+                                    '구매 기록 보기',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+              }
+            } else {
+              Navigator.pop(context);
+              final errorMsg = result['error_msg'] ?? '결제가 취소되었습니다.';
+              final ctx = AppRouter.navigatorKey.currentContext;
+              if (ctx != null) {
+                ScaffoldMessenger.of(ctx).showSnackBar(
+                  SnackBar(
+                    content: Text(errorMsg),
+                    duration: const Duration(milliseconds: 2000),
+                    behavior: SnackBarBehavior.floating,
+                  ),
+                );
+              }
+            }
+            if (mounted) setState(() => _isPaymentLoading = false);
+          },
+        ),
+      ),
+    );
+  }
+
+  Future<void> _handlePaymentResult(
+    BuildContext context,
+    Map<String, String> result,
+    StoreProduct product,
+    String merchantUid,
+    SupplementNotifier notifier,
+  ) async {
+    // 결제 결과 디버그 출력
+    debugPrint('결제 결과: $result');
+    debugPrint('imp_success: ${result['imp_success']}');
+    debugPrint('imp_uid: ${result['imp_uid']}');
+
+    final isSuccess =
+        result['imp_success'] == 'true' ||
+        result['success'] == 'true' ||
+        result['imp_uid'] != null;
+
+    if (isSuccess) {
+      final impUid = result['imp_uid']!;
+
+      try {
+        // 백엔드 결제 검증
+        final verified = await _verifyPayment(
+          impUid: impUid,
+          merchantUid: merchantUid,
+          amount: product.price,
+          productId: product.id,
+        );
+
+        if (!mounted) return;
+
+        if (verified) {
+          // 구매 기록 추가
+          notifier.addPurchase([
+            PurchaseItem(
+              name: product.name,
+              brand: product.brand,
+              price: product.price,
+              count: 1,
+            ),
+          ]);
+
+          // 구매 완료 다이얼로그
+          await showDialog(
+            context: context,
+            barrierDismissible: false,
+            builder: (dialogContext) => AlertDialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 72,
+                    height: 72,
+                    decoration: const BoxDecoration(
+                      color: AppColors.primaryLight,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.check_circle_rounded,
+                      color: AppColors.primary,
+                      size: 44,
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  const Text(
+                    '구매 완료!',
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    product.name,
+                    style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                    textAlign: TextAlign.center,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '${_formatPrice(product.price)}원',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                ],
+              ),
+              actions: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () => Navigator.pop(context),
+                          style: OutlinedButton.styleFrom(
+                            side: BorderSide(color: Colors.grey.shade300),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                          ),
+                          child: const Text(
+                            '닫기',
+                            style: TextStyle(
+                              color: Colors.grey,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: () {
+                            Navigator.pop(context);
+                            context.push('/profile/purchases');
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primary,
+                            foregroundColor: Colors.white,
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                          ),
+                          child: const Text(
+                            '구매 기록 보기',
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          );
+        } else {
+          _showErrorSnackBar('결제 검증에 실패했습니다. 고객센터로 문의해주세요.');
+        }
+      } catch (e) {
+        if (mounted) _showErrorSnackBar('결제 처리 중 오류가 발생했습니다.');
+      } finally {
+        if (mounted) setState(() => _isPaymentLoading = false);
+      }
+    } else {
+      // 결제 실패 or 취소
+      final errorMsg = result['error_msg'] ?? '결제가 취소되었습니다.';
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(errorMsg),
+            duration: const Duration(milliseconds: 2000),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<bool> _verifyPayment({
+    required String impUid,
+    required String merchantUid,
+    required int amount,
+    required String productId,
+  }) async {
+    try {
+      // TODO: 실제 서버 주소로 교체
+      final url = Uri.parse('http://10.0.2.2:3000/api/payment/verify');
+      final response = await http
+          .post(
+            url,
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({
+              'imp_uid': impUid,
+              'merchant_uid': merchantUid,
+              'amount': amount,
+              'product_id': productId,
+            }),
+          )
+          .timeout(const Duration(seconds: 3));
+      return response.statusCode == 200;
+    } catch (e) {
+      debugPrint('결제 검증 오류: \$e');
+      // 백엔드 미연동 시 즉시 true 반환
+      return true;
+    }
   }
 
   Future<void> _launchPurchaseUrl(String url) async {
@@ -509,20 +1037,247 @@ class _SupplementDetailScreenState extends State<SupplementDetailScreen> {
   }
 
   // 병용 금지 정보
+  void _showConsultPopup() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Row(
+          children: [
+            Icon(Icons.local_hospital_outlined, color: AppColors.primary),
+            SizedBox(width: 8),
+            Text(
+              '전문의 상담 안내',
+              style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+            ),
+          ],
+        ),
+        content: const Text(
+          '영양제 복용에 관한 정확한 판단은 전문의와 상담하는 것이 가장 안전합니다.\n\n'
+          '특히 만성질환, 임신, 약물 복용 중인 경우 반드시 전문의와 상의 후 복용하세요.',
+          style: TextStyle(fontSize: 14, height: 1.6),
+        ),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(8, 0, 8, 4),
+            child: Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => Navigator.pop(ctx),
+                    style: OutlinedButton.styleFrom(
+                      side: BorderSide(color: Colors.grey.shade300),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                    child: const Text(
+                      '닫기',
+                      style: TextStyle(
+                        color: Colors.black54,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.pop(ctx),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                    child: const Text(
+                      '확인',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildContraindications(List<String> items) {
+    final cabinets = SupplementProvider.of(context).supplements;
+
+    // 캐비닛 영양제 성분 목록
+    final cabinetNutrients = cabinets
+        .expand((s) => s.nutrients.map((n) => n.name.toLowerCase()))
+        .toSet();
+
+    // 이 제품의 성분 중 병용금지 항목과 겹치는 것
+    final productNutrientNames = widget.product.nutrients
+        .map((n) => n.name.toLowerCase())
+        .toSet();
+
+    // 병용금지 충돌 (캐비닛 성분 vs 이 제품 병용금지 목록)
+    final conflictItems = items.where((item) {
+      final lower = item.toLowerCase();
+      return cabinetNutrients.any(
+        (n) => lower.contains(n) || n.contains(lower),
+      );
+    }).toList();
+
+    // 과다복용 위험 성분 (캐비닛에 동일 성분 있는 경우)
+    final overdoseRisks = widget.product.nutrients.where((n) {
+      final lower = n.name.toLowerCase();
+      return cabinetNutrients.any(
+        (cn) => lower.contains(cn) || cn.contains(lower),
+      );
+    }).toList();
+
+    final hasOverdose = overdoseRisks.isNotEmpty;
+    final hasInteraction = conflictItems.isNotEmpty;
+
     return _card(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _sectionTitle('병용 금지 약물·성분', icon: Icons.warning_amber_rounded),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                '병용금지 · 과다복용',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+              if (!hasOverdose && !hasInteraction)
+                GestureDetector(
+                  onTap: _showConsultPopup,
+                  child: const Padding(
+                    padding: EdgeInsets.all(4),
+                    child: Icon(
+                      Icons.info_outline,
+                      size: 20,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                ),
+            ],
+          ),
           const SizedBox(height: 12),
+
+          // ── 과다복용 섹션 ─────────────────────────────────────────────
+          Row(
+            children: [
+              const Icon(
+                Icons.monitor_heart_outlined,
+                size: 16,
+                color: Colors.orange,
+              ),
+              const SizedBox(width: 6),
+              const Text(
+                '과다복용 위험',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          if (overdoseRisks.isEmpty)
+            _buildSafeItem('중복 성분 없음')
+          else
+            ...overdoseRisks
+                .map(
+                  (n) =>
+                      _buildContraItem('${n.name} — 캐비닛 영양제와 중복, 합산 섭취량 확인 필요'),
+                )
+                .toList(),
+
+          const SizedBox(height: 16),
+          const Divider(height: 1),
+          const SizedBox(height: 16),
+
+          // ── 병용금지 섹션 ─────────────────────────────────────────────
+          Row(
+            children: [
+              const Icon(
+                Icons.block_outlined,
+                size: 16,
+                color: AppColors.danger,
+              ),
+              const SizedBox(width: 6),
+              const Text(
+                '병용 금지 약물·성분',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+
+          // 캐비닛 충돌 항목
+          if (conflictItems.isNotEmpty) ...[
+            Container(
+              margin: const EdgeInsets.only(bottom: 8),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppColors.dangerBg,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Row(
+                    children: [
+                      Icon(
+                        Icons.warning_rounded,
+                        size: 16,
+                        color: AppColors.danger,
+                      ),
+                      SizedBox(width: 6),
+                      Text(
+                        '캐비닛 충돌 감지',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.danger,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  ...conflictItems
+                      .map(
+                        (item) => Padding(
+                          padding: const EdgeInsets.only(top: 4),
+                          child: Row(
+                            children: [
+                              const Text(
+                                '• ',
+                                style: TextStyle(color: AppColors.danger),
+                              ),
+                              Expanded(
+                                child: Text(
+                                  item,
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.grey[700],
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      )
+                      .toList(),
+                ],
+              ),
+            ),
+          ],
+
+          // 전체 병용금지 목록
           if (items.isEmpty)
-            Text(
-              '등록된 병용 금지 정보가 없습니다.',
-              style: TextStyle(fontSize: 14, color: Colors.grey[500]),
-            )
+            _buildSafeItem('등록된 병용 금지 정보가 없습니다')
           else ...[
-            // 처음 1개는 항상 표시, 나머지는 접기/펼치기
             _buildContraItem(items.first),
             if (items.length > 1) ...[
               AnimatedCrossFade(
@@ -566,6 +1321,30 @@ class _SupplementDetailScreenState extends State<SupplementDetailScreen> {
     );
   }
 
+  Widget _safeChip(String text) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: AppColors.primaryLight,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        children: [
+          const Icon(
+            Icons.check_circle_outline,
+            size: 14,
+            color: AppColors.primary,
+          ),
+          const SizedBox(width: 6),
+          Text(
+            text,
+            style: const TextStyle(fontSize: 12, color: AppColors.primary),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildContraItem(String text) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
@@ -574,13 +1353,44 @@ class _SupplementDetailScreenState extends State<SupplementDetailScreen> {
         children: [
           const Padding(
             padding: EdgeInsets.only(top: 3),
-            child: Icon(Icons.block, size: 15, color: AppColors.danger),
+            child: Icon(Icons.error_outline, size: 15, color: AppColors.danger),
           ),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
               text,
               style: const TextStyle(fontSize: 14, height: 1.4),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // 문제 없는 경우 — 체크 아이콘
+  Widget _buildSafeItem(String text) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Padding(
+            padding: EdgeInsets.only(top: 3),
+            child: Icon(
+              Icons.check_circle_outline,
+              size: 15,
+              color: AppColors.primary,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              text,
+              style: TextStyle(
+                fontSize: 14,
+                height: 1.4,
+                color: Colors.grey[600],
+              ),
             ),
           ),
         ],
@@ -916,19 +1726,17 @@ class _SupplementDetailScreenState extends State<SupplementDetailScreen> {
             child: ElevatedButton(
               style: ElevatedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(vertical: 16),
-                backgroundColor: p.purchaseUrl != null
-                    ? AppColors.primary
-                    : Colors.grey[300],
+                backgroundColor: AppColors.primary,
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(14),
                 ),
                 elevation: 0,
               ),
-              onPressed: p.purchaseUrl != null && !_isPurchaseLoading
-                  ? () => _launchPurchaseUrl(p.purchaseUrl!)
-                  : null,
-              child: _isPurchaseLoading
+              onPressed: _isPaymentLoading
+                  ? null
+                  : () => _showPaymentMethodSheet(context, p),
+              child: _isPaymentLoading
                   ? const SizedBox(
                       width: 18,
                       height: 18,
@@ -937,12 +1745,11 @@ class _SupplementDetailScreenState extends State<SupplementDetailScreen> {
                         color: Colors.white,
                       ),
                     )
-                  : Text(
-                      p.purchaseUrl != null ? '바로 구매' : '구매 링크\n없음',
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
+                  : const Text(
+                      '바로 구매',
+                      style: TextStyle(
                         fontWeight: FontWeight.bold,
-                        fontSize: 13,
+                        fontSize: 14,
                       ),
                     ),
             ),
@@ -971,11 +1778,13 @@ class _SupplementDetailScreenState extends State<SupplementDetailScreen> {
     );
   }
 
-  Widget _sectionTitle(String title, {required IconData icon}) {
+  Widget _sectionTitle(String title, {IconData? icon}) {
     return Row(
       children: [
-        Icon(icon, size: 20, color: AppColors.primary),
-        const SizedBox(width: 8),
+        if (icon != null) ...[
+          Icon(icon, size: 20, color: AppColors.primary),
+          const SizedBox(width: 8),
+        ],
         Text(
           title,
           style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),

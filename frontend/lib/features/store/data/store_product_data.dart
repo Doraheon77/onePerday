@@ -27,6 +27,8 @@ final List<StoreProduct> allProducts = [
       NutrientInfo(name: '비타민 K2', amount: 45, unit: 'mcg', dailyPercent: 0.6),
     ],
     contraindications: ['와파린 (항응고제) — 비타민K2와 상호작용', '칼슘 보충제 과다 복용 — 고칼슘혈증 위험'],
+    dailyDose: 1,
+    dailyFrequency: 1,
   ),
   StoreProduct(
     id: 'p02',
@@ -45,6 +47,8 @@ final List<StoreProduct> allProducts = [
       NutrientInfo(name: '비타민 E', amount: 10, unit: 'mg', dailyPercent: 0.67),
     ],
     contraindications: ['항응고제 복용자 주의 — 출혈 위험 증가 가능'],
+    dailyDose: 1,
+    dailyFrequency: 1,
   ),
   StoreProduct(
     id: 'p03',
@@ -57,6 +61,8 @@ final List<StoreProduct> allProducts = [
       NutrientInfo(name: '마그네슘', amount: 400, unit: 'mg', dailyPercent: 1.05),
     ],
     contraindications: ['신장 질환자 복용 전 의사 상담 권장'],
+    dailyDose: 1,
+    dailyFrequency: 1,
   ),
   StoreProduct(
     id: 'p04',
@@ -76,6 +82,8 @@ final List<StoreProduct> allProducts = [
       NutrientInfo(name: '아연', amount: 8.5, unit: 'mg', dailyPercent: 0.77),
     ],
     contraindications: [],
+    dailyDose: 1,
+    dailyFrequency: 1,
   ),
   StoreProduct(
     id: 'p05',
@@ -89,6 +97,8 @@ final List<StoreProduct> allProducts = [
       NutrientInfo(name: '지아잔틴', amount: 4, unit: 'mg', dailyPercent: 0.5),
     ],
     contraindications: [],
+    dailyDose: 1,
+    dailyFrequency: 1,
   ),
   StoreProduct(
     id: 'p06',
@@ -101,6 +111,8 @@ final List<StoreProduct> allProducts = [
       NutrientInfo(name: '유산균', amount: 100, unit: 'CFU(억)', dailyPercent: 1.0),
     ],
     contraindications: ['면역 억제제 복용자는 의사 상담 후 복용 권장'],
+    dailyDose: 1,
+    dailyFrequency: 1,
   ),
   StoreProduct(
     id: 'p07',
@@ -113,6 +125,8 @@ final List<StoreProduct> allProducts = [
       NutrientInfo(name: '코엔자임Q10', amount: 100, unit: 'mg', dailyPercent: 0.8),
     ],
     contraindications: ['혈압강하제·혈당강하제 병용 시 의사 상담 권장'],
+    dailyDose: 1,
+    dailyFrequency: 1,
   ),
   StoreProduct(
     id: 'p08',
@@ -125,6 +139,8 @@ final List<StoreProduct> allProducts = [
       NutrientInfo(name: '실리마린', amount: 140, unit: 'mg', dailyPercent: 0.7),
     ],
     contraindications: ['호르몬 감수성 질환자 주의'],
+    dailyDose: 1,
+    dailyFrequency: 1,
   ),
   StoreProduct(
     id: 'p09',
@@ -139,6 +155,8 @@ final List<StoreProduct> allProducts = [
       NutrientInfo(name: '비타민 D', amount: 1000, unit: 'IU', dailyPercent: 0.5),
     ],
     contraindications: ['신장결석 이력자 복용 전 의사 상담 권장'],
+    dailyDose: 1,
+    dailyFrequency: 1,
   ),
   StoreProduct(
     id: 'p10',
@@ -151,6 +169,8 @@ final List<StoreProduct> allProducts = [
       NutrientInfo(name: '비오틴', amount: 5000, unit: 'mcg', dailyPercent: 1.67),
     ],
     contraindications: [],
+    dailyDose: 1,
+    dailyFrequency: 1,
   ),
 ];
 

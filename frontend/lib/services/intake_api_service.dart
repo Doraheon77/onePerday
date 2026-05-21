@@ -11,9 +11,7 @@ class IntakeApiService {
   }) async {
     final response = await http.post(
       Uri.parse('$baseUrl/intake/check-safety'),
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: {'Content-Type': 'application/json'},
       body: jsonEncode({
         'age': age,
         'gender': gender,
@@ -47,7 +45,6 @@ class IntakeResult {
   final double upperLimit;
   final bool isExceeded;
   final String unit;
-  final String status;
 
   IntakeResult({
     required this.nutrientName,
@@ -55,7 +52,6 @@ class IntakeResult {
     required this.upperLimit,
     required this.isExceeded,
     required this.unit,
-    required this.status,
   });
 
   factory IntakeResult.fromJson(Map<String, dynamic> json) {
@@ -65,7 +61,6 @@ class IntakeResult {
       upperLimit: (json['upperLimit'] ?? 0).toDouble(),
       isExceeded: json['isExceeded'] ?? false,
       unit: json['unit'] ?? '',
-      status: json['status'] ?? 'safe',
     );
   }
 }

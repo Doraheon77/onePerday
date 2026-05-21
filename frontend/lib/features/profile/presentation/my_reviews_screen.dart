@@ -12,7 +12,29 @@ class MyReviewsScreen extends StatefulWidget {
 
 class _MyReviewsScreenState extends State<MyReviewsScreen> {
   // TODO: 백엔드 연동 후 실제 데이터로 교체
-  final List<ProductReview> _myReviews = [];
+  // 현재는 더미 데이터로 UI 구성
+  final List<ProductReview> _myReviews = [
+    ProductReview(
+      id: 'my001',
+      productId: 'p01',
+      productName: '고함량 비타민D 5000IU',
+      userName: '나',
+      rating: 5.0,
+      content: '꾸준히 먹고 있는데 확실히 피로감이 줄었어요. 캡슐도 작아서 삼키기 편하고 냄새도 없어서 좋습니다.',
+      createdAt: DateTime(2025, 3, 15),
+      isMine: true,
+    ),
+    ProductReview(
+      id: 'my002',
+      productId: 'p03',
+      productName: '프리미엄 오메가3 1200mg',
+      userName: '나',
+      rating: 4.0,
+      content: '생선 비린내가 거의 없어서 먹기 편해요. 효과는 꾸준히 먹어봐야 알 것 같아요.',
+      createdAt: DateTime(2025, 2, 10),
+      isMine: true,
+    ),
+  ];
 
   void _deleteReview(String reviewId) {
     showDialog(
@@ -25,62 +47,31 @@ class _MyReviewsScreenState extends State<MyReviewsScreen> {
         ),
         content: const Text('이 리뷰를 삭제하시겠습니까?\n삭제된 리뷰는 복구할 수 없습니다.'),
         actions: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(8, 0, 8, 4),
-            child: Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: () => Navigator.pop(ctx),
-                    style: OutlinedButton.styleFrom(
-                      side: BorderSide(color: Colors.grey.shade300),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                    ),
-                    child: const Text(
-                      '취소',
-                      style: TextStyle(
-                        color: Colors.black54,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('취소', style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              setState(() => _myReviews.removeWhere((r) => r.id == reviewId));
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('리뷰가 삭제되었습니다.'),
+                  duration: const Duration(seconds: 2),
+                  behavior: SnackBarBehavior.floating,
                 ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: () {
-                      Navigator.pop(ctx);
-                      setState(
-                        () => _myReviews.removeWhere((r) => r.id == reviewId),
-                      );
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('리뷰가 삭제되었습니다.'),
-                          duration: Duration(seconds: 2),
-                          behavior: SnackBarBehavior.floating,
-                        ),
-                      );
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.danger,
-                      foregroundColor: Colors.white,
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                    ),
-                    child: const Text(
-                      '삭제',
-                      style: TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                ),
-              ],
+              );
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.danger,
+              foregroundColor: Colors.white,
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
             ),
+            child: const Text('삭제'),
           ),
         ],
       ),

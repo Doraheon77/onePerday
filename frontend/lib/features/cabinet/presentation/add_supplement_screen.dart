@@ -9,7 +9,7 @@ import 'package:simcap/features/cabinet/presentation/barcode_scan_screen.dart';
 import 'package:simcap/features/cabinet/widgets/drum_roll_time_picker.dart';
 
 // ── 탭 인덱스 상수 ───────────────────────────────────────────────────────────
-// 0: 라벨 촬영  /  1: 직접 입력
+// 0: 영양제 촬영  /  1: 직접 검색
 const int _tabLabel = 0;
 const int _tabManual = 1;
 
@@ -40,8 +40,10 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
   final _nutrientController = TextEditingController();
   int _dailyDose = 1; // 1회 복용량
   int _dailyFrequency = 1; // 하루 복용 횟수
+  bool _isEditMode = false; // 수정 모드 여부
   List<TimeOfDay> _alarmTimes = []; // 사용자 지정 알림 시간
-  final _remainingController = TextEditingController(text: '30');
+  final _remainingController = TextEditingController();
+  final _totalController = TextEditingController();
 
   @override
   void initState() {
@@ -55,6 +57,8 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
     // 편집 모드: 기존 데이터로 폼 초기화 + 직접 입력 탭으로 고정
     final item = widget.initialItem;
     if (item != null) {
+      _isEditMode = true;
+      _selectedTab = _tabManual;
       _nameController.text = item.name;
       _brandController.text = item.brand;
       _nutrientController.text = item.nutrients.map((n) => n.name).join(', ');
@@ -62,14 +66,16 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
       _dailyDose = item.dailyDose;
       _dailyFrequency = item.dailyFrequency;
       _alarmTimes = List.from(item.alarmTimes);
+      _totalController.text = item.total.toString();
+      // 전체 개수 입력 시 잔여 개수 비어있으면 자동 반영
+      _totalController.addListener(() {
+        if (_remainingController.text.isEmpty) {
+          setState(() => _remainingController.text = _totalController.text);
+        }
+      });
       // 편집 모드는 직접 입력 탭으로 시작
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _tabController.animateTo(_tabManual);
-      });
-    } else {
-      // 신규 등록: 화면 진입 시 바로 카메라 자동 실행
-      WidgetsBinding.instance.addPostFrameCallback((_) async {
-        await _navigateToScan();
       });
     }
   }
@@ -81,6 +87,7 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
     _brandController.dispose();
     _nutrientController.dispose();
     _remainingController.dispose();
+    _totalController.dispose();
     super.dispose();
   }
 
@@ -171,12 +178,32 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
       return;
     }
 
+    // 알림 시간 필수 검증 — 모든 회차 설정 확인
+    if (_alarmTimes.length < _dailyFrequency) {
+      final remaining = _dailyFrequency - _alarmTimes.length;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            _alarmTimes.isEmpty
+                ? '복용 알림 시간을 설정해주세요!'
+                : '알림 시간 ${remaining}개를 더 설정해주세요!',
+          ),
+          backgroundColor: AppColors.danger,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
     final newSupplement = Supplement(
       name: name,
       brand: _brandController.text.trim(),
       imagePath: _selectedImage?.path,
       remaining: int.tryParse(_remainingController.text) ?? 0,
-      total: (int.tryParse(_remainingController.text) ?? 0) + 30,
+      total:
+          int.tryParse(_totalController.text) ??
+          int.tryParse(_remainingController.text) ??
+          0,
       dailyDose: _dailyDose,
       dailyFrequency: _dailyFrequency,
       alarmTimes: _alarmTimes,
@@ -205,9 +232,8 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
       appBar: _buildAppBar(),
       body: Column(
         children: [
-          // ── 상단 탭바 ───────────────────────────────────────────────
-          _buildTabBar(),
-          const Divider(height: 1),
+          // ── 상단 탭바 (수정 모드에서는 숨김) ────────────────────
+          if (!_isEditMode) ...[_buildTabBar(), const Divider(height: 1)],
           // ── 탭 콘텐츠 ───────────────────────────────────────────────
           Expanded(
             child: AnimatedSwitcher(
@@ -236,7 +262,7 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
   // ── AppBar ──────────────────────────────────────────────────────────────
   PreferredSizeWidget _buildAppBar() {
     final isEditMode = widget.initialItem != null;
-    const tabTitles = ['라벨 촬영', '직접 입력'];
+    const tabTitles = ['영양제 촬영', '직접 검색'];
     return AppBar(
       title: Text(
         isEditMode ? '영양제 수정' : tabTitles[_selectedTab],
@@ -275,8 +301,8 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
         indicatorColor: AppColors.primary,
         indicatorWeight: 2.5,
         tabs: const [
-          Tab(icon: Icon(Icons.camera_alt_rounded, size: 18), text: '라벨 촬영'),
-          Tab(icon: Icon(Icons.edit_note_rounded, size: 18), text: '직접 입력'),
+          Tab(icon: Icon(Icons.camera_alt_rounded, size: 18), text: '영양제 촬영'),
+          Tab(icon: Icon(Icons.search_rounded, size: 18), text: '직접 검색'),
         ],
       ),
     );
@@ -295,7 +321,7 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
   }
 
   // ════════════════════════════════════════════════════════════════════════
-  //  탭 0 — 라벨 촬영
+  //  탭 0 — 영양제 촬영
   // ════════════════════════════════════════════════════════════════════════
   Widget _buildLabelTab() {
     return SingleChildScrollView(
@@ -400,7 +426,7 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
         ),
         const SizedBox(height: 8),
         Text(
-          'AI가 성분 정보를 자동으로 분석해요',
+          '영양제를 촬영하면 데이터를 자동으로 찾아요',
           style: TextStyle(fontSize: 13, color: Colors.grey[500]),
         ),
         const SizedBox(height: 16),
@@ -457,7 +483,7 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
         const CircularProgressIndicator(color: AppColors.primary),
         const SizedBox(height: 20),
         const Text(
-          'AI가 성분을 분석하고 있어요...',
+          '데이터 찾는 중...',
           style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 6),
@@ -538,31 +564,23 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
         // 바코드 인식 결과 뱃지
         _buildSectionTitle('기본 정보'),
         _buildInputField(
-          '제품명 입력',
+          '제품명',
           _nameController,
           hasError: _showNameError && _nameController.text.isEmpty,
+          readOnly: true,
         ),
-        _buildInputField('브랜드명 입력 (선택사항)', _brandController),
+        _buildInputField('브랜드명', _brandController, readOnly: true),
         _buildInputField(
-          '주요 성분 (예: 비타민C, 아연)',
+          '주요 성분',
           _nutrientController,
           isMultiLine: true,
+          readOnly: true,
         ),
 
         const SizedBox(height: 24),
-        _buildSectionTitle('복용 및 수량 설정'),
-        _buildQuantityStepper(
-          '1회 복용량 (정/캡슐)',
-          _dailyDose,
-          (v) => setState(() => _dailyDose = v),
-        ),
-        _buildQuantityStepper('하루 복용 횟수', _dailyFrequency, (v) {
-          setState(() {
-            _dailyFrequency = v;
-            // 횟수가 바뀌면 알림 시간 초기화 (기본값으로)
-            _alarmTimes = [];
-          });
-        }),
+        _buildSectionTitle('복용 및 수량'),
+        _buildReadOnlyInfoRow('1회 복용량', '$_dailyDose정'),
+        _buildReadOnlyInfoRow('하루 복용 횟수', '${_dailyFrequency}회'),
 
         const SizedBox(height: 8),
         _buildAlarmTimesSection(),
@@ -575,16 +593,47 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
   }
 
   // 바코드 인식 결과 뱃지 (직접 입력 탭 상단)
+  // 수정 불가 정보 표시 위젯
+  Widget _buildReadOnlyInfoRow(String label, String value) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(15),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            label,
+            style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14),
+          ),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+              color: Colors.grey[600],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildQuantityStepper(
     String label,
     int value,
-    void Function(int) onChanged,
-  ) {
+    void Function(int) onChanged, {
+    bool readOnly = false,
+  }) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: readOnly ? Colors.white : Colors.grey.shade50,
         borderRadius: BorderRadius.circular(15),
         border: Border.all(color: AppColors.border),
       ),
@@ -659,9 +708,6 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
 
   // ── 알림 시간 설정 섹션 ────────────────────────────────────────────────
   Widget _buildAlarmTimesSection() {
-    final defaultTimes = _getDefaultPreviewTimes();
-    final displayTimes = _alarmTimes.isNotEmpty ? _alarmTimes : defaultTimes;
-
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
@@ -678,31 +724,23 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
               const Icon(Icons.alarm, size: 18, color: AppColors.primary),
               const SizedBox(width: 8),
               const Expanded(
-                child: Text(
-                  '복용 알림 시간',
-                  style: TextStyle(fontWeight: FontWeight.w600),
+                child: Text.rich(
+                  TextSpan(
+                    text: '복용 알림 시간',
+                    style: TextStyle(fontWeight: FontWeight.w600),
+                    children: [
+                      TextSpan(
+                        text: ' *',
+                        style: TextStyle(
+                          color: AppColors.danger,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-              if (_alarmTimes.isEmpty)
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 3,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AppColors.primaryLight,
-                    borderRadius: BorderRadius.circular(99),
-                  ),
-                  child: const Text(
-                    '기본값',
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: AppColors.primary,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                )
-              else
+              if (_alarmTimes.isNotEmpty)
                 TextButton(
                   onPressed: () => setState(() => _alarmTimes = []),
                   style: TextButton.styleFrom(
@@ -724,88 +762,57 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
           Wrap(
             spacing: 8,
             runSpacing: 8,
-            children: [
-              ...List.generate(displayTimes.length, (i) {
-                final time = displayTimes[i];
-                final isCustom = _alarmTimes.isNotEmpty;
-                return GestureDetector(
-                  onTap: () => _pickAlarmTime(i),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 8,
-                    ),
-                    decoration: BoxDecoration(
-                      color: isCustom
-                          ? AppColors.primary
-                          : AppColors.primaryLight,
-                      borderRadius: BorderRadius.circular(99),
-                      border: Border.all(
-                        color: isCustom
-                            ? AppColors.primary
-                            : AppColors.primary.withOpacity(0.3),
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.access_time,
-                          size: 14,
-                          color: isCustom ? Colors.white : AppColors.primary,
-                        ),
-                        const SizedBox(width: 5),
-                        Text(
-                          _formatTime(time),
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.bold,
-                            color: isCustom
-                                ? Colors.white
-                                : AppColors.primaryDark,
-                          ),
-                        ),
-                      ],
+            children: List.generate(_dailyFrequency, (i) {
+              final isSet = _alarmTimes.length > i;
+              final label = _dailyFrequency == 1
+                  ? (isSet ? _formatTime(_alarmTimes[i]) : '알림 시간 설정하기')
+                  : (isSet
+                        ? '${i + 1}회차 · ${_formatTime(_alarmTimes[i])}'
+                        : '알림 시간${i + 1} 설정하기');
+
+              return GestureDetector(
+                onTap: () => _pickAlarmTime(i),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 8,
+                  ),
+                  decoration: BoxDecoration(
+                    color: isSet ? AppColors.primary : Colors.white,
+                    borderRadius: BorderRadius.circular(99),
+                    border: Border.all(
+                      color: isSet ? AppColors.primary : AppColors.border,
                     ),
                   ),
-                );
-              }),
-              if (_alarmTimes.isEmpty)
-                GestureDetector(
-                  onTap: () async {
-                    final defaults = _getDefaultPreviewTimes();
-                    setState(() => _alarmTimes = List.from(defaults));
-                    await _pickAlarmTime(0);
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 8,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(99),
-                      border: Border.all(color: AppColors.border),
-                    ),
-                    child: const Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.edit_outlined, size: 14, color: Colors.grey),
-                        SizedBox(width: 5),
-                        Text(
-                          '직접 설정',
-                          style: TextStyle(fontSize: 13, color: Colors.grey),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        isSet ? Icons.access_time : Icons.add_alarm_outlined,
+                        size: 14,
+                        color: isSet ? Colors.white : Colors.grey,
+                      ),
+                      const SizedBox(width: 5),
+                      Text(
+                        label,
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                          color: isSet ? Colors.white : Colors.grey,
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
                 ),
-            ],
+              );
+            }),
           ),
           const SizedBox(height: 8),
           Text(
             _alarmTimes.isEmpty
-                ? '기본 시간으로 알림이 설정됩니다. 탭해서 직접 설정하세요.'
+                ? '알림 시간을 설정해주세요.'
+                : _alarmTimes.length < _dailyFrequency
+                ? '나머지 알림 시간도 설정해주세요.'
                 : '알림 시간을 탭하면 변경할 수 있습니다.',
             style: TextStyle(fontSize: 11, color: Colors.grey[500]),
           ),
@@ -838,11 +845,9 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
   }
 
   Future<void> _pickAlarmTime(int index) async {
-    final currentTimes = _alarmTimes.isNotEmpty
-        ? _alarmTimes
-        : _getDefaultPreviewTimes();
-    final initial = index < currentTimes.length
-        ? currentTimes[index]
+    // 초기 시간: 이미 설정된 경우 해당 시간, 아니면 오전 9시
+    final initial = index < _alarmTimes.length
+        ? _alarmTimes[index]
         : const TimeOfDay(hour: 9, minute: 0);
 
     final picked = await showDialog<TimeOfDay>(
@@ -852,9 +857,6 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
 
     if (picked != null && mounted) {
       setState(() {
-        if (_alarmTimes.isEmpty) {
-          _alarmTimes = List.from(_getDefaultPreviewTimes());
-        }
         if (index < _alarmTimes.length) {
           _alarmTimes[index] = picked;
         } else {
@@ -880,9 +882,17 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _buildInputField(
-          '현재 남은 수량 (정/캡슐)',
+          '전체 개수 (정/캡슐)',
+          _totalController,
+          isNumber: true,
+          editable: true,
+        ),
+        const SizedBox(height: 4),
+        _buildInputField(
+          '영양제 잔여 개수',
           _remainingController,
           isNumber: true,
+          editable: true,
         ),
         const SizedBox(height: 10),
         SingleChildScrollView(
@@ -972,12 +982,16 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
     bool isMultiLine = false,
     bool isNumber = false,
     bool hasError = false,
+    bool readOnly = false,
+    bool editable = false, // 수정 가능 필드 강조 (회색 배경)
   }) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: readOnly
+            ? Colors.white
+            : (editable ? Colors.grey.shade100 : Colors.white),
         borderRadius: BorderRadius.circular(15),
         border: Border.all(
           color: hasError ? AppColors.danger : AppColors.border,
@@ -986,6 +1000,7 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
       ),
       child: TextField(
         controller: controller,
+        readOnly: readOnly,
         onChanged: (val) {
           if (hasError && val.isNotEmpty) {
             setState(() => _showNameError = false);

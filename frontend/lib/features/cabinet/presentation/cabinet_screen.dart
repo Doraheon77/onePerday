@@ -153,23 +153,8 @@ class _CabinetScreenState extends State<CabinetScreen> {
   }
 
   Future<void> _navigateAndAddSupplement() async {
-    final notifier = SupplementProvider.of(context);
-    final Supplement? newSupplement = await context.push<Supplement>(
-      '/cabinet/add',
-    );
-
-    if (newSupplement != null) {
-      notifier.addSupplement(newSupplement);
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('${newSupplement.name}이(가) 등록되었습니다!'),
-            duration: const Duration(seconds: 2),
-          ),
-        );
-      }
-    }
+    // 바로 카메라 화면으로 이동 — 뒤로가기 시 캐비닛으로 복귀
+    await context.push('/cabinet/scan');
   }
 
   @override
@@ -293,7 +278,7 @@ class _CabinetScreenState extends State<CabinetScreen> {
                   itemBuilder: (context, index) {
                     final supp = sorted[index];
                     return Dismissible(
-                      key: ValueKey(supp.name),
+                      key: ValueKey(supp.id),
                       direction: DismissDirection.endToStart,
                       confirmDismiss: (_) async {
                         final confirmed = await showDialog<bool>(
@@ -311,24 +296,64 @@ class _CabinetScreenState extends State<CabinetScreen> {
                               style: const TextStyle(height: 1.5),
                             ),
                             actions: [
-                              TextButton(
-                                onPressed: () => Navigator.pop(ctx, false),
-                                child: const Text(
-                                  '취소',
-                                  style: TextStyle(color: Colors.grey),
+                              Padding(
+                                padding: const EdgeInsets.fromLTRB(8, 0, 8, 4),
+                                child: Row(
+                                  children: [
+                                    Expanded(
+                                      child: OutlinedButton(
+                                        onPressed: () =>
+                                            Navigator.pop(ctx, false),
+                                        style: OutlinedButton.styleFrom(
+                                          side: BorderSide(
+                                            color: Colors.grey.shade300,
+                                          ),
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(
+                                              10,
+                                            ),
+                                          ),
+                                          padding: const EdgeInsets.symmetric(
+                                            vertical: 14,
+                                          ),
+                                        ),
+                                        child: const Text(
+                                          '취소',
+                                          style: TextStyle(
+                                            color: Colors.black54,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: ElevatedButton(
+                                        onPressed: () =>
+                                            Navigator.pop(ctx, true),
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: AppColors.danger,
+                                          foregroundColor: Colors.white,
+                                          elevation: 0,
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(
+                                              10,
+                                            ),
+                                          ),
+                                          padding: const EdgeInsets.symmetric(
+                                            vertical: 14,
+                                          ),
+                                        ),
+                                        child: const Text(
+                                          '삭제',
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                              ),
-                              ElevatedButton(
-                                onPressed: () => Navigator.pop(ctx, true),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: AppColors.danger,
-                                  foregroundColor: Colors.white,
-                                  elevation: 0,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                ),
-                                child: const Text('삭제'),
                               ),
                             ],
                           ),
@@ -338,7 +363,7 @@ class _CabinetScreenState extends State<CabinetScreen> {
                       onDismissed: (_) {
                         SupplementProvider.of(
                           context,
-                        ).removeSupplement(supp.name);
+                        ).removeSupplement(supp.id);
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
                             content: Text('${supp.name}이(가) 삭제되었습니다.'),

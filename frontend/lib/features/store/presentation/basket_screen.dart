@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:portone_flutter/v1.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:simcap/core/constant/app_constants.dart';
 import 'package:simcap/providers/supplement_provider.dart';
+import 'package:simcap/routes/app_router.dart';
 import 'package:simcap/features/cabinet/domain/dataModels/supplement_model.dart';
 import 'package:simcap/services/intake_api_service.dart';
 
@@ -65,14 +69,261 @@ class _BasketScreenState extends State<BasketScreen> {
   bool _isContraLoading = false;
   bool _isOverdoseLoading = false;
 
-  // 주문 처리 중 중복 탭 방지
   bool _isOrdering = false;
+  bool _isPaymentLoading = false;
 
   // 검사 결과 (null = 아직 검사 안 함)
   List<_ContraindicationResult>? _contraResults;
   List<_OverdoseResult>? _overdoseResults;
 
-  // 주문하기
+  // ── 결제 수단 선택 바텀시트 ─────────────────────────────────────────────
+  Future<void> _showPaymentMethodSheet(BuildContext context) async {
+    final notifier = SupplementProvider.of(context);
+    final checkedItems = notifier.cartItems.where((i) => i.checked).toList();
+
+    if (checkedItems.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('주문할 상품을 선택해주세요.'),
+          behavior: SnackBarBehavior.floating,
+          duration: Duration(milliseconds: 1500),
+          dismissDirection: DismissDirection.horizontal,
+        ),
+      );
+      return;
+    }
+
+    final totalPrice = checkedItems.fold(
+      0,
+      (sum, i) => sum + i.price * i.count,
+    );
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => Padding(
+        padding: EdgeInsets.only(
+          left: 24,
+          right: 24,
+          top: 24,
+          bottom: MediaQuery.of(context).padding.bottom + 24,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              '결제 수단 선택',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              '${_formatPrice(totalPrice)}원',
+              style: const TextStyle(
+                fontSize: 15,
+                color: AppColors.primary,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 20),
+            SizedBox(
+              width: double.infinity,
+              height: 54,
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  Navigator.pop(context);
+                  _startPayment(context, pg: 'kakaopay.TC0ONETIME');
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFFEE500),
+                  foregroundColor: Colors.black87,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+                icon: const Icon(Icons.chat_bubble_rounded, size: 20),
+                label: const Text(
+                  '카카오페이',
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              height: 54,
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  Navigator.pop(context);
+                  _startPayment(context, pg: 'tosspay.tosstest');
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF0064FF),
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+                icon: const Icon(Icons.payment_rounded, size: 20),
+                label: const Text(
+                  '토스페이',
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _startPayment(BuildContext context, {required String pg}) async {
+    final notifier = SupplementProvider.of(context);
+    final checkedItems = notifier.cartItems.where((i) => i.checked).toList();
+    final totalPrice = checkedItems.fold(
+      0,
+      (sum, i) => sum + i.price * i.count,
+    );
+    final merchantUid = 'order_\${DateTime.now().millisecondsSinceEpoch}';
+    final productName = checkedItems.length == 1
+        ? checkedItems.first.name
+        : '\${checkedItems.first.name} 외 \${checkedItems.length - 1}건';
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => IamportPayment(
+          appBar: AppBar(
+            title: const Text('결제'),
+            backgroundColor: Colors.white,
+            foregroundColor: Colors.black,
+            elevation: 0,
+          ),
+          initialChild: const Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                CircularProgressIndicator(color: AppColors.primary),
+                SizedBox(height: 16),
+                Text('결제창 로딩 중...', style: TextStyle(color: Colors.grey)),
+              ],
+            ),
+          ),
+          userCode: 'imp24258048',
+          data: PaymentData(
+            pg: pg,
+            payMethod: pg.startsWith('kakaopay')
+                ? 'kakaopay'
+                : pg.startsWith('tosspay')
+                ? 'tosspay'
+                : 'card',
+            name: productName,
+            amount: totalPrice,
+            merchantUid: merchantUid,
+            buyerName: '구매자',
+            buyerTel: '010-0000-0000',
+            appScheme: 'com.example.simcap',
+          ),
+          callback: (Map<String, String> result) async {
+            debugPrint('결제 콜백 수신: $result');
+            final navContext = AppRouter.navigatorKey.currentContext;
+            if (navContext == null) {
+              Navigator.pop(context);
+              return;
+            }
+            final capturedNotifier = SupplementProvider.of(navContext);
+
+            final isSuccess =
+                result['imp_success'] == 'true' ||
+                result['success'] == 'true' ||
+                result['imp_uid'] != null;
+
+            if (isSuccess) {
+              final checkedItems = capturedNotifier.cartItems
+                  .where((i) => i.checked)
+                  .toList();
+              final purchaseItems = checkedItems
+                  .map((i) => i.toPurchaseItem())
+                  .toList();
+              final record = capturedNotifier.addPurchase(purchaseItems);
+              capturedNotifier.clearCheckedCartItems();
+
+              Navigator.pop(context);
+
+              await Future.delayed(const Duration(milliseconds: 300));
+              final ctx = AppRouter.navigatorKey.currentContext;
+              if (ctx != null) {
+                _showOrderCompleteDialog(ctx, record);
+              }
+            } else {
+              Navigator.pop(context);
+              final errorMsg = result['error_msg'] ?? '결제가 취소되었습니다.';
+              final ctx = AppRouter.navigatorKey.currentContext;
+              if (ctx != null) {
+                ScaffoldMessenger.of(ctx).showSnackBar(
+                  SnackBar(
+                    content: Text(errorMsg),
+                    duration: const Duration(milliseconds: 2000),
+                    behavior: SnackBarBehavior.floating,
+                  ),
+                );
+              }
+            }
+            if (mounted) setState(() => _isPaymentLoading = false);
+          },
+        ),
+      ),
+    );
+  }
+
+  Future<void> _handlePaymentResult(
+    BuildContext context,
+    Map<String, String> result,
+    SupplementNotifier notifier,
+    String merchantUid,
+  ) async {
+    debugPrint('결제 결과: \$result');
+    final isSuccess =
+        result['imp_success'] == 'true' ||
+        result['success'] == 'true' ||
+        result['imp_uid'] != null;
+
+    if (isSuccess) {
+      try {
+        final checkedItems = notifier.cartItems
+            .where((i) => i.checked)
+            .toList();
+        final purchaseItems = checkedItems
+            .map((i) => i.toPurchaseItem())
+            .toList();
+        final record = notifier.addPurchase(purchaseItems);
+        notifier.clearCheckedCartItems();
+
+        if (!mounted) return;
+        _showOrderCompleteDialog(context, record);
+      } catch (e) {
+        debugPrint('구매 기록 저장 오류: \$e');
+      }
+    } else {
+      final errorMsg = result['error_msg'] ?? '결제가 취소되었습니다.';
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(errorMsg),
+            duration: const Duration(milliseconds: 2000),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
+  }
+
+  // 주문하기 (기존 — 백엔드 연동 전 fallback용으로 유지)
   Future<void> _placeOrder(BuildContext context) async {
     if (_isOrdering) return;
 
@@ -200,27 +451,53 @@ class _BasketScreenState extends State<BasketScreen> {
           ],
         ),
         actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              context.go('/profile');
-            },
-            child: const Text('구매 기록 보기', style: TextStyle(color: Colors.grey)),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
-              elevation: 0,
+          Padding(
+            padding: const EdgeInsets.fromLTRB(8, 0, 8, 4),
+            child: Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => Navigator.pop(context),
+                    style: OutlinedButton.styleFrom(
+                      side: BorderSide(color: Colors.grey.shade300),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                    ),
+                    child: const Text(
+                      '닫기',
+                      style: TextStyle(
+                        color: Colors.black54,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () {
+                      Navigator.pop(context);
+                      context.push('/profile/purchases');
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                    ),
+                    child: const Text(
+                      '구매 기록 보기',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ),
+              ],
             ),
-            onPressed: () {
-              Navigator.pop(context);
-              context.pop();
-            },
-            child: const Text('확인'),
           ),
         ],
       ),
@@ -361,48 +638,46 @@ class _BasketScreenState extends State<BasketScreen> {
   }
 
   Future<void> _runOverdoseCheck() async {
-  setState(() {
-    _isOverdoseLoading = true;
-    _showOverdosePanel = true;
-    _showContraPanel = false;
-  });
-
-  try {
-    final notifier = SupplementProvider.of(context);
-    final checkedItems = notifier.cartItems.where((c) => c.checked).toList();
-
-    final api = IntakeApiService();
-
-    final results = await api.checkOverdoseByCartItems(
-      cartItems: checkedItems,
-      age: 24,
-      gender: 'female',
-    );
-
     setState(() {
-      _isOverdoseLoading = false;
-      _overdoseResults = results.map((r) {
-        return _OverdoseResult(
-          nutrient: r.nutrientName,
-          currentAmount: r.currentTotal,
-          upperLimit: r.upperLimit,
-          unit: r.unit,
-        );
-      }).toList();
-    });
-  } catch (e) {
-    setState(() {
-      _isOverdoseLoading = false;
-      _overdoseResults = [];
+      _isOverdoseLoading = true;
+      _showOverdosePanel = true;
+      _showContraPanel = false;
     });
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('과다섭취 검사 중 오류 발생: $e'),
-      ),
-    );
+    try {
+      final notifier = SupplementProvider.of(context);
+      final checkedItems = notifier.cartItems.where((c) => c.checked).toList();
+
+      final api = IntakeApiService();
+
+      final results = await api.checkOverdoseByCartItems(
+        cartItems: checkedItems,
+        age: 24,
+        gender: 'female',
+      );
+
+      setState(() {
+        _isOverdoseLoading = false;
+        _overdoseResults = results.map((r) {
+          return _OverdoseResult(
+            nutrient: r.nutrientName,
+            currentAmount: r.currentTotal,
+            upperLimit: r.upperLimit,
+            unit: r.unit,
+          );
+        }).toList();
+      });
+    } catch (e) {
+      setState(() {
+        _isOverdoseLoading = false;
+        _overdoseResults = [];
+      });
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('과다섭취 검사 중 오류 발생: $e')));
+    }
   }
-}
 
   // _checkedCount / _totalPrice는 build() 안에서 notifier를 통해 직접 접근
 
@@ -1034,7 +1309,9 @@ class _BasketScreenState extends State<BasketScreen> {
                     borderRadius: BorderRadius.circular(16),
                   ),
                 ),
-                onPressed: _isOrdering ? null : () => _placeOrder(context),
+                onPressed: _isOrdering
+                    ? null
+                    : () => _showPaymentMethodSheet(context),
                 child: _isOrdering
                     ? const SizedBox(
                         width: 20,
@@ -1045,7 +1322,7 @@ class _BasketScreenState extends State<BasketScreen> {
                         ),
                       )
                     : const Text(
-                        '주문하기',
+                        '구매하기',
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
