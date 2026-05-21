@@ -70,12 +70,13 @@ def get_text_from_image(image):
                     # "text": "Text Recognition: Extract the product name, nutritional ingredients, and dosage instructions from this dietary supplement image." # 영양제 정보 추출에 맞춰 프롬프트 최적화
                     # ---- 기존 코드 주석 처리 끝 ----
                     "text": (
-                        "이 영양제 라벨 이미지에서 정보를 추출하여 다음 형식에 맞춰 답변하세요.\n"
-                        "이미지에 텍스트가 전혀 없거나 영양제가 아니면 값에 '알 수 없음'을 적으세요.\n"
-                        "형식:\n"
-                        "브랜드: [브랜드명]\n"
-                        "제품명: [제품명]\n"
-                        "성분: [주요 영양성분 쉼표 구분]"
+                        "Extract information from this dietary supplement label and output strictly in the following format.\n"
+                        "Translate the extracted values into Korean if possible.\n"
+                        "If the image has no text, write 'Unknown' for the values.\n"
+                        "Format:\n"
+                        "Brand: [Brand name in Korean]\n"
+                        "Product: [Product name in Korean]\n"
+                        "Nutrients: [List of nutrients in Korean, comma separated]"
                     )
                 }
             ]

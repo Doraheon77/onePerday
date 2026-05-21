@@ -165,18 +165,20 @@ export class AppController {
     let brandName = '알 수 없는 브랜드';
     let nutrients = '비타민C, 비타민D, 아연';
 
-    const brandMatch = text.match(/브랜드:\s*([^\n]+)/);
+    const brandMatch = text.match(/Brand:\s*([^\n]+)/i);
     if (brandMatch) {
       const parsedBrand = brandMatch[1].trim();
-      if (parsedBrand !== '알 수 없음' && parsedBrand !== '[브랜드명]') {
+      const lowerBrand = parsedBrand.toLowerCase();
+      if (lowerBrand !== 'unknown' && parsedBrand !== '[Brand name in Korean]' && parsedBrand !== '알 수 없음') {
         brandName = parsedBrand;
       }
     }
 
-    const productMatch = text.match(/제품명:\s*([^\n]+)/);
+    const productMatch = text.match(/Product:\s*([^\n]+)/i);
     if (productMatch) {
       const parsedProduct = productMatch[1].trim();
-      if (parsedProduct !== '알 수 없음' && parsedProduct !== '[제품명]') {
+      const lowerProduct = parsedProduct.toLowerCase();
+      if (lowerProduct !== 'unknown' && parsedProduct !== '[Product name in Korean]' && parsedProduct !== '알 수 없음') {
         productName = parsedProduct;
       }
     }
