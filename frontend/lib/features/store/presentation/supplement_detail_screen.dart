@@ -339,7 +339,7 @@ class _SupplementDetailScreenState extends State<SupplementDetailScreen> {
               ],
             ),
           ),
-          userCode: 'imp_xxxxxxxxxx', // TODO: 포트원 가맹점 식별코드로 교체
+          userCode: 'imp24258048',
           data: PaymentData(
             pg: pg,
             payMethod: pg.startsWith('kakaopay')
@@ -455,37 +455,66 @@ class _SupplementDetailScreenState extends State<SupplementDetailScreen> {
                           ),
                         ],
                       ),
-                      actionsAlignment: MainAxisAlignment.spaceBetween,
                       actions: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(dialogContext),
-                          child: const Text(
-                            '닫기',
-                            style: TextStyle(
-                              color: Colors.grey,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                        ElevatedButton(
-                          onPressed: () {
-                            Navigator.pop(dialogContext);
-                            Future.microtask(() {
-                              final c = AppRouter.navigatorKey.currentContext;
-                              if (c != null) c.push('/profile/purchases');
-                            });
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.primary,
-                            foregroundColor: Colors.white,
-                            elevation: 0,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                          ),
-                          child: const Text(
-                            '구매 기록 보기',
-                            style: TextStyle(fontWeight: FontWeight.bold),
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(8, 0, 8, 4),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: OutlinedButton(
+                                  onPressed: () => Navigator.pop(dialogContext),
+                                  style: OutlinedButton.styleFrom(
+                                    side: BorderSide(
+                                      color: Colors.grey.shade300,
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 14,
+                                    ),
+                                  ),
+                                  child: const Text(
+                                    '닫기',
+                                    style: TextStyle(
+                                      color: Colors.black54,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: ElevatedButton(
+                                  onPressed: () {
+                                    Navigator.pop(dialogContext);
+                                    Future.microtask(() {
+                                      final c =
+                                          AppRouter.navigatorKey.currentContext;
+                                      if (c != null)
+                                        c.push('/profile/purchases');
+                                    });
+                                  },
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: AppColors.primary,
+                                    foregroundColor: Colors.white,
+                                    elevation: 0,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 14,
+                                    ),
+                                  ),
+                                  child: const Text(
+                                    '구매 기록 보기',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ],
@@ -1008,6 +1037,77 @@ class _SupplementDetailScreenState extends State<SupplementDetailScreen> {
   }
 
   // 병용 금지 정보
+  void _showConsultPopup() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Row(
+          children: [
+            Icon(Icons.local_hospital_outlined, color: AppColors.primary),
+            SizedBox(width: 8),
+            Text(
+              '전문의 상담 안내',
+              style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+            ),
+          ],
+        ),
+        content: const Text(
+          '영양제 복용에 관한 정확한 판단은 전문의와 상담하는 것이 가장 안전합니다.\n\n'
+          '특히 만성질환, 임신, 약물 복용 중인 경우 반드시 전문의와 상의 후 복용하세요.',
+          style: TextStyle(fontSize: 14, height: 1.6),
+        ),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(8, 0, 8, 4),
+            child: Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => Navigator.pop(ctx),
+                    style: OutlinedButton.styleFrom(
+                      side: BorderSide(color: Colors.grey.shade300),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                    child: const Text(
+                      '닫기',
+                      style: TextStyle(
+                        color: Colors.black54,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.pop(ctx),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                    child: const Text(
+                      '확인',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildContraindications(List<String> items) {
     final cabinets = SupplementProvider.of(context).supplements;
 
@@ -1037,11 +1137,34 @@ class _SupplementDetailScreenState extends State<SupplementDetailScreen> {
       );
     }).toList();
 
+    final hasOverdose = overdoseRisks.isNotEmpty;
+    final hasInteraction = conflictItems.isNotEmpty;
+
     return _card(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _sectionTitle('병용금지 · 과다복용'),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                '병용금지 · 과다복용',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+              if (!hasOverdose && !hasInteraction)
+                GestureDetector(
+                  onTap: _showConsultPopup,
+                  child: const Padding(
+                    padding: EdgeInsets.all(4),
+                    child: Icon(
+                      Icons.info_outline,
+                      size: 20,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                ),
+            ],
+          ),
           const SizedBox(height: 12),
 
           // ── 과다복용 섹션 ─────────────────────────────────────────────

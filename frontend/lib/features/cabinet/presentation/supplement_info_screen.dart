@@ -218,6 +218,22 @@ class _SupplementInfoScreenState extends State<SupplementInfoScreen> {
       ),
       child: Column(
         children: [
+          // 충돌 없을 때 ⓘ 버튼
+          if (!hasOverdose && !hasInteraction)
+            Align(
+              alignment: Alignment.centerRight,
+              child: Padding(
+                padding: const EdgeInsets.only(top: 8, right: 12),
+                child: GestureDetector(
+                  onTap: _showConsultPopup,
+                  child: const Icon(
+                    Icons.info_outline,
+                    size: 20,
+                    color: AppColors.primary,
+                  ),
+                ),
+              ),
+            ),
           // 과다복용
           GestureDetector(
             onTap: () => _showOverdoseDetail(overdoseConflicts),
@@ -245,6 +261,77 @@ class _SupplementInfoScreenState extends State<SupplementInfoScreen> {
             '현재 캐비닛 영양제',
             '${cabinets.length}개 등록 중',
             AppColors.primary,
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showConsultPopup() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Row(
+          children: [
+            Icon(Icons.local_hospital_outlined, color: AppColors.primary),
+            SizedBox(width: 8),
+            Text(
+              '전문의 상담 안내',
+              style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+            ),
+          ],
+        ),
+        content: const Text(
+          '영양제 복용에 관한 정확한 판단은 전문의와 상담하는 것이 가장 안전합니다.\n\n'
+          '특히 만성질환, 임신, 약물 복용 중인 경우 반드시 전문의와 상의 후 복용하세요.',
+          style: TextStyle(fontSize: 14, height: 1.6),
+        ),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(8, 0, 8, 4),
+            child: Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => Navigator.pop(ctx),
+                    style: OutlinedButton.styleFrom(
+                      side: BorderSide(color: Colors.grey.shade300),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                    child: const Text(
+                      '닫기',
+                      style: TextStyle(
+                        color: Colors.black54,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.pop(ctx),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                    child: const Text(
+                      '확인',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
