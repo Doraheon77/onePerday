@@ -1,4 +1,5 @@
 import torch
+import sys
 import cv2 # 카메라 연동을 위한 라이브러리 추가
 from transformers import AutoProcessor, AutoModelForImageTextToText
 from PIL import Image
@@ -88,21 +89,36 @@ def get_text_from_image(image):
 
 if __name__ == "__main__":
     try:
-        # Step 1 & 2: 카메라 호출 및 이미지 캡처
-        img = capture_image_from_camera()
-        
-        # Step 3: 이미지가 정상적으로 캡처되었다면 OCR 수행
-        if img is not None:
-            print(f"\n[{device.upper()}] 장치에서 OCR 분석을 시작합니다... 잠시만 기다려주세요.")
+        # ---- 기존 코드 주석 처리 시작 ----
+        # # Step 1 & 2: 카메라 호출 및 이미지 캡처
+        # img = capture_image_from_camera()
+        # 
+        # # Step 3: 이미지가 정상적으로 캡처되었다면 OCR 수행
+        # if img is not None:
+        #     print(f"\n[{device.upper()}] 장치에서 OCR 분석을 시작합니다... 잠시만 기다려주세요.")
+        #     result = get_text_from_image(img)
+        #     
+        #     print("\n" + "=" * 40)
+        #     print("📝 분석 결과")
+        #     print("=" * 40)
+        #     print(result)
+        #     print("=" * 40)
+        # else:
+        #     print("이미지가 캡처되지 않아 OCR을 수행하지 않고 종료합니다.")
+        # ---- 기존 코드 주석 처리 끝 ----
+
+        # 프론트엔드 연동: 백엔드에서 전달받은 이미지 파일 경로 사용
+        if len(sys.argv) > 1:
+            image_path = sys.argv[1]
+            img = Image.open(image_path).convert('RGB')
+            
             result = get_text_from_image(img)
             
-            print("\n" + "=" * 40)
-            print("📝 분석 결과")
-            print("=" * 40)
+            # 백엔드(app.controller.ts)가 불필요한 텍스트를 파싱하지 않도록, 순수 결과만 출력
             print(result)
-            print("=" * 40)
         else:
-            print("이미지가 캡처되지 않아 OCR을 수행하지 않고 종료합니다.")
+            print("이미지 경로가 전달되지 않았습니다.", file=sys.stderr)
+            sys.exit(1)
             
     except Exception as e:
         print(f"에러 발생: {e}")
