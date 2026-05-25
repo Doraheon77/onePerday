@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:simcap/core/constant/app_constants.dart';
 import 'package:simcap/features/cabinet/domain/dataModels/supplement_model.dart';
 import 'package:simcap/routes/app_router.dart';
 import 'package:simcap/features/store/presentation/review_screen.dart';
 import 'package:simcap/providers/supplement_provider.dart';
+import 'package:simcap/services/conflict_api_service.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:portone_flutter/v1.dart';
 import 'dart:convert';
@@ -38,6 +40,46 @@ class StoreProduct {
     this.dailyDose = 1,
     this.dailyFrequency = 1,
   });
+
+  factory StoreProduct.fromJson(Map<String, dynamic> json) {
+    // 백엔드의 supplements_ingredients 또는 ingredients 파싱
+    List<NutrientInfo> parsedNutrients = [];
+    if (json['supplements_ingredients'] != null) {
+      parsedNutrients = (json['supplements_ingredients'] as List)
+          .map((si) => NutrientInfo(
+                name: si['ingredient_name']?.toString() ?? '',
+                amount: double.tryParse(si['amount']?.toString() ?? '0') ?? 0.0,
+                unit: si['unit']?.toString() ?? '',
+                dailyPercent: double.tryParse(si['dailyPercent']?.toString() ?? '0') ?? 0.0,
+              ))
+          .toList();
+    } else if (json['ingredients'] != null) {
+      parsedNutrients = (json['ingredients'] as List)
+          .map((ing) => NutrientInfo(
+                name: ing.toString(),
+                amount: 0.0,
+                unit: '',
+                dailyPercent: 0.0,
+              ))
+          .toList();
+    }
+
+    return StoreProduct(
+      id: json['id']?.toString() ?? '',
+      name: json['product_name'] ?? json['name'] ?? '',
+      brand: json['brand_name'] ?? json['brand'] ?? '',
+      // 가격이 int가 아닐 수도 있으니 안전하게 파싱 (BigInt를 백엔드에서 string으로 처리 중)
+      price: json['price'] != null
+          ? int.tryParse(json['price'].toString()) ?? 0
+          : 0,
+      description: json['description'] ?? '',
+      nutrients: parsedNutrients,
+      contraindications: [],
+      similarProducts: [],
+      purchaseUrl: json['shop_url'],
+      imageUrl: json['image_url'],
+    );
+  }
 
   /// StoreProduct → Supplement 변환
   /// 스토어 상품을 캐비닛에 추가할 때 사용
@@ -145,6 +187,74 @@ class _SupplementDetailScreenState extends State<SupplementDetailScreen> {
   bool _contraExpanded = false;
   bool _isPurchaseLoading = false;
   bool _isPaymentLoading = false;
+  List<String> _contraindications = [];
+  bool _isContraLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkContraindications();
+    });
+  }
+
+  Future<void> _checkContraindications() async {
+    if (!mounted) return;
+    setState(() => _isContraLoading = true);
+
+    try {
+      final notifier = SupplementProvider.of(context);
+      final currentProductId = int.tryParse(widget.product.id);
+
+      if (currentProductId != null) {
+        final cabinetSuppsJson = notifier.supplements
+            .map(
+              (s) => {
+                'name': s.name,
+                'ingredients': s.nutrients.map((n) => n.name).toList(),
+              },
+            )
+            .toList();
+
+        final prefs = await SharedPreferences.getInstance();
+        final userHealth = prefs.getStringList('selectedHealth') ?? [];
+        final userAllergies = prefs.getStringList('selectedAllergies') ?? [];
+
+        final conflictApi = ConflictApiService();
+        final backendConflicts = await conflictApi
+            .checkConflictsBySupplementIds(
+              supplementIds: [currentProductId],
+              cabinetSupplements: cabinetSuppsJson,
+              userHealth: userHealth,
+              userAllergies: userAllergies,
+            );
+
+        final List<String> formattedResults = [];
+        for (final conflict in backendConflicts) {
+          if (conflict.conflicts.length > 1) {
+            final cabinetItemName = conflict.conflicts[1];
+            formattedResults.add(
+              '내 캐비닛 [$cabinetItemName] 제품과 충돌 유의\n${conflict.reason}',
+            );
+          } else {
+            formattedResults.add(conflict.reason);
+          }
+        }
+
+        if (mounted) {
+          setState(() {
+            _contraindications = formattedResults;
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint('[SupplementDetailScreen] 안전성 검출 실패: $e');
+    } finally {
+      if (mounted) {
+        setState(() => _isContraLoading = false);
+      }
+    }
+  }
 
   /// 이미 캐비닛에 등록된 영양제인지 여부 (이름 기준 비교)
   bool _isAlreadyInCabinet(BuildContext context) {
@@ -192,15 +302,20 @@ class _SupplementDetailScreenState extends State<SupplementDetailScreen> {
   void _addToCart(BuildContext context) {
     final notifier = SupplementProvider.of(context);
     final p = widget.product;
+    final alreadyInCart = _isInCart(context);
 
     notifier.addToCart(
       CartItem(productId: p.id, name: p.name, brand: p.brand, price: p.price),
     );
 
+    // 이전 스낵바들을 즉시 지워 연속 클릭 시 버벅임 없앰
+    ScaffoldMessenger.of(context).clearSnackBars();
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
+        duration: const Duration(seconds: 2), // 2초 후 자동으로 사라짐
         content: Text(
-          notifier.isInCart(p.id)
+          alreadyInCart
               ? '${p.name} 수량을 추가했습니다.'
               : '${p.name}을(를) 장바구니에 담았습니다!',
         ),
@@ -209,7 +324,9 @@ class _SupplementDetailScreenState extends State<SupplementDetailScreen> {
         action: SnackBarAction(
           label: '장바구니 보기',
           textColor: Colors.white,
-          onPressed: () => context.push('/store/basket'),
+          onPressed: () {
+            context.push('/store/basket');
+          },
         ),
       ),
     );
@@ -822,7 +939,7 @@ class _SupplementDetailScreenState extends State<SupplementDetailScreen> {
                 const SizedBox(height: 12),
                 _buildNutrientChart(p.nutrients),
                 const SizedBox(height: 12),
-                _buildContraindications(p.contraindications),
+                _buildContraindications(),
                 const SizedBox(height: 12),
                 _buildReviewSummary(p),
                 const SizedBox(height: 12),
@@ -895,13 +1012,34 @@ class _SupplementDetailScreenState extends State<SupplementDetailScreen> {
       flexibleSpace: FlexibleSpaceBar(
         background: Container(
           color: AppColors.primaryFaint,
-          child: const Center(
-            child: Icon(
-              Icons.medication_rounded,
-              size: 100,
-              color: AppColors.primary,
-            ),
-          ),
+          // 기존 코드: 아이콘 하드코딩
+          // child: const Center(
+          //   child: Icon(
+          //     Icons.medication_rounded,
+          //     size: 100,
+          //     color: AppColors.primary,
+          //   ),
+          // ),
+          // API 연동 코드: 실제 이미지 렌더링
+          child: p.imageUrl != null && p.imageUrl!.isNotEmpty
+              ? Image.network(
+                  p.imageUrl!,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) => const Center(
+                    child: Icon(
+                      Icons.medication_rounded,
+                      size: 100,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                )
+              : const Center(
+                  child: Icon(
+                    Icons.medication_rounded,
+                    size: 100,
+                    color: AppColors.primary,
+                  ),
+                ),
         ),
       ),
     );
@@ -1315,7 +1453,10 @@ class _SupplementDetailScreenState extends State<SupplementDetailScreen> {
               AnimatedCrossFade(
                 firstChild: const SizedBox.shrink(),
                 secondChild: Column(
-                  children: items.skip(1).map(_buildContraItem).toList(),
+                  children: _contraindications
+                      .skip(1)
+                      .map(_buildContraItem)
+                      .toList(),
                 ),
                 crossFadeState: _contraExpanded
                     ? CrossFadeState.showSecond
@@ -1329,7 +1470,9 @@ class _SupplementDetailScreenState extends State<SupplementDetailScreen> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      _contraExpanded ? '접기' : '${items.length - 1}개 더 보기',
+                      _contraExpanded
+                          ? '접기'
+                          : '${_contraindications.length - 1}개 더 보기',
                       style: const TextStyle(
                         fontSize: 13,
                         color: AppColors.primary,

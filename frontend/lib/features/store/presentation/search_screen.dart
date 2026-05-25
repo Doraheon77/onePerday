@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:simcap/core/constant/app_constants.dart';
-import 'package:simcap/features/store/data/store_product_data.dart';
 import 'package:simcap/features/store/presentation/supplement_detail_screen.dart';
+import 'package:simcap/services/store_api_service.dart';
+import 'dart:async'; // Timer 사용을 위해 추가
 
 // 필터 데이터
 class _FilterOption {
@@ -58,6 +59,12 @@ class _SearchScreenState extends State<SearchScreen> {
   bool _isSearching = false;
   String _searchQuery = '';
 
+  // API 서비스 및 결과 상태 추가
+  final StoreApiService _apiService = StoreApiService();
+  List<StoreProduct> _searchResults = [];
+  bool _isLoading = false;
+  Timer? _debounce;
+
   // 선택된 필터 상태
   final Set<String> _selectedCategories = {};
   final Set<String> _selectedIngredients = {};
@@ -66,8 +73,8 @@ class _SearchScreenState extends State<SearchScreen> {
   // 최근 검색어
   List<String> _recentSearches = ['멀티비타민', '오메가3', '유산균', '루테인'];
 
-  // 인기 검색어
-  final List<String> _popularSearches = [
+  // 인기 검색어 (초기 노출용 디폴트에서 API를 통해 실시간 동적 데이터로 교체됨)
+  List<String> _popularSearches = [
     '비타민D 5000IU',
     '마그네슘 영양제',
     '다이어트 보조제',
@@ -98,12 +105,60 @@ class _SearchScreenState extends State<SearchScreen> {
         setState(() => _isSearching = searching);
       }
     });
+
+    // 초기 키워드가 있으면 검색 실행 (명시적 진입이므로 기록하도록 설정)
+    if (widget.initialKeyword.isNotEmpty) {
+      _fetchSearchResults(widget.initialKeyword, record: true);
+    }
+
+    // 실시간 인기 검색어 목록 호출 추가
+    _fetchPopularSearches();
   }
 
   @override
   void dispose() {
     _searchController.dispose();
+    _debounce?.cancel();
     super.dispose();
+  }
+
+  // DB 검색 API 호출 함수 추가 (기본적으로 키 입력에 의한 검색은 기록하지 않고, 제출이나 진입 시만 기록)
+  Future<void> _fetchSearchResults(String query, {bool record = false}) async {
+    if (query.trim().isEmpty) {
+      setState(() {
+        _searchResults = [];
+        _isLoading = false;
+      });
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      final results = await _apiService.fetchSupplements(keyword: query, record: record);
+      setState(() {
+        _searchResults = results;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() => _isLoading = false);
+      // 에러 처리 (필요시 SnackBar 등)
+      debugPrint('Search error: $e');
+    }
+  }
+
+  // 실시간 인기 검색어 호출 및 갱신 API 함수 추가
+  Future<void> _fetchPopularSearches() async {
+    try {
+      final popularList = await _apiService.fetchPopularSearches();
+      if (mounted && popularList.isNotEmpty) {
+        setState(() {
+          _popularSearches = popularList;
+        });
+      }
+    } catch (e) {
+      debugPrint('Popular searches error: $e');
+    }
   }
 
   void _clearAllFilters() {
@@ -122,7 +177,10 @@ class _SearchScreenState extends State<SearchScreen> {
         if (_recentSearches.length > 8) _recentSearches.removeLast();
       });
     }
+    /* 기존 코드: 로컬 필터링은 build 시점에 수행됨
     // TODO: 실제 검색 API 호출
+    */
+    _fetchSearchResults(query, record: true); // 명시적 제출이므로 기록 활성화
   }
 
   @override
@@ -187,7 +245,15 @@ class _SearchScreenState extends State<SearchScreen> {
                 )
               : null,
         ),
-        onChanged: (v) => setState(() => _searchQuery = v),
+        onChanged: (v) {
+          setState(() => _searchQuery = v);
+
+          // 디바운싱 적용: 500ms 동안 입력이 없으면 API 호출
+          if (_debounce?.isActive ?? false) _debounce!.cancel();
+          _debounce = Timer(const Duration(milliseconds: 500), () {
+            _fetchSearchResults(v);
+          });
+        },
         onSubmitted: _submitSearch,
       ),
       actions: [
@@ -320,8 +386,17 @@ class _SearchScreenState extends State<SearchScreen> {
 
   // 상품 카드
   Widget _buildSearchResults() {
+    /* 기존 코드: 로컬 더미 데이터 필터링
     // 이름·브랜드·성분 기준 필터링
     final results = filterByKeyword(_searchQuery);
+    */
+    final results = _searchResults;
+
+    if (_isLoading) {
+      return const Center(
+        child: CircularProgressIndicator(color: AppColors.primary),
+      );
+    }
 
     // 활성 필터 헤더 (필터 선택 시 표시)
     return Column(
@@ -443,11 +518,25 @@ class _SearchScreenState extends State<SearchScreen> {
                 color: AppColors.primaryFaint,
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: const Icon(
-                Icons.medication_rounded,
-                color: AppColors.primary,
-                size: 30,
-              ),
+              child: product.imageUrl != null && product.imageUrl!.isNotEmpty
+                  ? ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: Image.network(
+                        product.imageUrl!,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) =>
+                            const Icon(
+                              Icons.medication_rounded,
+                              color: AppColors.primary,
+                              size: 30,
+                            ),
+                      ),
+                    )
+                  : const Icon(
+                      Icons.medication_rounded,
+                      color: AppColors.primary,
+                      size: 30,
+                    ),
             ),
             const SizedBox(width: 14),
             // 상품 정보

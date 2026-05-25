@@ -2,8 +2,9 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:simcap/core/constant/app_constants.dart';
-import 'package:simcap/features/store/data/store_product_data.dart';
 import 'package:simcap/features/store/presentation/supplement_detail_screen.dart';
+import 'package:simcap/services/store_api_service.dart';
+import 'package:simcap/services/auth_service.dart';
 
 class StoreScreen extends StatefulWidget {
   const StoreScreen({super.key});
@@ -13,6 +14,10 @@ class StoreScreen extends StatefulWidget {
 }
 
 class _StoreScreenState extends State<StoreScreen> {
+  List<StoreProduct> _allProducts = [];
+  List<StoreProduct> _recommendedProducts = []; // 신규 추가: 맞춤 추천 영양제 리스트
+  bool _isLoading = true;
+
   String _selectedRankCategory = '여성';
   String _selectedPriceRange = '전체';
 
@@ -29,6 +34,8 @@ class _StoreScreenState extends State<StoreScreen> {
   @override
   void initState() {
     super.initState();
+    _fetchProducts();
+
     _bannerTimer = Timer.periodic(const Duration(milliseconds: 3500), (timer) {
       if (_currentBannerPage < _banners.length - 1) {
         _currentBannerPage++;
@@ -53,9 +60,34 @@ class _StoreScreenState extends State<StoreScreen> {
     super.dispose();
   }
 
-  Future<void> _handleRefresh() async {
-    await Future.delayed(const Duration(milliseconds: 800));
-    if (mounted) setState(() {});
+  Future<void> _fetchProducts() async {
+    try {
+      final service = StoreApiService();
+
+      // Supabase Auth 연동을 통한 로그인 사용자별 동적 UUID 로드 (비로그인 상태일 시 기존 하드코딩 UUID를 폴백으로 사용)
+      final authService = AuthService();
+      final user = authService.currentUser;
+      final String currentUserId = user?.id ?? 'bc49b355-8ea3-4e6e-9331-52d1d4c46d99';
+
+      // [개선된 코드] 전체 리스트와 맞춤 추천 리스트를 동시에 조회
+      final results = await Future.wait([
+        service.fetchSupplements(), // 인덱스 0: 일반 랭킹/검색용 전체 리스트
+        service.fetchRecommendedSupplements(
+          currentUserId,
+        ), // 인덱스 1: 나를 위한 추천 리스트
+      ]);
+
+      setState(() {
+        _allProducts = results[0];
+        _recommendedProducts = results[1];
+        _isLoading = false;
+      });
+    } catch (e) {
+      debugPrint('DB 로드 에러: $e');
+      setState(() {
+        _isLoading = false;
+      });
+    }
   }
 
   @override
@@ -182,6 +214,9 @@ class _StoreScreenState extends State<StoreScreen> {
   }
 
   Widget _buildRecommendList() {
+    // [개선된 코드] 맞춤 추천 결과 사용 및 요청하신 3개 제한 적용
+    final displayList = _recommendedProducts.take(3).toList();
+
     return SizedBox(
       height: 180,
       child: ListView.builder(
@@ -190,9 +225,9 @@ class _StoreScreenState extends State<StoreScreen> {
         // 세로 ScrollView와 제스처 충돌 방지 — 가로 스크롤 명시적 허용
         physics: const AlwaysScrollableScrollPhysics(),
         clipBehavior: Clip.none,
-        itemCount: recommendProducts.length,
+        itemCount: displayList.length,
         itemBuilder: (context, index) {
-          final product = recommendProducts[index];
+          final product = displayList[index];
           return GestureDetector(
             onTap: () => context.push('/store/detail', extra: product),
             child: Container(
@@ -213,11 +248,31 @@ class _StoreScreenState extends State<StoreScreen> {
                       color: AppColors.primaryFaint,
                       shape: BoxShape.circle,
                     ),
-                    child: const Icon(
-                      Icons.medication_rounded,
-                      color: AppColors.primary,
-                      size: 28,
-                    ),
+                    clipBehavior: Clip.hardEdge,
+                    // 기존 코드: 아이콘 하드코딩
+                    // child: const Icon(
+                    //   Icons.medication_rounded,
+                    //   color: AppColors.primary,
+                    //   size: 28,
+                    // ),
+                    // API 연동 코드: 실제 이미지 렌더링
+                    child:
+                        product.imageUrl != null && product.imageUrl!.isNotEmpty
+                        ? Image.network(
+                            product.imageUrl!,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) =>
+                                const Icon(
+                                  Icons.medication_rounded,
+                                  color: AppColors.primary,
+                                  size: 28,
+                                ),
+                          )
+                        : const Icon(
+                            Icons.medication_rounded,
+                            color: AppColors.primary,
+                            size: 28,
+                          ),
                   ),
                   const SizedBox(height: 8),
                   Padding(
@@ -365,8 +420,9 @@ class _StoreScreenState extends State<StoreScreen> {
   }
 
   Widget _buildRankingList() {
-    // 전체 상품에서 가격 필터 적용
-    var products = allProducts.where((p) {
+    // 기존 코드: var products = allProducts.where((p) {
+    // API 연동 코드: _allProducts 사용
+    var products = _allProducts.where((p) {
       switch (_selectedPriceRange) {
         case '1만원 이하':
           return p.price < 10000;

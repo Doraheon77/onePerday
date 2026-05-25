@@ -11,4 +11,19 @@ export class ConflictController {
     // Postman에서 { "data": [ ... ] } 형태로 받는다고 가정합니다.
     return this.conflictService.checkConflicts(reqBody.data);
   }
+
+  @Post('check-safety')
+  async checkConflictSafety(@Body() reqBody: { 
+    supplementIds: number[];
+    cabinetSupplements?: { name: string; ingredients: string[] }[];
+    userHealth?: string[];
+    userAllergies?: string[];
+  }) {
+    return this.conflictService.checkConflictsByIds(
+      reqBody.supplementIds,
+      reqBody.cabinetSupplements || [],
+      reqBody.userHealth || [],
+      reqBody.userAllergies || [],
+    );
+  }
 }

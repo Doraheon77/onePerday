@@ -7,6 +7,7 @@ import 'package:simcap/services/notification_service.dart';
 import 'package:simcap/features/profile/widgets/survey_chip_group.dart';
 import 'package:simcap/features/profile/data/survey_data.dart';
 import 'package:simcap/services/auth_service.dart';
+import 'package:simcap/core/supabase/supabase_client.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -27,6 +28,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String _pregnancyStatus = '해당 없음';
   String _userGender = '';
   bool _isLoading = true;
+
+  // 알림 및 설정 관련 상태 변수
+  bool _durNotificationEnabled = true;
+  bool _intakeReminderEnabled = true;
 
   @override
   void initState() {
@@ -52,6 +57,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
       _smokingStatus = prefs.getString('smokingStatus') ?? '비흡연자입니다';
       _drinkingStatus = prefs.getString('drinkingStatus') ?? '마시지 않음';
       _pregnancyStatus = prefs.getString('pregnancyStatus') ?? '해당 없음';
+
+      // 앱 설정 데이터 로드
+      _durNotificationEnabled = prefs.getBool('durNotificationEnabled') ?? true;
+      _intakeReminderEnabled = prefs.getBool('intakeReminderEnabled') ?? true;
+
       _isLoading = false;
     });
   }
@@ -61,9 +71,84 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setStringList(key, newData);
     await _loadProfileData();
+
+    // Supabase DB 실시간 클라우드 동기화
+    final authService = AuthService();
+    final user = authService.currentUser;
+    if (user != null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Row(
+              children: [
+                SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Colors.white,
+                  ),
+                ),
+                SizedBox(width: 12),
+                Text('클라우드에 변경사항 동기화 중...'),
+              ],
+            ),
+            duration: Duration(milliseconds: 600),
+          ),
+        );
+      }
+
+      try {
+        final goals = prefs.getStringList('selectedGoals') ?? [];
+        final health = prefs.getStringList('selectedHealth') ?? [];
+        final allergies = prefs.getStringList('selectedAllergies') ?? [];
+
+        final name = prefs.getString('userName') ?? _userName;
+        final gender =
+            prefs.getString('gender') ??
+            prefs.getString('userGender') ??
+            _userGender;
+        final ageStr = prefs.getString('userAge') ?? _userAge;
+
+        int birthYearVal = int.tryParse(ageStr) ?? 0;
+        if (birthYearVal > 0 && birthYearVal < 120) {
+          birthYearVal = DateTime.now().year - birthYearVal;
+        }
+
+        await authService.completeOnboarding(
+          name: name,
+          gender: gender,
+          birthYear: birthYearVal,
+          selectedGoals: goals,
+          selectedHealth: health,
+          selectedAllergies: allergies,
+        );
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).hideCurrentSnackBar();
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('🔒 서버 클라우드와 안전하게 동기화되었습니다!'),
+              backgroundColor: AppColors.primary,
+              duration: Duration(seconds: 1),
+            ),
+          );
+        }
+      } catch (e) {
+        debugPrint('DB 실시간 동기화 에러: $e');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('⚠️ 동기화 실패: $e'),
+              backgroundColor: Colors.redAccent,
+            ),
+          );
+        }
+      }
+    }
   }
 
-  // 생활 습관(흡연) 업데이트 함수
+  // 생활 습관(흡연) 업데이트 함수 (생활 습관은 로컬 캐시에 저장되며 백엔드 추천 스코어링에는 영향을 주지 않으므로 로컬 저장소에 보관)
   Future<void> _updateSmokingStatus(String status) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('smokingStatus', status);
@@ -273,6 +358,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   _buildProfileSection(
                     '주의가 필요한 질환',
                     _healthIssues,
+                    isGoal: true,
                     onEdit: () => _showEditModal(
                       title: '보유 질환',
                       options: SurveyData.healthIssues,
@@ -286,6 +372,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   _buildProfileSection(
                     '나의 알레르기',
                     _allergies,
+                    isGoal: true,
                     onEdit: () => _showEditModal(
                       title: '알레르기',
                       options: SurveyData.allergies,
@@ -1158,7 +1245,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  // 메뉴 버튼 공통 위젯
   // ── 로그아웃 ────────────────────────────────────────────────────────────
   Future<void> _logout() async {
     final confirmed = await showDialog<bool>(

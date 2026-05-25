@@ -9,6 +9,7 @@ import 'package:simcap/features/cabinet/presentation/cabinet_detail_screen.dart'
 import 'package:simcap/features/cabinet/presentation/add_supplement_screen.dart';
 import 'package:simcap/features/cabinet/presentation/supplement_info_screen.dart';
 import 'package:simcap/features/cabinet/presentation/barcode_scan_screen.dart';
+import 'package:simcap/features/cabinet/presentation/label_camera_screen.dart';
 import 'package:simcap/features/cabinet/domain/dataModels/supplement_model.dart';
 import 'package:simcap/features/profile/presentation/login_screen.dart';
 import 'package:simcap/features/profile/presentation/onboarding_survey_screen.dart';
@@ -206,6 +207,10 @@ class AppRouter {
                     SupplementInfoScreen(supplement: supplement),
                   );
                 },
+              ),
+              GoRoute(
+                path: 'label-camera',
+                builder: (context, state) => const LabelCameraScreen(),
               ),
             ],
           ),

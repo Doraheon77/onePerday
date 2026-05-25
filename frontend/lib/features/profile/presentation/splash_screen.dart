@@ -30,14 +30,22 @@ class _SplashScreenState extends State<SplashScreen> {
       return;
     }
 
-    final hasUserInfo = await _authService.hasUserInfo();
+    try {
+      final hasUserInfo = await _authService.hasUserInfo();
 
-    if (!mounted) return;
+      if (!mounted) return;
 
-    if (hasUserInfo) {
-      context.go('/home');
-    } else {
-      context.go('/onboarding');
+      if (hasUserInfo) {
+        context.go('/home');
+      } else {
+        context.go('/onboarding');
+      }
+    } catch (e) {
+      debugPrint('[SplashScreen] 인증 상태 확인 실패 (사용자 삭제됨 또는 만료): $e');
+      await _authService.signOut();
+      if (mounted) {
+        context.go('/login');
+      }
     }
   }
 

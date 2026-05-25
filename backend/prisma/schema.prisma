@@ -600,8 +600,10 @@ model users_info {
   name          String?
   gender        String?
   birth_year    Int?
-  health_status String?
-  symptoms      String[]
+  health_goals  BigInt[]
+  conditions    BigInt[]
+  allergies     BigInt[]
+  special_notes BigInt[]
   created_at    DateTime @default(now()) @db.Timestamptz(6)
   id            String   @id @db.Uuid
   users         users    @relation(fields: [id], references: [id], onDelete: NoAction, onUpdate: NoAction)
