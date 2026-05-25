@@ -392,13 +392,19 @@ class _OnboardingSurveyScreenState extends State<OnboardingSurveyScreen> {
               _buildFullWidthButton('네, 맞아요! 분석 시작하기', () async {
                 await _saveSurveyData();
 
+                int parsedAge = int.tryParse(userAge ?? '0') ?? 0;
+                int calculatedBirthYear = 0;
+                if (parsedAge > 0 && parsedAge < 120) {
+                  calculatedBirthYear = DateTime.now().year - parsedAge;
+                }
+
                 await AuthService().completeOnboarding(
                   name: userName ?? '',
                   gender: userGender ?? '',
-                  birthYear: int.tryParse(userAge ?? '0') ?? 0,
-                  selectedGoals: selectedGoals,
-                  selectedHealth: selectedHealth,
-                  selectedAllergies: selectedAllergies,
+                  birthYear: calculatedBirthYear,
+                  conditions: selectedHealth,
+                  allergies: selectedAllergies,
+                  healthGoals: selectedGoals,
                 );
 
                 if (!mounted) return;

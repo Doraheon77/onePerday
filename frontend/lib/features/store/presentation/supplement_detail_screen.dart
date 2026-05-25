@@ -24,6 +24,7 @@ class StoreProduct {
   final List<String> contraindications;
   final List<StoreProduct> similarProducts;
   final String? purchaseUrl;
+  final String? imageUrl;
   final int dailyDose; // 1회 복용량
   final int dailyFrequency; // 하루 복용 횟수
 
@@ -37,6 +38,7 @@ class StoreProduct {
     this.contraindications = const [],
     this.similarProducts = const [],
     this.purchaseUrl,
+    this.imageUrl,
     this.dailyDose = 1,
     this.dailyFrequency = 1,
   });
@@ -939,7 +941,7 @@ class _SupplementDetailScreenState extends State<SupplementDetailScreen> {
                 const SizedBox(height: 12),
                 _buildNutrientChart(p.nutrients),
                 const SizedBox(height: 12),
-                _buildContraindications(),
+                _buildContraindications(_contraindications),
                 const SizedBox(height: 12),
                 _buildReviewSummary(p),
                 const SizedBox(height: 12),

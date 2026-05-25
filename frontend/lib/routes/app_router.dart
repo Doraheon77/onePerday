@@ -104,14 +104,30 @@ class AppRouter {
               GoRoute(
                 path: 'search',
                 pageBuilder: (context, state) {
-                  // extra로 초기 검색어 전달 가능 (선물 카테고리 탭 등)
-                  final keyword = state.extra is String
-                      ? state.extra as String
-                      : '';
+                  String keyword = '';
+                  List<String> initialCategories = [];
+                  List<String> initialIngredients = [];
+                  String? initialPriceRange;
+
+                  if (state.extra is String) {
+                    keyword = state.extra as String;
+                  } else if (state.extra is Map<String, dynamic>) {
+                    final map = state.extra as Map<String, dynamic>;
+                    keyword = map['keyword'] as String? ?? '';
+                    initialCategories = (map['categories'] as List<dynamic>?)?.cast<String>() ?? [];
+                    initialIngredients = (map['ingredients'] as List<dynamic>?)?.cast<String>() ?? [];
+                    initialPriceRange = map['priceRange'] as String?;
+                  }
+                  
                   return _slideRight(
                     context,
                     state,
-                    SearchScreen(initialKeyword: keyword),
+                    SearchScreen(
+                      initialKeyword: keyword,
+                      initialCategories: initialCategories,
+                      initialIngredients: initialIngredients,
+                      initialPriceRange: initialPriceRange,
+                    ),
                   );
                 },
               ),

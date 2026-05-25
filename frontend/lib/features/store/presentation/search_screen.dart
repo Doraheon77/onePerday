@@ -31,7 +31,8 @@ const _ingredients = [
   _FilterOption('아연'),
   _FilterOption('루테인'),
   _FilterOption('콜라겐'),
-  _FilterOption('EPA+DHA'),
+  _FilterOption('EPA'),
+  _FilterOption('DHA'),
   _FilterOption('유산균'),
   _FilterOption('밀크씨슬'),
   _FilterOption('엽산'),
@@ -47,8 +48,17 @@ const _priceRanges = [
 class SearchScreen extends StatefulWidget {
   /// 외부에서 진입 시 초기 검색어 설정 (선물 카테고리 탭 등)
   final String initialKeyword;
+  final List<String> initialCategories;
+  final List<String> initialIngredients;
+  final String? initialPriceRange;
 
-  const SearchScreen({super.key, this.initialKeyword = ''});
+  const SearchScreen({
+    super.key, 
+    this.initialKeyword = '',
+    this.initialCategories = const [],
+    this.initialIngredients = const [],
+    this.initialPriceRange,
+  });
 
   @override
   State<SearchScreen> createState() => _SearchScreenState();
@@ -56,13 +66,15 @@ class SearchScreen extends StatefulWidget {
 
 class _SearchScreenState extends State<SearchScreen> {
   final TextEditingController _searchController = TextEditingController();
-  bool _isSearching = false;
   String _searchQuery = '';
+  
+  bool get _isSearching => _searchController.text.isNotEmpty || _activeFilterCount > 0;
 
   // API 서비스 및 결과 상태 추가
   final StoreApiService _apiService = StoreApiService();
   List<StoreProduct> _searchResults = [];
   bool _isLoading = false;
+  
   Timer? _debounce;
 
   // 선택된 필터 상태
@@ -93,22 +105,28 @@ class _SearchScreenState extends State<SearchScreen> {
   @override
   void initState() {
     super.initState();
+    if (widget.initialCategories.isNotEmpty) {
+      _selectedCategories.addAll(widget.initialCategories);
+    }
+    if (widget.initialIngredients.isNotEmpty) {
+      _selectedIngredients.addAll(widget.initialIngredients);
+    }
+    if (widget.initialPriceRange != null) {
+      _selectedPriceRange = widget.initialPriceRange;
+    }
+
     // 초기 검색어가 있으면 진입 즉시 검색 상태로 설정
     if (widget.initialKeyword.isNotEmpty) {
       _searchController.text = widget.initialKeyword;
-      _isSearching = true;
       _searchQuery = widget.initialKeyword;
     }
     _searchController.addListener(() {
-      final searching = _searchController.text.isNotEmpty;
-      if (searching != _isSearching) {
-        setState(() => _isSearching = searching);
-      }
+      setState(() {});
     });
 
-    // 초기 키워드가 있으면 검색 실행 (명시적 진입이므로 기록하도록 설정)
-    if (widget.initialKeyword.isNotEmpty) {
-      _fetchSearchResults(widget.initialKeyword, record: true);
+    // 초기 키워드가 있거나 초기 필터가 있으면 검색 실행 (명시적 진입이므로 기록하도록 설정)
+    if (widget.initialKeyword.isNotEmpty || _activeFilterCount > 0) {
+      _fetchSearchResults(widget.initialKeyword, record: widget.initialKeyword.isNotEmpty);
     }
 
     // 실시간 인기 검색어 목록 호출 추가
@@ -124,7 +142,7 @@ class _SearchScreenState extends State<SearchScreen> {
 
   // DB 검색 API 호출 함수 추가 (기본적으로 키 입력에 의한 검색은 기록하지 않고, 제출이나 진입 시만 기록)
   Future<void> _fetchSearchResults(String query, {bool record = false}) async {
-    if (query.trim().isEmpty) {
+    if (query.trim().isEmpty && _activeFilterCount == 0) {
       setState(() {
         _searchResults = [];
         _isLoading = false;
@@ -135,7 +153,13 @@ class _SearchScreenState extends State<SearchScreen> {
     setState(() => _isLoading = true);
 
     try {
-      final results = await _apiService.fetchSupplements(keyword: query, record: record);
+      final results = await _apiService.fetchSupplements(
+        keyword: query, 
+        record: record,
+        categories: _selectedCategories.toList(),
+        ingredients: _selectedIngredients.toList(),
+        priceRange: _selectedPriceRange,
+      );
       setState(() {
         _searchResults = results;
         _isLoading = false;
@@ -167,6 +191,7 @@ class _SearchScreenState extends State<SearchScreen> {
       _selectedIngredients.clear();
       _selectedPriceRange = null;
     });
+    _fetchSearchResults(_searchController.text);
   }
 
   void _submitSearch(String query) {
@@ -279,31 +304,40 @@ class _SearchScreenState extends State<SearchScreen> {
             label: '카테고리',
             options: _categories,
             selected: _selectedCategories,
-            onTap: (label) => setState(() {
-              _selectedCategories.contains(label)
-                  ? _selectedCategories.remove(label)
-                  : _selectedCategories.add(label);
-            }),
+            onTap: (label) {
+              setState(() {
+                _selectedCategories.contains(label)
+                    ? _selectedCategories.remove(label)
+                    : _selectedCategories.add(label);
+              });
+              _fetchSearchResults(_searchController.text);
+            },
           ),
           const Divider(height: 1, indent: 16, endIndent: 16),
           _buildFilterRow(
             label: '주요 성분',
             options: _ingredients,
             selected: _selectedIngredients,
-            onTap: (label) => setState(() {
-              _selectedIngredients.contains(label)
-                  ? _selectedIngredients.remove(label)
-                  : _selectedIngredients.add(label);
-            }),
+            onTap: (label) {
+              setState(() {
+                _selectedIngredients.contains(label)
+                    ? _selectedIngredients.remove(label)
+                    : _selectedIngredients.add(label);
+              });
+              _fetchSearchResults(_searchController.text);
+            },
           ),
           const Divider(height: 1, indent: 16, endIndent: 16),
           _buildFilterRow(
             label: '가격대',
             options: _priceRanges,
             selected: _selectedPriceRange != null ? {_selectedPriceRange!} : {},
-            onTap: (label) => setState(() {
-              _selectedPriceRange = _selectedPriceRange == label ? null : label;
-            }),
+            onTap: (label) {
+              setState(() {
+                _selectedPriceRange = _selectedPriceRange == label ? null : label;
+              });
+              _fetchSearchResults(_searchController.text);
+            },
           ),
         ],
       ),
@@ -386,11 +420,7 @@ class _SearchScreenState extends State<SearchScreen> {
 
   // 상품 카드
   Widget _buildSearchResults() {
-    /* 기존 코드: 로컬 더미 데이터 필터링
-    // 이름·브랜드·성분 기준 필터링
-    final results = filterByKeyword(_searchQuery);
-    */
-    final results = _searchResults;
+    List<StoreProduct> results = _searchResults;
 
     if (_isLoading) {
       return const Center(
@@ -432,13 +462,16 @@ class _SearchScreenState extends State<SearchScreen> {
                               (f) => Padding(
                                 padding: const EdgeInsets.only(right: 6),
                                 child: GestureDetector(
-                                  onTap: () => setState(() {
-                                    _selectedCategories.remove(f);
-                                    _selectedIngredients.remove(f);
-                                    if (_selectedPriceRange == f) {
-                                      _selectedPriceRange = null;
-                                    }
-                                  }),
+                                  onTap: () {
+                                    setState(() {
+                                      _selectedCategories.remove(f);
+                                      _selectedIngredients.remove(f);
+                                      if (_selectedPriceRange == f) {
+                                        _selectedPriceRange = null;
+                                      }
+                                    });
+                                    _fetchSearchResults(_searchController.text);
+                                  },
                                   child: Container(
                                     padding: const EdgeInsets.symmetric(
                                       horizontal: 10,

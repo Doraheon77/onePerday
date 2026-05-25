@@ -119,16 +119,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
           name: name,
           gender: gender,
           birthYear: birthYearVal,
-          selectedGoals: goals,
-          selectedHealth: health,
-          selectedAllergies: allergies,
+          conditions: health,
+          allergies: allergies,
+          healthGoals: goals,
         );
 
         if (mounted) {
           ScaffoldMessenger.of(context).hideCurrentSnackBar();
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('🔒 서버 클라우드와 안전하게 동기화되었습니다!'),
+              content: Text('저장되었습니다.'),
               backgroundColor: AppColors.primary,
               duration: Duration(seconds: 1),
             ),
@@ -145,7 +145,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           );
         }
       }
-    }
+    } 
   }
 
   // 생활 습관(흡연) 업데이트 함수 (생활 습관은 로컬 캐시에 저장되며 백엔드 추천 스코어링에는 영향을 주지 않으므로 로컬 저장소에 보관)

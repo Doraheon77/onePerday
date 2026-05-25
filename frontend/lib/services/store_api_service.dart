@@ -5,13 +5,31 @@ import 'package:simcap/features/store/presentation/supplement_detail_screen.dart
 class StoreApiService {
   static const String baseUrl = 'http://10.0.2.2:3000';
 
-  Future<List<StoreProduct>> fetchSupplements({String? keyword, bool record = false}) async {
-    // keyword가 있으면 쿼리 파라미터 추가
-    final url = keyword != null && keyword.isNotEmpty
-        ? '$baseUrl/supplements?keyword=${Uri.encodeComponent(keyword)}&record=$record'
-        : '$baseUrl/supplements';
+  Future<List<StoreProduct>> fetchSupplements({
+    String? keyword,
+    bool record = false,
+    List<String> categories = const [],
+    List<String> ingredients = const [],
+    String? priceRange,
+  }) async {
+    // 쿼리 파라미터 동적 생성
+    final queryParams = <String, String>{};
+    if (keyword != null && keyword.trim().isNotEmpty) {
+      queryParams['keyword'] = keyword.trim();
+      queryParams['record'] = record.toString();
+    }
+    if (categories.isNotEmpty) {
+      queryParams['categories'] = categories.join(',');
+    }
+    if (ingredients.isNotEmpty) {
+      queryParams['ingredients'] = ingredients.join(',');
+    }
+    if (priceRange != null && priceRange.isNotEmpty) {
+      queryParams['priceRange'] = priceRange;
+    }
 
-    final response = await http.get(Uri.parse(url));
+    final uri = Uri.parse('$baseUrl/supplements').replace(queryParameters: queryParams.isEmpty ? null : queryParams);
+    final response = await http.get(uri);
 
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw Exception('영양제 목록 조회 실패: ${response.body}');

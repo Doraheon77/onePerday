@@ -90,6 +90,10 @@ class _StoreScreenState extends State<StoreScreen> {
     }
   }
 
+  Future<void> _handleRefresh() async {
+    await _fetchProducts();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -307,16 +311,42 @@ class _StoreScreenState extends State<StoreScreen> {
   }
 
   Widget _buildGiftCategories() {
-    // 카테고리명과 검색 키워드 매핑
+    // 카테고리명과 검색 키워드 및 필터 매핑
     final categories = [
-      {'label': '부모님', 'keyword': '관절 눈 건강', 'icon': Icons.favorite_outline},
-      {'label': '수험생', 'keyword': '집중력 비타민B', 'icon': Icons.school_outlined},
+      {
+        'label': '부모님',
+        'icon': Icons.favorite_outline,
+        'extra': {
+          'categories': ['관절/뼈', '오메가3'],
+          'ingredients': ['비타민C'],
+          'priceRange': '5만원 이상',
+        }
+      },
+      {
+        'label': '수험생',
+        'icon': Icons.school_outlined,
+        'extra': {
+          'categories': ['눈 건강', '면역'],
+          'ingredients': ['비타민C'],
+          'priceRange': '3~5만원',
+        }
+      },
       {
         'label': '운동매니아',
-        'keyword': '단백질 마그네슘',
         'icon': Icons.fitness_center_outlined,
+        'extra': {
+          'categories': ['단백질'],
+          'ingredients': ['마그네슘'],
+        }
       },
-      {'label': '직장인', 'keyword': '피로 눈 건강', 'icon': Icons.work_outline},
+      {
+        'label': '직장인',
+        'icon': Icons.work_outline,
+        'extra': {
+          'categories': ['눈 건강'],
+          'ingredients': ['밀크씨슬', '유산균'],
+        }
+      },
     ];
 
     return Padding(
@@ -336,7 +366,7 @@ class _StoreScreenState extends State<StoreScreen> {
           return GestureDetector(
             onTap: () => context.push(
               '/store/search',
-              extra: cat['keyword'], // 검색어 전달
+              extra: cat['extra'], // 필터 정보 전달
             ),
             child: Column(
               children: [

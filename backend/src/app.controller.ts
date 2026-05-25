@@ -27,28 +27,110 @@ export class AppController {
     @Query('record') record?: string,
     @Query('gender') gender?: string,
     @Query('age') age?: string,
+    @Query('categories') categoriesStr?: string,
+    @Query('ingredients') ingredientsStr?: string,
+    @Query('priceRange') priceRange?: string,
   ) {
-    // 실시간 검색 키워드 기록 (record 파라미터가 'true'로 명시된 경우에만 기록)
     if (keyword && keyword.trim().length > 0 && record === 'true') {
       this.appService.recordSearch(keyword);
     }
 
-    const userAge = age ? parseInt(age, 10) : 30; // 기본값 30세
-    const userGender = gender ? gender : '남자'; // 기본값 남자
+    const userAge = age ? parseInt(age, 10) : 30;
+    const userGender = gender ? gender : '남자';
+
+    const categories = categoriesStr ? categoriesStr.split(',').filter(c => c.trim().length > 0) : [];
+    const ingredients = ingredientsStr ? ingredientsStr.split(',').filter(i => i.trim().length > 0) : [];
+
+    let minPrice: number | undefined = undefined;
+    let maxPrice: number | undefined = undefined;
+    if (priceRange) {
+      if (priceRange === '1만원 이하') maxPrice = 10000;
+      else if (priceRange === '1~3만원') { minPrice = 10000; maxPrice = 30000; }
+      else if (priceRange === '3~5만원') { minPrice = 30000; maxPrice = 50000; }
+      else if (priceRange === '5만원 이상') minPrice = 50000;
+    }
+
+    let mappedNutrients: string[] = [];
+    if (categories.length > 0) {
+      const guides = await this.prisma.nutrient_guide.findMany();
+      for (const guide of guides) {
+        const nutrientName = guide.nutrient_name;
+        const targetAreas = Array.isArray(guide.target_area) ? guide.target_area : [];
+        if (!nutrientName) continue;
+        
+        let matchesArea = false;
+        for (const cat of categories) {
+          const c = cat.replace(/\s/g, '');
+          for (const area of targetAreas) {
+            const t = String(area).replace(/\s/g, '');
+            const keywords = ['눈', '관절', '뼈', '간', '피부', '면역', '혈관', '심혈관', '심장', '뇌', '소화', '장', '근육', '신경', '세포'];
+            for (const k of keywords) {
+              if (c.includes(k) && t.includes(k)) { matchesArea = true; break; }
+            }
+            if (c.includes(t) || t.includes(c)) matchesArea = true;
+            if (matchesArea) break;
+          }
+          if (matchesArea) break;
+        }
+        if (matchesArea) mappedNutrients.push(nutrientName);
+      }
+    }
+
+    const whereClause: any = { price: { not: null } };
+    
+    if (minPrice !== undefined || maxPrice !== undefined) {
+      whereClause.price = { ...whereClause.price };
+      if (minPrice !== undefined) whereClause.price.gt = minPrice;
+      if (maxPrice !== undefined) whereClause.price.lte = maxPrice;
+    }
+
+    const andConditions: any[] = [];
+    
+    if (categories.length > 0) {
+      if (mappedNutrients.length > 0) {
+        const catConditions = mappedNutrients.map(nut => ({ ingredient_name: { contains: nut, mode: 'insensitive' } }));
+        const catProductContains = mappedNutrients.map(nut => ({ product_name: { contains: nut, mode: 'insensitive' } }));
+        andConditions.push({
+          OR: [
+            { supplements_ingredients: { some: { OR: catConditions } } },
+            ...catProductContains
+          ]
+        });
+      } else {
+        const fallback = categories.map(cat => ({ product_name: { contains: cat, mode: 'insensitive' } }));
+        andConditions.push({ OR: fallback });
+      }
+    }
+    
+    if (ingredients.length > 0) {
+      const ingConditions = ingredients.map(nut => ({ ingredient_name: { contains: nut, mode: 'insensitive' } }));
+      const ingProductContains = ingredients.map(nut => ({ product_name: { contains: nut, mode: 'insensitive' } }));
+      andConditions.push({
+        OR: [
+          { supplements_ingredients: { some: { OR: ingConditions } } },
+          ...ingProductContains
+        ]
+      });
+    }
+
+    if (keyword && keyword.trim().length > 0) {
+      andConditions.push({
+        OR: [
+          { product_name: { contains: keyword.trim(), mode: 'insensitive' } },
+          { brand_name: { contains: keyword.trim(), mode: 'insensitive' } },
+        ]
+      });
+    }
+
+    if (andConditions.length > 0) {
+      whereClause.AND = andConditions;
+    }
 
     const data = await this.prisma.supplements.findMany({
-      take: keyword ? 20 : 3, // 검색 시에는 더 많이 가져옴
-      where: {
-        price: { not: null },
-        ...(keyword ? {
-          OR: [
-            { product_name: { contains: keyword, mode: 'insensitive' } },
-            { brand_name: { contains: keyword, mode: 'insensitive' } },
-          ]
-        } : {})
-      },
+      take: 100, // 백엔드 필터링 적용 후 최대 100개 반환
+      where: whereClause,
       include: {
-        supplements_ingredients: true, // 프론트엔드 파싱을 위해 성분 데이터 포함
+        supplements_ingredients: true,
       },
     });
 

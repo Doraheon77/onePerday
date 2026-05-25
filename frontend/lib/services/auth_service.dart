@@ -89,26 +89,39 @@ class AuthService {
     required String name,
     required String gender,
     required int birthYear,
-    required String healthStatus,
-    required List<String> symptoms,
+    required List<String> conditions,
+    required List<String> allergies,
+    required List<String> healthGoals,
   }) async {
     final user = supabase.auth.currentUser;
 
     if (user == null) {
       throw Exception('로그인된 사용자가 없습니다.');
     }
-    if (user == null) {
-      throw Exception('로그인된 사용자가 없습니다.');
-    }
 
-    await supabase.from('users_info').upsert({
-      'id': user.id,
+    final conditionIds = conditions
+        .map((label) => conditionMap[label])
+        .whereType<int>()
+        .toList();
+
+    final allergyIds = allergies
+        .map((label) => allergyMap[label])
+        .whereType<int>()
+        .toList();
+
+    final goalIds = healthGoals
+        .map((label) => goalMap[label])
+        .whereType<int>()
+        .toList();
+
+    await supabase.from('users_info').update({
       'name': name,
       'gender': gender,
       'birth_year': birthYear,
-      'health_status': healthStatus,
-      'symptoms': symptoms,
-    });
+      'conditions': conditionIds,
+      'allergies': allergyIds,
+      'health_goals': goalIds,
+    }).eq('id', user.id);
   }
 
   Future<void> signOut() async {

@@ -1,10 +1,10 @@
 import 'dart:io';
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:http/http.dart' as http;
 import 'package:simcap/core/constant/app_constants.dart';
 import 'package:simcap/features/cabinet/domain/dataModels/supplement_model.dart';
 import 'package:simcap/features/cabinet/presentation/barcode_scan_screen.dart';
@@ -37,10 +37,6 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
 
   bool _showNameError = false;
 
-  final _nameController = TextEditingController();
-  final _brandController = TextEditingController();
-  final _nutrientController = TextEditingController();
-  int _dailyDose = 1; // 1회 복용량
   final _nameController = TextEditingController();
   final _brandController = TextEditingController();
   final _nutrientController = TextEditingController();
@@ -101,11 +97,9 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
   Future<void> _processOCR(File imageFile) async {
     setState(() => _isLoadingOCR = true);
     try {
-      // 실제 NestJS 백엔드 OCR API 호출 (동적 환경 주소 사용)
       final uri = Uri.parse('${AppConstants.apiBaseUrl}/supplements/ocr');
       final request = http.MultipartRequest('POST', uri);
 
-      // 파일 추가
       request.files.add(
         await http.MultipartFile.fromPath('image', imageFile.path),
       );
@@ -128,9 +122,7 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
           _tabController.animateTo(_tabManual);
         });
       } else {
-        throw Exception(
-          'Server responded with status code: ${response.statusCode}',
-        );
+        throw Exception('Server responded with status code: ${response.statusCode}');
       }
     } catch (e) {
       debugPrint('OCR Upload Error: $e');
@@ -142,7 +134,6 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
           duration: Duration(seconds: 2),
         ),
       );
-      // 실패하더라도 사용자가 직접 입력할 수 있도록 탭 이동
       _tabController.animateTo(_tabManual);
     }
   }
@@ -171,19 +162,11 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
   }
 
   Future<void> _pickFromCamera() async {
-    // ---- 기존 코드 주석 처리 시작 ----
-    // final XFile? image = await _picker.pickImage(
-    //   source: ImageSource.camera,
-    //   imageQuality: 90,
-    // );
-    // if (image != null) _handlePickedImage(File(image.path));
-    // ---- 기존 코드 주석 처리 끝 ----
-
-    // 앱 내장 카메라(In-App Camera) 화면으로 이동하여 결과 반환받기
-    final imagePath = await context.push<String>('/cabinet/label-camera');
-    if (imagePath != null && mounted) {
-      _handlePickedImage(File(imagePath));
-    }
+    final XFile? image = await _picker.pickImage(
+      source: ImageSource.camera,
+      imageQuality: 90,
+    );
+    if (image != null) _handlePickedImage(File(image.path));
   }
 
   Future<void> _pickFromGallery() async {
@@ -247,9 +230,6 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
           .map(
             (e) => Nutrient(name: e.trim(), value: 0, unit: '', percent: 0.7),
           )
-          .map(
-            (e) => Nutrient(name: e.trim(), value: 0, unit: '', percent: 0.7),
-          )
           .toList(),
       analysisGuide: '방금 등록된 영양제입니다.',
       aiSummary: '분석 데이터 준비 중',
@@ -289,10 +269,6 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
                   horizontal: 20,
                   vertical: 10,
                 ),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 10,
-                ),
                 child: _buildRegisterButton(),
               ),
             )
@@ -307,10 +283,6 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
     return AppBar(
       title: Text(
         isEditMode ? '영양제 수정' : tabTitles[_selectedTab],
-        style: const TextStyle(
-          color: Colors.black,
-          fontWeight: FontWeight.bold,
-        ),
         style: const TextStyle(
           color: Colors.black,
           fontWeight: FontWeight.bold,
@@ -404,8 +376,6 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
                     : _selectedImage != null
                     ? _buildImagePreviewInCard()
                     : _buildLabelGuide(),
-                    ? _buildImagePreviewInCard()
-                    : _buildLabelGuide(),
               ),
             ),
             const SizedBox(height: 24),
@@ -496,9 +466,6 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
           bottom: 12,
           left: 12,
           right: 12,
-          bottom: 12,
-          left: 12,
-          right: 12,
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: BoxDecoration(
@@ -512,11 +479,6 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
                 SizedBox(width: 6),
                 Text(
                   '분석 완료 — 직접 입력 탭에서 확인하세요',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                  ),
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: 12,
@@ -546,10 +508,6 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
           '잠시만 기다려 주세요',
           style: TextStyle(fontSize: 13, color: Colors.grey[500]),
         ),
-        Text(
-          '잠시만 기다려 주세요',
-          style: TextStyle(fontSize: 13, color: Colors.grey[500]),
-        ),
       ],
     );
   }
@@ -574,7 +532,6 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, size: 18, color: filled ? Colors.white : Colors.black87),
             Icon(icon, size: 18, color: filled ? Colors.white : Colors.black87),
             const SizedBox(width: 6),
             Text(
@@ -704,10 +661,6 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
               label,
               style: const TextStyle(fontWeight: FontWeight.w500),
             ),
-            child: Text(
-              label,
-              style: const TextStyle(fontWeight: FontWeight.w500),
-            ),
           ),
           // 감소 버튼
           GestureDetector(
@@ -715,8 +668,6 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
               if (value > 1) onChanged(value - 1);
             },
             child: Container(
-              width: 32,
-              height: 32,
               width: 32,
               height: 32,
               decoration: BoxDecoration(
@@ -730,18 +681,11 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
                 size: 16,
                 color: value > 1 ? Colors.grey : Colors.grey.shade300,
               ),
-              child: Icon(
-                Icons.remove,
-                size: 16,
-                color: value > 1 ? Colors.grey : Colors.grey.shade300,
-              ),
             ),
           ),
           const SizedBox(width: 12),
           // 숫자 표시
           Container(
-            width: 44,
-            height: 36,
             width: 44,
             height: 36,
             alignment: Alignment.center,
@@ -767,13 +711,10 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
             child: Container(
               width: 32,
               height: 32,
-              width: 32,
-              height: 32,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 border: Border.all(color: AppColors.primary),
               ),
-              child: const Icon(Icons.add, size: 16, color: AppColors.primary),
               child: const Icon(Icons.add, size: 16, color: AppColors.primary),
             ),
           ),
@@ -824,15 +765,8 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
                       horizontal: 8,
                       vertical: 2,
                     ),
-                      horizontal: 8,
-                      vertical: 2,
-                    ),
                     minimumSize: Size.zero,
                     tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  ),
-                  child: const Text(
-                    '초기화',
-                    style: TextStyle(fontSize: 12, color: AppColors.danger),
                   ),
                   child: const Text(
                     '초기화',
@@ -956,8 +890,6 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
         : time.hour <= 12
         ? time.hour
         : time.hour - 12;
-        ? time.hour
-        : time.hour - 12;
     final m = time.minute.toString().padLeft(2, '0');
     return '$period $h:$m';
   }
@@ -993,16 +925,10 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
                   onSelected: (_) => setState(
                     () => _remainingController.text = val.toString(),
                   ),
-                  onSelected: (_) => setState(
-                    () => _remainingController.text = val.toString(),
-                  ),
                   selectedColor: AppColors.primaryLight,
                   backgroundColor: Colors.white,
                   labelStyle: TextStyle(
                     color: isSelected ? AppColors.primary : Colors.black54,
-                    fontWeight: isSelected
-                        ? FontWeight.bold
-                        : FontWeight.normal,
                     fontWeight: isSelected
                         ? FontWeight.bold
                         : FontWeight.normal,
