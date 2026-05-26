@@ -37,11 +37,15 @@ class AuthService {
 
     final data = await supabase
         .from('users_info')
-        .select('id')
+        .select('name, gender, birth_year')
         .eq('id', user.id)
         .maybeSingle();
 
-    return data != null;
+    if (data == null) return false;
+
+    return (data['name'] as String?)?.isNotEmpty == true &&
+        (data['gender'] as String?)?.isNotEmpty == true &&
+        data['birth_year'] != null;
   }
 
   // Mapping lists matching database BigInt IDs
@@ -114,14 +118,16 @@ class AuthService {
         .whereType<int>()
         .toList();
 
-    await supabase.from('users_info').update({
+    await supabase.from('users_info').upsert({
+      'id': user.id,
       'name': name,
       'gender': gender,
       'birth_year': birthYear,
       'conditions': conditionIds,
       'allergies': allergyIds,
       'health_goals': goalIds,
-    }).eq('id', user.id);
+    });
+
   }
 
   Future<void> signOut() async {
