@@ -535,7 +535,7 @@ model Supplements {
   image_url        String? @db.Text
   shop_url         String? @db.Text
   price            String? @db.Text
-  id               String  @id @db.Text
+  id               BigInt  @id
 
   // Relations
   ingredients          SupplementsIngredients[]
@@ -548,10 +548,10 @@ model Supplements {
 
 model SupplementsIngredients {
   product_name    String?  @db.Text
-  ingredient_name String  @db.Text
+  ingredient_name String?  @db.Text
   amount          Float?
   unit            String? @db.Text
-  id              String  @id @db.Text
+  id              BigInt  @id
 
   // Relations
   supplement Supplements? @relation(fields: [product_name], references: [product_name])
@@ -574,8 +574,8 @@ model SupplementsTemp {
   origin           String? @db.Text
   image_url        String? @db.Text
   shop_url         String? @db.Text
-  price            String? @db.Text
-  id               String  @id @db.Text
+  price            BigInt?
+  id               BigInt  @id
 
   @@map("supplements_temp")
   @@schema("public")
@@ -596,7 +596,7 @@ model SupplementsTest {
   image_url        String? @db.Text
   shop_url         String? @db.Text
   price            String? @db.Text
-  id               String  @id @db.Text
+  id               BigInt  @id
 
   // Relations
   supplement Supplements? @relation(fields: [product_name], references: [product_name])
@@ -610,10 +610,10 @@ model SupplementsTest {
 // =============================================
 
 model NutrientGuide {
-  nutrient_name String? @db.Text
-  target_area   String? @db.Text
-  source        String? @db.Text
-  id            String  @id @db.Text
+  nutrient_name String?  @db.Text
+  target_area   String[] @db.Text
+  source        String?  @db.Text
+  id            BigInt   @id
 
   @@map("nutrient_guide")
   @@schema("public")
@@ -621,17 +621,17 @@ model NutrientGuide {
 
 model NutrientStandards {
   gender             String? @db.Text
-  age_min            Int?
-  age_max            Int?
+  age_min            BigInt?
+  age_max            BigInt?
   state              String? @db.Text
   nutrient_name      String? @db.Text
   avg_requirement    Float?
   recommended_intake Float?
   adequate_intake    Float?
   upper_limit        Float?
-  id                 String  @id @db.Text
+  id                 BigInt  @id
 
-  @@map("nutrientstandards")
+  @@map("nutrientStandards")
   @@schema("public")
 }
 
@@ -737,7 +737,7 @@ model DailySupplements {
 
 model Purchase {
   id            String   @id @db.Text
-  supplement_id String?  @db.Text
+  supplement_id BigInt?
   gender        String?  @db.Text
   birth_year    Int?
   pregnant      String?  @db.Text

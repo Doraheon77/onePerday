@@ -151,21 +151,30 @@ export class ConflictService {
 
     // 1. DB에서 장바구니 영양제 조회 및 Conflict 객체 변환
     if (supplementIds && supplementIds.length > 0) {
-      const supplementBigIntIds = supplementIds.map((id) => BigInt(id));
+      const supplementBigIntIds = supplementIds
+        .map((id) => BigInt(id))
+        .filter((id) => id <= BigInt(2147483647));
 
-      const selectedSupplements = await this.prisma.supplements.findMany({
+      const selectedSupplementsTemp = await this.prisma.supplementsTemp.findMany({
         where: {
           id: {
             in: supplementBigIntIds,
           },
         },
-        include: {
-          supplements_ingredients: true,
-        },
       });
 
+      const productNames = selectedSupplementsTemp.map((s) => s.product_name).filter(Boolean) as string[];
+      const ingredients = await this.prisma.supplementsIngredients.findMany({
+        where: { product_name: { in: productNames } },
+      });
+
+      const selectedSupplements = selectedSupplementsTemp.map((product) => ({
+        ...product,
+        supplements_ingredients: ingredients.filter((ing) => ing.product_name === product.product_name),
+      }));
+
       const dbConflicts: Conflict[] = selectedSupplements.map((s) => ({
-        name: s.product_name,
+        name: s.product_name || '',
         ingredients: s.supplements_ingredients
           .map((si) => si.ingredient_name?.trim())
           .filter(Boolean) as string[],

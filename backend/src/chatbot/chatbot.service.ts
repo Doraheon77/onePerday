@@ -5,7 +5,7 @@ import { ChatMessageDto } from './dto/chat-message.dto';
 
 interface RetrievedProduct {
   id: bigint;
-  product_name: string;
+  product_name: string | null;
   brand_name: string | null;
   category: string | null;
   supplements_ingredients: {
@@ -80,34 +80,55 @@ export class ChatbotService {
 
   async retrieveProducts(message: string) {
     const terms = this.extractTerms(message);
+
+    // 성분명 기준 1차 필터링
+    const matchingIngredients = terms.length > 0
+      ? await this.prisma.supplementsIngredients.findMany({
+          where: {
+            OR: terms.map((term) => ({
+              ingredient_name: {
+                contains: term,
+                mode: 'insensitive' as const,
+              },
+            })),
+          },
+          select: { product_name: true },
+        })
+      : [];
+    const matchingProductNames = matchingIngredients
+      .map((mi) => mi.product_name)
+      .filter(Boolean) as string[];
+
     const where =
       terms.length > 0
         ? {
-            OR: terms.flatMap((term) => [
-              { product_name: { contains: term, mode: 'insensitive' as const } },
-              { brand_name: { contains: term, mode: 'insensitive' as const } },
-              { category: { contains: term, mode: 'insensitive' as const } },
-              {
-                supplements_ingredients: {
-                  some: {
-                    ingredient_name: {
-                      contains: term,
-                      mode: 'insensitive' as const,
-                    },
-                  },
-                },
-              },
-            ]),
+            OR: [
+              ...terms.flatMap((term) => [
+                { product_name: { contains: term, mode: 'insensitive' as const } },
+                { brand_name: { contains: term, mode: 'insensitive' as const } },
+                { category: { contains: term, mode: 'insensitive' as const } },
+              ]),
+              ...(matchingProductNames.length > 0
+                ? [{ product_name: { in: matchingProductNames } }]
+                : []),
+            ],
           }
         : {};
 
-    return this.prisma.supplements.findMany({
+    const products = await this.prisma.supplementsTemp.findMany({
       where,
-      include: {
-        supplements_ingredients: true,
-      },
       take: 8,
     });
+
+    const productNames = products.map((p) => p.product_name).filter(Boolean) as string[];
+    const ingredients = await this.prisma.supplementsIngredients.findMany({
+      where: { product_name: { in: productNames } },
+    });
+
+    return products.map((product) => ({
+      ...product,
+      supplements_ingredients: ingredients.filter((ing) => ing.product_name === product.product_name),
+    }));
   }
 
   private extractTerms(message: string) {

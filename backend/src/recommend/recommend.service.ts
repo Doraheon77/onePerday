@@ -53,7 +53,7 @@ export class RecommendService {
     // 1. 사용자 건강 정보 조회 (users_info 테이블 사용)
     let userInfo: any = null;
     try {
-      userInfo = await this.prisma.users_info.findUnique({
+      userInfo = await this.prisma.usersInfo.findUnique({
         where: { id: userId },
       });
     } catch (error) {
@@ -103,25 +103,40 @@ export class RecommendService {
     const allergyList = Array.from(avoidAllergyKeywords);
 
     // 3. 영양제 1차 필터링 (가격이 NULL이 아니고 만성질환 주의 성분이 포함되지 않은 영양제)
-    const dbSupplements = await this.prisma.supplements.findMany({
+    const conflictingProducts = avoidList.length > 0
+      ? await this.prisma.supplementsIngredients.findMany({
+        where: {
+          OR: avoidList.map((ingredient) => ({
+            ingredient_name: { contains: ingredient },
+          })),
+        },
+        select: { product_name: true },
+      })
+      : [];
+    const conflictingProductNames = conflictingProducts
+      .map((cp) => cp.product_name)
+      .filter(Boolean) as string[];
+
+    const dbSupplementsTemp = await this.prisma.supplementsTemp.findMany({
       where: {
         price: { not: null }, // 가격이 NULL인 항목 제외
-        ...(avoidList.length > 0 && {
-          NOT: {
-            supplements_ingredients: {
-              some: {
-                OR: avoidList.map((ingredient) => ({
-                  ingredient_name: { contains: ingredient },
-                })),
-              },
-            },
+        ...(conflictingProductNames.length > 0 && {
+          product_name: {
+            notIn: conflictingProductNames,
           },
         }),
       },
-      include: {
-        supplements_ingredients: true, // 점수 계산을 위해 성분 정보 가져오기
-      },
     });
+
+    const productNames = dbSupplementsTemp.map((p) => p.product_name).filter(Boolean) as string[];
+    const ingredients = await this.prisma.supplementsIngredients.findMany({
+      where: { product_name: { in: productNames } },
+    });
+
+    const dbSupplements = dbSupplementsTemp.map((product) => ({
+      ...product,
+      supplements_ingredients: ingredients.filter((ing) => ing.product_name === product.product_name),
+    }));
 
     // 3.2 알레르기 소거 (DB 상세 정보 공백 보완을 위해 영양제명, 브랜드명 및 성분명 통합 체크)
     const safeSupplements = dbSupplements.filter((supplement) => {
@@ -150,7 +165,7 @@ export class RecommendService {
     // health_goals(목표 ID) 기반 가점 대상 성분 추출
     if (userInfo.health_goals && Array.isArray(userInfo.health_goals)) {
       // DB에서 실시간으로 영양성분 가이드 테이블 전체 조회
-      const guides = await this.prisma.nutrient_guide.findMany();
+      const guides = await this.prisma.nutrientGuide.findMany();
 
       for (const goalId of userInfo.health_goals) {
         const idStr = goalId.toString();
@@ -159,8 +174,10 @@ export class RecommendService {
         // 유저의 건강 목표 키워드가 target_area에 들어 있는 성분들을 동적으로 수집
         for (const guide of guides) {
           if (!guide.nutrient_name || !guide.target_area) continue;
-          
-          const isMatched = guide.target_area.some((area) => 
+
+          const targetAreas = guide.target_area;
+
+          const isMatched = targetAreas.some((area) =>
             keywords.some((keyword) => area.includes(keyword))
           );
 

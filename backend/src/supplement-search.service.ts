@@ -25,32 +25,32 @@ export class SupplementSearchService {
   async search(llm: LlmExtracted): Promise<SearchResult> {
 
     // 1단계: product_name 완전 일치
-    const exact = await this.prisma.supplements.findFirst({
+    const exact = await this.prisma.supplementsTemp.findFirst({
       where: {
         product_name: { equals: llm.product_name, mode: 'insensitive' },
       },
     });
     if (exact) {
-      return { status: 'found', confidence: 1.0, data: exact };
+      return { status: 'found', confidence: 1.0, data: await this.attachIngredients(exact) };
     }
 
     // 2단계: product_name 부분 일치
-    const partial = await this.prisma.supplements.findMany({
+    const partial = await this.prisma.supplementsTemp.findMany({
       where: {
         product_name: { contains: llm.product_name, mode: 'insensitive' },
       },
       take: 5,
     });
     if (partial.length === 1) {
-      return { status: 'found', confidence: 0.85, data: partial[0] };
+      return { status: 'found', confidence: 0.85, data: await this.attachIngredients(partial[0]) };
     }
     if (partial.length > 1) {
-      return { status: 'confirm_needed', confidence: 0.6, data: partial };
+      return { status: 'confirm_needed', confidence: 0.6, data: await this.attachIngredientsMany(partial) };
     }
 
     // 3단계: brand_name + product_name 첫 키워드 조합
     if (llm.brand_name) {
-      const brandMatch = await this.prisma.supplements.findMany({
+      const brandMatch = await this.prisma.supplementsTemp.findMany({
         where: {
           AND: [
             { brand_name: { contains: llm.brand_name, mode: 'insensitive' } },
@@ -60,10 +60,10 @@ export class SupplementSearchService {
         take: 5,
       });
       if (brandMatch.length === 1) {
-        return { status: 'found', confidence: 0.7, data: brandMatch[0] };
+        return { status: 'found', confidence: 0.7, data: await this.attachIngredients(brandMatch[0]) };
       }
       if (brandMatch.length > 1) {
-        return { status: 'confirm_needed', confidence: 0.5, data: brandMatch };
+        return { status: 'confirm_needed', confidence: 0.5, data: await this.attachIngredientsMany(brandMatch) };
       }
     }
 
@@ -78,7 +78,7 @@ export class SupplementSearchService {
       return { status: 'not_found', confidence: 0 };
     }
 
-    const exact = await this.prisma.supplements.findFirst({
+    const exact = await this.prisma.supplementsTemp.findFirst({
       where: {
         product_name: { equals: productName, mode: 'insensitive' as const },
         ...(brandName
@@ -90,14 +90,13 @@ export class SupplementSearchService {
             }
           : {}),
       },
-      include: { supplements_ingredients: true },
     });
 
     if (exact) {
-      return { status: 'found', confidence: 1.0, data: exact };
+      return { status: 'found', confidence: 1.0, data: await this.attachIngredients(exact) };
     }
 
-    const candidates = await this.prisma.supplements.findMany({
+    const candidates = await this.prisma.supplementsTemp.findMany({
       where: {
         OR: [
           {
@@ -121,7 +120,6 @@ export class SupplementSearchService {
           })),
         ],
       },
-      include: { supplements_ingredients: true },
       take: 10,
     });
 
@@ -129,7 +127,9 @@ export class SupplementSearchService {
       return { status: 'not_found', confidence: 0 };
     }
 
-    const ranked = candidates
+    const candidatesWithIngredients = await this.attachIngredientsMany(candidates);
+
+    const ranked = candidatesWithIngredients
       .map((candidate) => ({
         candidate,
         score: this.scoreCandidate(candidate, productName, brandName),
@@ -142,6 +142,29 @@ export class SupplementSearchService {
       confidence: Math.min(0.95, Math.max(0.45, best.score)),
       data: best.candidate,
     };
+  }
+
+  async attachIngredients(product: any) {
+    if (!product) return null;
+    const ingredients = await this.prisma.supplementsIngredients.findMany({
+      where: { product_name: product.product_name },
+    });
+    return {
+      ...product,
+      supplements_ingredients: ingredients,
+    };
+  }
+
+  async attachIngredientsMany(products: any[]) {
+    if (!products || products.length === 0) return [];
+    const productNames = products.map(p => p.product_name).filter(Boolean) as string[];
+    const ingredients = await this.prisma.supplementsIngredients.findMany({
+      where: { product_name: { in: productNames } },
+    });
+    return products.map(product => ({
+      ...product,
+      supplements_ingredients: ingredients.filter(ing => ing.product_name === product.product_name),
+    }));
   }
 
   private extractKeywords(text: string) {

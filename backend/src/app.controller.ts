@@ -52,7 +52,7 @@ export class AppController {
 
     let mappedNutrients: string[] = [];
     if (categories.length > 0) {
-      const guides = await this.prisma.nutrient_guide.findMany();
+      const guides = await this.prisma.nutrientGuide.findMany();
       for (const guide of guides) {
         const nutrientName = guide.nutrient_name;
         const targetAreas = Array.isArray(guide.target_area) ? guide.target_area : [];
@@ -84,30 +84,50 @@ export class AppController {
       if (maxPrice !== undefined) whereClause.price.lte = maxPrice;
     }
 
+    let matchingProductNamesForFilter: string[] | undefined = undefined;
+
+    if (categories.length > 0 || ingredients.length > 0) {
+      const filterIngredients: any[] = [];
+      
+      if (categories.length > 0 && mappedNutrients.length > 0) {
+        filterIngredients.push(...mappedNutrients.map(nut => ({ ingredient_name: { contains: nut, mode: 'insensitive' } })));
+      }
+      if (ingredients.length > 0) {
+        filterIngredients.push(...ingredients.map(nut => ({ ingredient_name: { contains: nut, mode: 'insensitive' } })));
+      }
+
+      if (filterIngredients.length > 0) {
+        const dbMatchingIngs = await this.prisma.supplementsIngredients.findMany({
+          where: { OR: filterIngredients },
+          select: { product_name: true },
+        });
+        matchingProductNamesForFilter = dbMatchingIngs.map(i => i.product_name).filter(Boolean) as string[];
+      }
+    }
+
     const andConditions: any[] = [];
     
     if (categories.length > 0) {
+      const fallback = categories.map(cat => ({ product_name: { contains: cat, mode: 'insensitive' } }));
       if (mappedNutrients.length > 0) {
-        const catConditions = mappedNutrients.map(nut => ({ ingredient_name: { contains: nut, mode: 'insensitive' } }));
         const catProductContains = mappedNutrients.map(nut => ({ product_name: { contains: nut, mode: 'insensitive' } }));
         andConditions.push({
           OR: [
-            { supplements_ingredients: { some: { OR: catConditions } } },
-            ...catProductContains
+            ...(matchingProductNamesForFilter && matchingProductNamesForFilter.length > 0 ? [{ product_name: { in: matchingProductNamesForFilter } }] : []),
+            ...catProductContains,
+            ...fallback,
           ]
         });
       } else {
-        const fallback = categories.map(cat => ({ product_name: { contains: cat, mode: 'insensitive' } }));
         andConditions.push({ OR: fallback });
       }
     }
     
     if (ingredients.length > 0) {
-      const ingConditions = ingredients.map(nut => ({ ingredient_name: { contains: nut, mode: 'insensitive' } }));
       const ingProductContains = ingredients.map(nut => ({ product_name: { contains: nut, mode: 'insensitive' } }));
       andConditions.push({
         OR: [
-          { supplements_ingredients: { some: { OR: ingConditions } } },
+          ...(matchingProductNamesForFilter && matchingProductNamesForFilter.length > 0 ? [{ product_name: { in: matchingProductNamesForFilter } }] : []),
           ...ingProductContains
         ]
       });
@@ -126,13 +146,20 @@ export class AppController {
       whereClause.AND = andConditions;
     }
 
-    const data = await this.prisma.supplements.findMany({
+    const dataTemp = await this.prisma.supplementsTemp.findMany({
       take: 100, // 백엔드 필터링 적용 후 최대 100개 반환
       where: whereClause,
-      include: {
-        supplements_ingredients: true,
-      },
     });
+
+    const productNames = dataTemp.map(p => p.product_name).filter(Boolean) as string[];
+    const dbIngredients = await this.prisma.supplementsIngredients.findMany({
+      where: { product_name: { in: productNames } },
+    });
+
+    const data = dataTemp.map(product => ({
+      ...product,
+      supplements_ingredients: dbIngredients.filter(ing => ing.product_name === product.product_name),
+    }));
 
     const standards = await this.prisma.nutrientStandards.findMany({
       where: {
@@ -241,9 +268,15 @@ export class AppController {
         // 5. DB 기반 스마트 매칭 및 보정 로직
         if (parsed.productName !== '알 수 없는 영양제' && parsed.productName.trim() !== '') {
           try {
-            const allSupplements = await this.prisma.supplements.findMany({
-              include: { supplements_ingredients: true }
+            const allSupplementsTemp = await this.prisma.supplementsTemp.findMany();
+            const productNames = allSupplementsTemp.map(s => s.product_name).filter(Boolean) as string[];
+            const ingredients = await this.prisma.supplementsIngredients.findMany({
+              where: { product_name: { in: productNames } },
             });
+            const allSupplements = allSupplementsTemp.map(product => ({
+              ...product,
+              supplements_ingredients: ingredients.filter(ing => ing.product_name === product.product_name),
+            }));
 
             const targetName = parsed.productName.replace(/\s+/g, '').toLowerCase();
             let bestMatch: any = null;

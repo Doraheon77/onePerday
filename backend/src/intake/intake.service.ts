@@ -24,7 +24,7 @@ export class IntakeService {
 
     const productIds = cartItems
       .map((item) => this.toBigIntOrNull(item.productId))
-      .filter((id): id is bigint => id !== null);
+      .filter((id): id is bigint => id !== null && id <= BigInt(2147483647));
     const nameItems = cartItems.filter(
       (item) => this.toBigIntOrNull(item.productId) === null && item.name,
     );
@@ -50,14 +50,21 @@ export class IntakeService {
       return [];
     }
 
-    const supplements = await this.prisma.supplements.findMany({
+    const supplementsTemp = await this.prisma.supplementsTemp.findMany({
       where: {
         OR: searchConditions,
       },
-      include: {
-        supplements_ingredients: true,
-      },
     });
+
+    const productNames = supplementsTemp.map(s => s.product_name).filter(Boolean) as string[];
+    const ingredients = await this.prisma.supplementsIngredients.findMany({
+      where: { product_name: { in: productNames } },
+    });
+
+    const supplements = supplementsTemp.map(product => ({
+      ...product,
+      supplements_ingredients: ingredients.filter(ing => ing.product_name === product.product_name),
+    }));
 
     const countMap = new Map<string, number>();
     for (const item of cartItems) {
@@ -72,7 +79,7 @@ export class IntakeService {
     for (const supplement of supplements) {
       const count =
         countMap.get(String(supplement.id)) ??
-        countMap.get(supplement.product_name) ??
+        countMap.get(supplement.product_name || '') ??
         1;
 
       for (const ingredient of supplement.supplements_ingredients) {
@@ -111,10 +118,10 @@ export class IntakeService {
           nutrient_name: nutrientName,
           gender: this.mapGender(gender),
           age_min: {
-            lte: BigInt(age),
+            lte: Number(age),
           },
           age_max: {
-            gte: BigInt(age),
+            gte: Number(age),
           },
         },
       });
