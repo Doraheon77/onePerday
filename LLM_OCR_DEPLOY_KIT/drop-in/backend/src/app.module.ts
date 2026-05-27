@@ -11,7 +11,6 @@ import { ChatbotModule } from './chatbot/chatbot.module';
 import { LabelRecognitionModule } from './label-recognition/label-recognition.module';
 import { SupplementSearchService } from './supplement-search.service';
 import { PrismaService } from './prisma/prisma.service';
-import { RecommendModule } from './recommend/recommend.module';
 
 @Module({
   imports: [
@@ -21,7 +20,6 @@ import { RecommendModule } from './recommend/recommend.module';
     AuthModule,
     IntakeModule,
     ConflictModule,
-    RecommendModule,
     ChatbotModule,
     LabelRecognitionModule,
   ],

@@ -1,9 +1,10 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:simcap/features/store/presentation/supplement_detail_screen.dart';
+import 'package:simcap/services/api_config.dart';
 
 class StoreApiService {
-  static const String baseUrl = 'http://10.0.2.2:3000';
+  static const String baseUrl = ApiConfig.baseUrl;
 
   Future<List<StoreProduct>> fetchSupplements({
     String? keyword,

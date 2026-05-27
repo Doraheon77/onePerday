@@ -10,6 +10,8 @@ import 'package:simcap/features/cabinet/domain/dataModels/supplement_model.dart'
 import 'package:simcap/features/store/data/store_product_data.dart';
 import 'package:simcap/features/store/presentation/supplement_detail_screen.dart';
 import 'package:simcap/features/cabinet/presentation/supplement_info_screen.dart';
+import 'dart:async';
+import 'package:simcap/services/store_api_service.dart';
 
 /// 통합 스캔 결과
 class ScanResult {
@@ -436,7 +438,10 @@ class _BarcodeScanScreenState extends State<BarcodeScanScreen> {
 
   void _showSearchSheet() {
     final searchController = TextEditingController();
-    List<StoreProduct> results = List.from(allProducts);
+    List<StoreProduct> results = [];
+    bool sheetLoading = false;
+    bool isInit = false;
+    Timer? debounce;
 
     showModalBottomSheet(
       context: context,
@@ -446,127 +451,187 @@ class _BarcodeScanScreenState extends State<BarcodeScanScreen> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (sheetCtx) => StatefulBuilder(
-        builder: (ctx, setSheetState) => DraggableScrollableSheet(
-          initialChildSize: 0.75,
-          minChildSize: 0.5,
-          maxChildSize: 0.95,
-          expand: false,
-          builder: (_, scrollController) => Column(
-            children: [
-              Container(
-                margin: const EdgeInsets.only(top: 12, bottom: 8),
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade300,
-                  borderRadius: BorderRadius.circular(2),
+        builder: (ctx, setSheetState) {
+          // 최초 시트 진입 시 전체 영양제 목록 API 조회
+          if (!isInit) {
+            isInit = true;
+            sheetLoading = true;
+            StoreApiService().fetchSupplements().then((apiResults) {
+              if (ctx.mounted) {
+                setSheetState(() {
+                  results = apiResults;
+                  sheetLoading = false;
+                });
+              }
+            }).catchError((e) {
+              if (ctx.mounted) {
+                setSheetState(() {
+                  results = List.from(allProducts);
+                  sheetLoading = false;
+                });
+              }
+            });
+          }
+
+          return DraggableScrollableSheet(
+            initialChildSize: 0.75,
+            minChildSize: 0.5,
+            maxChildSize: 0.95,
+            expand: false,
+            builder: (_, scrollController) => Column(
+              children: [
+                Container(
+                  margin: const EdgeInsets.only(top: 12, bottom: 8),
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
                 ),
-              ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 4, 20, 12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      '영양제 검색',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: searchController,
-                      autofocus: true,
-                      decoration: InputDecoration(
-                        hintText: '제품명 또는 브랜드명 검색',
-                        prefixIcon: const Icon(
-                          Icons.search,
-                          color: Colors.grey,
-                        ),
-                        filled: true,
-                        fillColor: Colors.grey.shade100,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide.none,
-                        ),
-                        contentPadding: const EdgeInsets.symmetric(
-                          vertical: 12,
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 4, 20, 12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        '영양제 검색',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
                         ),
                       ),
-                      onChanged: (val) {
-                        setSheetState(() {
-                          results = val.isEmpty
-                              ? List.from(allProducts)
-                              : allProducts
-                                    .where(
-                                      (p) =>
-                                          p.name.contains(val) ||
-                                          p.brand.contains(val),
-                                    )
-                                    .toList();
-                        });
-                      },
-                    ),
-                  ],
-                ),
-              ),
-              const Divider(height: 1),
-              Expanded(
-                child: results.isEmpty
-                    ? const Center(
-                        child: Text(
-                          '검색 결과가 없습니다',
-                          style: TextStyle(color: Colors.grey),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: searchController,
+                        autofocus: true,
+                        decoration: InputDecoration(
+                          hintText: '제품명 또는 브랜드명 검색',
+                          prefixIcon: const Icon(
+                            Icons.search,
+                            color: Colors.grey,
+                          ),
+                          filled: true,
+                          fillColor: Colors.grey.shade100,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide.none,
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(
+                            vertical: 12,
+                          ),
                         ),
-                      )
-                    : ListView.separated(
-                        controller: scrollController,
-                        itemCount: results.length,
-                        separatorBuilder: (_, __) => const Divider(height: 1),
-                        itemBuilder: (_, i) {
-                          final p = results[i];
-                          return ListTile(
-                            leading: Container(
-                              width: 44,
-                              height: 44,
-                              decoration: const BoxDecoration(
-                                color: AppColors.primaryLight,
-                                shape: BoxShape.circle,
-                              ),
-                              child: const Icon(
-                                Icons.medication_rounded,
-                                color: AppColors.primary,
-                                size: 22,
-                              ),
-                            ),
-                            title: Text(
-                              p.name,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            subtitle: Text(
-                              p.brand,
-                              style: TextStyle(
-                                color: Colors.grey[500],
-                                fontSize: 12,
-                              ),
-                            ),
-                            onTap: () {
-                              Navigator.pop(sheetCtx);
-                              context.push(
-                                '/cabinet/info',
-                                extra: p.toSupplement(),
-                              );
-                            },
-                          );
+                        onChanged: (val) {
+                          if (debounce?.isActive ?? false) debounce?.cancel();
+                          debounce = Timer(const Duration(milliseconds: 300), () async {
+                            if (!ctx.mounted) return;
+                            setSheetState(() {
+                              sheetLoading = true;
+                            });
+                            try {
+                              final apiResults = await StoreApiService().fetchSupplements(keyword: val);
+                              if (ctx.mounted) {
+                                setSheetState(() {
+                                  results = apiResults;
+                                  sheetLoading = false;
+                                });
+                              }
+                            } catch (e) {
+                              if (ctx.mounted) {
+                                setSheetState(() {
+                                  // 에러 발생 시 로컬 하드코딩 리스트로 Fallback
+                                  results = val.isEmpty
+                                      ? List.from(allProducts)
+                                      : allProducts
+                                            .where(
+                                              (p) =>
+                                                  p.name.toLowerCase().contains(val.toLowerCase()) ||
+                                                  p.brand.toLowerCase().contains(val.toLowerCase()),
+                                            )
+                                            .toList();
+                                  sheetLoading = false;
+                                });
+                              }
+                            }
+                          });
                         },
                       ),
-              ),
-            ],
-          ),
-        ),
+                    ],
+                  ),
+                ),
+                const Divider(height: 1),
+                Expanded(
+                  child: sheetLoading
+                      ? const Center(
+                          child: CircularProgressIndicator(color: AppColors.primary),
+                        )
+                      : results.isEmpty
+                          ? const Center(
+                              child: Text(
+                                '검색 결과가 없습니다',
+                                style: TextStyle(color: Colors.grey),
+                              ),
+                            )
+                          : ListView.separated(
+                              controller: scrollController,
+                              itemCount: results.length,
+                              separatorBuilder: (_, __) => const Divider(height: 1),
+                              itemBuilder: (_, i) {
+                                final p = results[i];
+                                return ListTile(
+                                  leading: Container(
+                                    width: 44,
+                                    height: 44,
+                                    decoration: const BoxDecoration(
+                                      color: AppColors.primaryLight,
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: p.imageUrl != null && p.imageUrl!.isNotEmpty
+                                        ? ClipOval(
+                                            child: Image.network(
+                                              p.imageUrl!,
+                                              fit: BoxFit.cover,
+                                              errorBuilder: (context, error, stackTrace) => const Icon(
+                                                Icons.medication_rounded,
+                                                color: AppColors.primary,
+                                                size: 22,
+                                              ),
+                                            ),
+                                          )
+                                        : const Icon(
+                                            Icons.medication_rounded,
+                                            color: AppColors.primary,
+                                            size: 22,
+                                          ),
+                                  ),
+                                  title: Text(
+                                    p.name,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  subtitle: Text(
+                                    p.brand,
+                                    style: TextStyle(
+                                      color: Colors.grey[500],
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                  onTap: () {
+                                    Navigator.pop(sheetCtx);
+                                    context.push(
+                                      '/cabinet/info',
+                                      extra: p.toSupplement(),
+                                    );
+                                  },
+                                );
+                              },
+                            ),
+                ),
+              ],
+            ),
+          );
+        },
       ),
     );
   }

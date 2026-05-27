@@ -11,6 +11,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:portone_flutter/v1.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:simcap/services/api_config.dart';
 
 // 스토어 상품 데이터 모델
 // TODO: 백엔드 연동 후 API 응답 모델로 교체
@@ -27,6 +28,8 @@ class StoreProduct {
   final String? imageUrl;
   final int dailyDose; // 1회 복용량
   final int dailyFrequency; // 하루 복용 횟수
+  final String? servingWeight;
+  final String? totalWeight;
 
   const StoreProduct({
     required this.id,
@@ -41,6 +44,8 @@ class StoreProduct {
     this.imageUrl,
     this.dailyDose = 1,
     this.dailyFrequency = 1,
+    this.servingWeight,
+    this.totalWeight,
   });
 
   factory StoreProduct.fromJson(Map<String, dynamic> json) {
@@ -66,6 +71,21 @@ class StoreProduct {
           .toList();
     }
 
+    int parsedDose = 1;
+    if (json['serving_size'] != null) {
+      parsedDose = (double.tryParse(json['serving_size'].toString()) ?? 1.0).round();
+    } else if (json['dailyDose'] != null) {
+      parsedDose = int.tryParse(json['dailyDose'].toString()) ?? 1;
+    }
+
+    int parsedFrequency = 1;
+    if (json['daily_servings'] != null) {
+      final freqStr = json['daily_servings'].toString().replaceAll(RegExp(r'[^0-9]'), '');
+      parsedFrequency = int.tryParse(freqStr) ?? 1;
+    } else if (json['dailyFrequency'] != null) {
+      parsedFrequency = int.tryParse(json['dailyFrequency'].toString()) ?? 1;
+    }
+
     return StoreProduct(
       id: json['id']?.toString() ?? '',
       name: json['product_name'] ?? json['name'] ?? '',
@@ -80,19 +100,33 @@ class StoreProduct {
       similarProducts: [],
       purchaseUrl: json['shop_url'],
       imageUrl: json['image_url'],
+      dailyDose: parsedDose,
+      dailyFrequency: parsedFrequency,
+      servingWeight: json['serving_weight']?.toString(),
+      totalWeight: json['total_weight']?.toString(),
     );
   }
 
   /// StoreProduct → Supplement 변환
   /// 스토어 상품을 캐비닛에 추가할 때 사용
   Supplement toSupplement() {
+    int calculatedPills = 0;
+    if (totalWeight != null && servingWeight != null) {
+      final totalMg = _parseWeightToMg(totalWeight);
+      final servingMg = _parseWeightToMg(servingWeight);
+      if (totalMg != null && servingMg != null && servingMg > 0) {
+        calculatedPills = (totalMg / servingMg).round();
+      }
+    }
+
     return Supplement(
       name: name,
       brand: brand,
-      remaining: 0,
-      total: 0,
+      remaining: calculatedPills,
+      total: calculatedPills,
       dailyDose: dailyDose,
       dailyFrequency: dailyFrequency,
+      imageUrl: imageUrl,
       nutrients: nutrients
           .map(
             (n) => Nutrient(
@@ -108,6 +142,48 @@ class StoreProduct {
           : '이 영양제는 정해진 시간에 복용하는 것이 좋습니다.',
       aiSummary: '리뷰를 분석 중입니다.',
     );
+  }
+
+  static double? _parseWeightToMg(String? weightStr) {
+    if (weightStr == null || weightStr.isEmpty) return null;
+    final cleaned = weightStr.replaceAll(RegExp(r'\s+'), '').toLowerCase();
+    
+    // 정수 및 실수를 파싱하는 정규식
+    final regExp = RegExp(r'^([0-9.]+)([a-zμ]+)$');
+    final match = regExp.firstMatch(cleaned);
+    
+    if (match == null) {
+      final fallbackRegExp = RegExp(r'([0-9.]+)\s*([a-zA-Zμ]+)');
+      final fallbackMatch = fallbackRegExp.firstMatch(cleaned);
+      if (fallbackMatch == null) return null;
+      
+      final val = double.tryParse(fallbackMatch.group(1) ?? '');
+      final unit = fallbackMatch.group(2) ?? '';
+      if (val == null) return null;
+      return _convertToMg(val, unit);
+    }
+    
+    final val = double.tryParse(match.group(1) ?? '');
+    final unit = match.group(2) ?? '';
+    if (val == null) return null;
+    return _convertToMg(val, unit);
+  }
+
+  static double _convertToMg(double val, String unit) {
+    switch (unit) {
+      case 'g':
+        return val * 1000.0;
+      case 'mg':
+        return val;
+      case 'mcg':
+      case 'μg':
+      case 'ug':
+        return val / 1000.0;
+      case 'kg':
+        return val * 1000000.0;
+      default:
+        return val;
+    }
   }
 }
 
@@ -867,7 +943,7 @@ class _SupplementDetailScreenState extends State<SupplementDetailScreen> {
   }) async {
     try {
       // TODO: 실제 서버 주소로 교체
-      final url = Uri.parse('http://10.0.2.2:3000/api/payment/verify');
+      final url = Uri.parse('${ApiConfig.baseUrl}/api/payment/verify');
       final response = await http
           .post(
             url,

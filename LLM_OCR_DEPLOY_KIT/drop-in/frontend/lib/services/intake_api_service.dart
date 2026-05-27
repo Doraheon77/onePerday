@@ -3,31 +3,20 @@ import 'package:http/http.dart' as http;
 import 'package:simcap/services/api_config.dart';
 
 class IntakeApiService {
-  static const String baseUrl = ApiConfig.baseUrl;
-
   Future<List<IntakeResult>> checkOverdoseByCartItems({
     required List<dynamic> cartItems,
     required int age,
     required String gender,
   }) async {
     final response = await http.post(
-      Uri.parse('$baseUrl/intake/check-safety'),
-      headers: {'Content-Type': 'application/json'},
+      Uri.parse('${ApiConfig.baseUrl}/intake/check-safety'),
+      headers: {
+        'Content-Type': 'application/json',
+      },
       body: jsonEncode({
         'age': age,
         'gender': gender,
-        'cartItems': cartItems.map((item) {
-          if (item is Map<String, dynamic>) {
-            return item;
-          }
-
-          return {
-            'productId': item.productId,
-            'name': item.name,
-            'brand': item.brand,
-            'count': item.count,
-          };
-        }).toList(),
+        'cartItems': cartItems.map(_cartItemToJson).toList(),
       }),
     );
 
@@ -42,13 +31,29 @@ class IntakeApiService {
         .map((e) => IntakeResult.fromJson(e as Map<String, dynamic>))
         .toList();
   }
+
+  Map<String, dynamic> _cartItemToJson(dynamic item) {
+    if (item is Map) {
+      return {
+        'productId': item['productId'],
+        'name': item['name'],
+        'brand': item['brand'],
+        'count': item['count'] ?? 1,
+      };
+    }
+
+    return {
+      'productId': item.productId,
+      'name': item.name,
+      'brand': item.brand,
+      'count': item.count,
+    };
+  }
 }
 
 class IntakeResult {
   final String nutrientName;
   final double currentTotal;
-  final double recommendedIntake;
-  final double adequateIntake;
   final double upperLimit;
   final bool isExceeded;
   final String unit;
@@ -57,8 +62,6 @@ class IntakeResult {
   IntakeResult({
     required this.nutrientName,
     required this.currentTotal,
-    required this.recommendedIntake,
-    required this.adequateIntake,
     required this.upperLimit,
     required this.isExceeded,
     required this.unit,
@@ -69,10 +72,8 @@ class IntakeResult {
     return IntakeResult(
       nutrientName: json['nutrientName'] ?? '',
       currentTotal: (json['currentTotal'] ?? 0).toDouble(),
-      recommendedIntake: (json['recommendedIntake'] ?? 0).toDouble(),
-      adequateIntake: (json['adequateIntake'] ?? 0).toDouble(),
       upperLimit: (json['upperLimit'] ?? 0).toDouble(),
-      isExceeded: json['isExceeded'] ?? json['status'] == 'danger',
+      isExceeded: json['isExceeded'] ?? false,
       unit: json['unit'] ?? '',
       status: json['status'] ?? 'safe',
     );

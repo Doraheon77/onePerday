@@ -1,8 +1,9 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:simcap/services/api_config.dart';
 
 class ConflictApiService {
-  static const String baseUrl = 'http://10.0.2.2:3000';
+  static const String baseUrl = ApiConfig.baseUrl;
 
   Future<List<ConflictCheckResult>> checkConflictsBySupplementIds({
     required List<int> supplementIds,
