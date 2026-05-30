@@ -53,7 +53,7 @@ export class RecommendService {
     // 1. 사용자 건강 정보 조회 (users_info 테이블 사용)
     let userInfo: any = null;
     try {
-      userInfo = await this.prisma.users_info.findUnique({
+      userInfo = await this.prisma.usersInfo.findUnique({
         where: { id: userId },
       });
     } catch (error) {
@@ -108,7 +108,7 @@ export class RecommendService {
         price: { not: null }, // 가격이 NULL인 항목 제외
         ...(avoidList.length > 0 && {
           NOT: {
-            supplements_ingredients: {
+            ingredients: {
               some: {
                 OR: avoidList.map((ingredient) => ({
                   ingredient_name: { contains: ingredient },
@@ -119,7 +119,7 @@ export class RecommendService {
         }),
       },
       include: {
-        supplements_ingredients: true, // 점수 계산을 위해 성분 정보 가져오기
+        ingredients: true, // 점수 계산을 위해 성분 정보 가져오기
       },
     });
 
@@ -129,7 +129,7 @@ export class RecommendService {
 
       const productName = supplement.product_name || '';
       const brandName = supplement.brand_name || '';
-      const ingredients = supplement.supplements_ingredients.map(
+      const ingredients = supplement.ingredients.map(
         (i) => i.ingredient_name || '',
       );
 
@@ -150,7 +150,7 @@ export class RecommendService {
     // health_goals(목표 ID) 기반 가점 대상 성분 추출
     if (userInfo.health_goals && Array.isArray(userInfo.health_goals)) {
       // DB에서 실시간으로 영양성분 가이드 테이블 전체 조회
-      const guides = await this.prisma.nutrient_guide.findMany();
+      const guides = await this.prisma.nutrientGuide.findMany();
 
       for (const goalId of userInfo.health_goals) {
         const idStr = goalId.toString();
@@ -175,7 +175,7 @@ export class RecommendService {
     const recommendedList = safeSupplements.map((supplement) => {
       const productName = supplement.product_name || '';
       const brandName = supplement.brand_name || '';
-      const ingredients = supplement.supplements_ingredients.map(
+      const ingredients = supplement.ingredients.map(
         (i) => i.ingredient_name || '',
       );
 
@@ -212,7 +212,7 @@ export class RecommendService {
     });
 
     const enrichedRecommendations = topRecommendations.map((product) => {
-      const mappedIngredients = product.supplements_ingredients.map((ing) => {
+      const mappedIngredients = product.ingredients.map((ing) => {
         const std = standards.find((s) => s.nutrient_name === ing.ingredient_name);
         const dri = std?.recommended_intake || std?.adequate_intake || std?.avg_requirement || null;
         const amount = ing.amount || 0;
@@ -230,7 +230,7 @@ export class RecommendService {
 
       return {
         ...product,
-        supplements_ingredients: mappedIngredients,
+        ingredients: mappedIngredients,
       };
     });
 

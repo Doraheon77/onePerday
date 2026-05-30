@@ -160,13 +160,13 @@ export class ConflictService {
           },
         },
         include: {
-          supplements_ingredients: true,
+          ingredients: true,
         },
       });
 
       const dbConflicts: Conflict[] = selectedSupplements.map((s) => ({
         name: s.product_name,
-        ingredients: s.supplements_ingredients
+        ingredients: s.ingredients
           .map((si) => si.ingredient_name?.trim())
           .filter(Boolean) as string[],
       }));

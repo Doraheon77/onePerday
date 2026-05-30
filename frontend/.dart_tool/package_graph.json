@@ -10,6 +10,7 @@
         "camera",
         "cupertino_icons",
         "flutter",
+        "flutter_lints",
         "flutter_local_notifications",
         "flutter_localizations",
         "flutter_riverpod",
@@ -59,6 +60,13 @@
         "stream_channel",
         "test_api",
         "vector_math"
+      ]
+    },
+    {
+      "name": "flutter_lints",
+      "version": "6.0.0",
+      "dependencies": [
+        "lints"
       ]
     },
     {
@@ -1530,6 +1538,11 @@
         "meta",
         "pub_semver"
       ]
+    },
+    {
+      "name": "lints",
+      "version": "6.1.0",
+      "dependencies": []
     }
   ],
   "configVersion": 1

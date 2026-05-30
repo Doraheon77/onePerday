@@ -87,6 +87,7 @@ class StoreProduct {
   /// 스토어 상품을 캐비닛에 추가할 때 사용
   Supplement toSupplement() {
     return Supplement(
+      supplementId: id,
       name: name,
       brand: brand,
       remaining: 0,
@@ -335,7 +336,7 @@ class _SupplementDetailScreenState extends State<SupplementDetailScreen> {
   }
 
   /// 캐비닛에 추가
-  void _addToCabinet(BuildContext context) {
+  Future<void> _addToCabinet(BuildContext context) async {
     final notifier = SupplementProvider.of(context);
 
     // 이미 있으면 추가 안 함
@@ -349,7 +350,10 @@ class _SupplementDetailScreenState extends State<SupplementDetailScreen> {
       return;
     }
 
-    notifier.addSupplement(widget.product.toSupplement());
+    await notifier.addSupplement(
+      widget.product.toSupplement(),
+      backendSupplementId: widget.product.id,
+    );
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(

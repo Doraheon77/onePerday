@@ -9,15 +9,13 @@ import 'package:simcap/core/constant/app_constants.dart';
 import 'package:simcap/features/cabinet/domain/dataModels/supplement_model.dart';
 import 'package:simcap/features/cabinet/presentation/barcode_scan_screen.dart';
 import 'package:simcap/features/cabinet/widgets/drum_roll_time_picker.dart';
+import 'package:simcap/services/auth_service.dart';
+import 'package:simcap/services/cabinet_api_service.dart';
 
-// ── 탭 인덱스 상수 ───────────────────────────────────────────────────────────
-// 0: 영양제 촬영  /  1: 직접 검색
 const int _tabLabel = 0;
 const int _tabManual = 1;
 
 class AddSupplementScreen extends StatefulWidget {
-  /// 편집 모드: 기존 영양제 전달 시 폼에 데이터 자동 입력
-  /// null이면 신규 등록 모드
   final Supplement? initialItem;
 
   const AddSupplementScreen({super.key, this.initialItem});
@@ -29,7 +27,7 @@ class AddSupplementScreen extends StatefulWidget {
 class _AddSupplementScreenState extends State<AddSupplementScreen>
     with SingleTickerProviderStateMixin {
   late final TabController _tabController;
-  int _selectedTab = _tabLabel; // 초기: 라벨 촬영
+  int _selectedTab = _tabLabel;
 
   bool _isLoadingOCR = false;
   File? _selectedImage;
@@ -40,12 +38,14 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
   final _nameController = TextEditingController();
   final _brandController = TextEditingController();
   final _nutrientController = TextEditingController();
-  int _dailyDose = 1; // 1회 복용량
-  int _dailyFrequency = 1; // 하루 복용 횟수
-  bool _isEditMode = false; // 수정 모드 여부
-  List<TimeOfDay> _alarmTimes = []; // 사용자 지정 알림 시간
+  int _dailyDose = 1;
+  int _dailyFrequency = 1;
+  bool _isEditMode = false;
+  List<TimeOfDay> _alarmTimes = [];
   final _remainingController = TextEditingController();
   final _totalController = TextEditingController();
+
+  int? _supplementId;
 
   @override
   void initState() {
@@ -56,7 +56,6 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
         setState(() => _selectedTab = _tabController.index);
       });
 
-    // 편집 모드: 기존 데이터로 폼 초기화 + 직접 입력 탭으로 고정
     final item = widget.initialItem;
     if (item != null) {
       _isEditMode = true;
@@ -69,13 +68,13 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
       _dailyFrequency = item.dailyFrequency;
       _alarmTimes = List.from(item.alarmTimes);
       _totalController.text = item.total.toString();
-      // 전체 개수 입력 시 잔여 개수 비어있으면 자동 반영
+
       _totalController.addListener(() {
         if (_remainingController.text.isEmpty) {
           setState(() => _remainingController.text = _totalController.text);
         }
       });
-      // 편집 모드는 직접 입력 탭으로 시작
+
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _tabController.animateTo(_tabManual);
       });
@@ -93,7 +92,6 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
     super.dispose();
   }
 
-  // OCR 처리
   Future<void> _processOCR(File imageFile) async {
     setState(() => _isLoadingOCR = true);
     try {
@@ -114,11 +112,17 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
 
         if (!mounted) return;
         setState(() {
+          _supplementId = int.tryParse(
+            result['supplementId']?.toString() ??
+                result['id']?.toString() ??
+                '',
+          );
+
           _nameController.text = result['productName'] ?? '알 수 없는 영양제';
           _brandController.text = result['brandName'] ?? '알 수 없는 브랜드';
-          _nutrientController.text = result['nutrients'] ?? '비타민C, 비타민D, 아연';
+          _nutrientController.text =
+              result['nutrients']?.toString() ?? '비타민C, 비타민D, 아연';
           _isLoadingOCR = false;
-          // OCR 완료 → 직접 입력 탭으로 자동 이동
           _tabController.animateTo(_tabManual);
         });
       } else {
@@ -138,7 +142,6 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
     }
   }
 
-  // 이미지 선택
   Future<void> _navigateToScan() async {
     final result = await context.push<ScanResult>('/cabinet/scan');
     if (result == null || !mounted) return;
@@ -179,9 +182,13 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
     await _processOCR(imageFile);
   }
 
-  // ── 수량 조절 ─────────────────────────────────────────────────────────────
-  // ── 등록 ─────────────────────────────────────────────────────────────────
-  void _onRegister() {
+  String _toTimeString(TimeOfDay time) {
+    final h = time.hour.toString().padLeft(2, '0');
+    final m = time.minute.toString().padLeft(2, '0');
+    return '$h:$m';
+  }
+
+  Future<void> _onRegister() async {
     final name = _nameController.text.trim();
     if (name.isEmpty) {
       setState(() => _showNameError = true);
@@ -195,7 +202,6 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
       return;
     }
 
-    // 알림 시간 필수 검증 — 모든 회차 설정 확인
     if (_alarmTimes.length < _dailyFrequency) {
       final remaining = _dailyFrequency - _alarmTimes.length;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -212,15 +218,39 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
       return;
     }
 
+    final user = AuthService().currentUser;
+    if (user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('로그인이 필요합니다.'),
+          backgroundColor: AppColors.danger,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    if (_supplementId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('영양제 ID를 찾을 수 없습니다. 다시 검색해주세요.'),
+          backgroundColor: AppColors.danger,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    final remainingCount = int.tryParse(_remainingController.text) ?? 0;
+    final totalCount =
+        int.tryParse(_totalController.text) ?? remainingCount;
+
     final newSupplement = Supplement(
       name: name,
       brand: _brandController.text.trim(),
       imagePath: _selectedImage?.path,
-      remaining: int.tryParse(_remainingController.text) ?? 0,
-      total:
-          int.tryParse(_totalController.text) ??
-          int.tryParse(_remainingController.text) ??
-          0,
+      remaining: remainingCount,
+      total: totalCount,
       dailyDose: _dailyDose,
       dailyFrequency: _dailyFrequency,
       alarmTimes: _alarmTimes,
@@ -235,13 +265,31 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
       aiSummary: '분석 데이터 준비 중',
     );
 
-    FocusManager.instance.primaryFocus?.unfocus();
-    if (mounted) Navigator.pop(context, newSupplement);
+    try {
+      await CabinetApiService().createCabinetItem(
+        userUuid: user.id,
+        supplementId: _supplementId!,
+        dailyDose: _dailyDose,
+        dailyFrequency: _dailyFrequency,
+        stockCount: remainingCount,
+        totalCount: totalCount,
+        alarmTimes: _alarmTimes.map(_toTimeString).toList(),
+      );
+
+      FocusManager.instance.primaryFocus?.unfocus();
+      if (mounted) Navigator.pop(context, newSupplement);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('캐비닛 저장 실패: $e'),
+          backgroundColor: AppColors.danger,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
   }
 
-  // ════════════════════════════════════════════════════════════════════════
-  //  BUILD
-  // ════════════════════════════════════════════════════════════════════════
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -249,9 +297,7 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
       appBar: _buildAppBar(),
       body: Column(
         children: [
-          // ── 상단 탭바 (수정 모드에서는 숨김) ────────────────────
           if (!_isEditMode) ...[_buildTabBar(), const Divider(height: 1)],
-          // ── 탭 콘텐츠 ───────────────────────────────────────────────
           Expanded(
             child: AnimatedSwitcher(
               duration: const Duration(milliseconds: 250),
@@ -276,7 +322,6 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
     );
   }
 
-  // ── AppBar ──────────────────────────────────────────────────────────────
   PreferredSizeWidget _buildAppBar() {
     final isEditMode = widget.initialItem != null;
     const tabTitles = ['영양제 촬영', '직접 검색'];
@@ -298,7 +343,6 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
     );
   }
 
-  // ── 탭바 ────────────────────────────────────────────────────────────────
   Widget _buildTabBar() {
     return Container(
       color: Colors.white,
@@ -325,7 +369,6 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
     );
   }
 
-  // ── 탭 콘텐츠 분기 ──────────────────────────────────────────────────────
   Widget _buildTabContent() {
     switch (_selectedTab) {
       case _tabLabel:
@@ -337,9 +380,6 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
     }
   }
 
-  // ════════════════════════════════════════════════════════════════════════
-  //  탭 0 — 영양제 촬영
-  // ════════════════════════════════════════════════════════════════════════
   Widget _buildLabelTab() {
     return SingleChildScrollView(
       key: const ValueKey('label'),
@@ -347,7 +387,6 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
         child: Column(
           children: [
-            // 라벨 프리뷰 / 촬영 유도 카드
             GestureDetector(
               onTap: _isLoadingOCR ? null : _navigateToScan,
               child: AnimatedContainer(
@@ -374,13 +413,11 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
                 child: _isLoadingOCR
                     ? _buildOCRLoading()
                     : _selectedImage != null
-                    ? _buildImagePreviewInCard()
-                    : _buildLabelGuide(),
+                        ? _buildImagePreviewInCard()
+                        : _buildLabelGuide(),
               ),
             ),
             const SizedBox(height: 24),
-
-            // 카메라 / 갤러리 버튼 행
             if (!_isLoadingOCR) ...[
               Row(
                 children: [
@@ -404,7 +441,6 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
                 ],
               ),
               const SizedBox(height: 16),
-              // 선택된 이미지 있을 때 재선택 안내
               if (_selectedImage != null)
                 TextButton(
                   onPressed: () => setState(() => _selectedImage = null),
@@ -447,7 +483,6 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
           style: TextStyle(fontSize: 13, color: Colors.grey[500]),
         ),
         const SizedBox(height: 16),
-        // 촬영 가이드 힌트
         _buildHintChip('영양제 라벨이 선명하게 보이도록 촬영하세요'),
       ],
     );
@@ -461,7 +496,6 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
           borderRadius: BorderRadius.circular(22),
           child: Image.file(_selectedImage!, fit: BoxFit.cover),
         ),
-        // 어두운 오버레이 + 분석 완료 뱃지
         Positioned(
           bottom: 12,
           left: 12,
@@ -567,18 +601,12 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
     );
   }
 
-  // ════════════════════════════════════════════════════════════════════════
-  //  탭 1 — 바코드 스캔
-  // ════════════════════════════════════════════════════════════════════════
   Widget _buildManualTab() {
     return ListView(
       key: const ValueKey('manual'),
       padding: const EdgeInsets.all(20),
       children: [
-        // OCR/바코드로 이미지 선택된 경우 미리보기 표시
         if (_selectedImage != null) _buildSelectedImagePreview(),
-
-        // 바코드 인식 결과 뱃지
         _buildSectionTitle('기본 정보'),
         _buildInputField(
           '제품명',
@@ -593,15 +621,12 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
           isMultiLine: true,
           readOnly: true,
         ),
-
         const SizedBox(height: 24),
         _buildSectionTitle('복용 및 수량'),
         _buildReadOnlyInfoRow('1회 복용량', '$_dailyDose정'),
         _buildReadOnlyInfoRow('하루 복용 횟수', '${_dailyFrequency}회'),
-
         const SizedBox(height: 8),
         _buildAlarmTimesSection(),
-
         const SizedBox(height: 12),
         _buildRemainingQuantitySection(),
         const SizedBox(height: 40),
@@ -609,8 +634,6 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
     );
   }
 
-  // 바코드 인식 결과 뱃지 (직접 입력 탭 상단)
-  // 수정 불가 정보 표시 위젯
   Widget _buildReadOnlyInfoRow(String label, String value) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -662,7 +685,6 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
               style: const TextStyle(fontWeight: FontWeight.w500),
             ),
           ),
-          // 감소 버튼
           GestureDetector(
             onTap: () {
               if (value > 1) onChanged(value - 1);
@@ -684,7 +706,6 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
             ),
           ),
           const SizedBox(width: 12),
-          // 숫자 표시
           Container(
             width: 44,
             height: 36,
@@ -703,7 +724,6 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
             ),
           ),
           const SizedBox(width: 12),
-          // 증가 버튼
           GestureDetector(
             onTap: () {
               if (value < 99) onChanged(value + 1);
@@ -723,7 +743,6 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
     );
   }
 
-  // ── 알림 시간 설정 섹션 ────────────────────────────────────────────────
   Widget _buildAlarmTimesSection() {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -784,8 +803,8 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
               final label = _dailyFrequency == 1
                   ? (isSet ? _formatTime(_alarmTimes[i]) : '알림 시간 설정하기')
                   : (isSet
-                        ? '${i + 1}회차 · ${_formatTime(_alarmTimes[i])}'
-                        : '알림 시간${i + 1} 설정하기');
+                      ? '${i + 1}회차 · ${_formatTime(_alarmTimes[i])}'
+                      : '알림 시간${i + 1} 설정하기');
 
               return GestureDetector(
                 onTap: () => _pickAlarmTime(i),
@@ -829,8 +848,8 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
             _alarmTimes.isEmpty
                 ? '알림 시간을 설정해주세요.'
                 : _alarmTimes.length < _dailyFrequency
-                ? '나머지 알림 시간도 설정해주세요.'
-                : '알림 시간을 탭하면 변경할 수 있습니다.',
+                    ? '나머지 알림 시간도 설정해주세요.'
+                    : '알림 시간을 탭하면 변경할 수 있습니다.',
             style: TextStyle(fontSize: 11, color: Colors.grey[500]),
           ),
         ],
@@ -862,7 +881,6 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
   }
 
   Future<void> _pickAlarmTime(int index) async {
-    // 초기 시간: 이미 설정된 경우 해당 시간, 아니면 오전 9시
     final initial = index < _alarmTimes.length
         ? _alarmTimes[index]
         : const TimeOfDay(hour: 9, minute: 0);
@@ -888,8 +906,8 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
     final h = time.hour == 0
         ? 12
         : time.hour <= 12
-        ? time.hour
-        : time.hour - 12;
+            ? time.hour
+            : time.hour - 12;
     final m = time.minute.toString().padLeft(2, '0');
     return '$period $h:$m';
   }
@@ -929,9 +947,8 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
                   backgroundColor: Colors.white,
                   labelStyle: TextStyle(
                     color: isSelected ? AppColors.primary : Colors.black54,
-                    fontWeight: isSelected
-                        ? FontWeight.bold
-                        : FontWeight.normal,
+                    fontWeight:
+                        isSelected ? FontWeight.bold : FontWeight.normal,
                   ),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(10),
@@ -1000,7 +1017,7 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
     bool isNumber = false,
     bool hasError = false,
     bool readOnly = false,
-    bool editable = false, // 수정 가능 필드 강조 (회색 배경)
+    bool editable = false,
   }) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),

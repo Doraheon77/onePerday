@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:simcap/core/constant/app_constants.dart';
-import 'package:simcap/features/cabinet/domain/dataModels/supplement_model.dart';
-import 'package:simcap/providers/supplement_provider.dart';
+import 'package:simcap/services/auth_service.dart';
+import 'package:simcap/services/reminder_api_service.dart';
 
 class NotificationSheet extends StatelessWidget {
   const NotificationSheet({super.key});
@@ -21,104 +21,119 @@ class NotificationSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final notifier = SupplementProvider.of(context);
-    final supplements = notifier.supplements;
+    final user = AuthService().currentUser;
 
-    // 오늘 미복용 회차 목록 (영양제 + 회차 인덱스)
-    final List<({Supplement s, int index, TimeOfDay? time})> undoneTodayList =
-        [];
-    final today = DateTime.now();
-    for (final s in supplements) {
-      if (s.remaining <= 0) continue; // 소진 영양제 제외
-      for (int i = 0; i < s.dailyFrequency; i++) {
-        if (!notifier.isDoneOnIndex(s.id, today, i)) {
-          final time = s.alarmTimes.length > i ? s.alarmTimes[i] : null;
-          undoneTodayList.add((s: s, index: i, time: time));
-        }
-      }
-    }
-
-    // 잔여량 7정 이하 (재구매 필요)
-    final List<Supplement> lowStockList = supplements
-        .where((s) => s.remaining <= AppConstants.lowStockThreshold)
-        .toList();
-
-    final bool isEmpty = undoneTodayList.isEmpty && lowStockList.isEmpty;
+    final remindersFuture = user == null
+        ? Future<ReminderData>.value(
+            ReminderData(doseReminders: [], stockReminders: []),
+          )
+        : ReminderApiService().fetchTodayReminders(userUuid: user.id);
 
     return Container(
       padding: const EdgeInsets.all(24),
       height: MediaQuery.of(context).size.height * 0.6,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // 헤더
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      child: FutureBuilder<ReminderData>(
+        future: remindersFuture,
+        builder: (context, snapshot) {
+          final data = snapshot.data;
+          final doseList = data?.doseReminders ?? [];
+          final stockList = data?.stockReminders ?? [];
+          final bool isEmpty = doseList.isEmpty && stockList.isEmpty;
+          final int count = doseList.length + stockList.length;
+
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // 헤더
               Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text(
-                    '알림',
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                  ),
-                  if (!isEmpty) ...[
-                    const SizedBox(width: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 2,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.redAccent,
-                        borderRadius: BorderRadius.circular(99),
-                      ),
-                      child: Text(
-                        '${undoneTodayList.length + lowStockList.length}',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 12,
+                  Row(
+                    children: [
+                      const Text(
+                        '알림',
+                        style: TextStyle(
+                          fontSize: 20,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-                    ),
-                  ],
-                ],
-              ),
-              IconButton(
-                onPressed: () => Navigator.pop(context),
-                icon: const Icon(Icons.close),
-              ),
-            ],
-          ),
-          const Divider(height: 30),
-
-          Expanded(
-            child: isEmpty
-                ? _buildEmptyState()
-                : ListView(
-                    children: [
-                      // 섹션 1: 오늘 미복용 알림
-                      if (undoneTodayList.isNotEmpty) ...[
-                        _buildSectionLabel('오늘 복용 알림', Icons.medication_liquid),
-                        ...undoneTodayList.map(
-                          (item) =>
-                              _buildPillItem(item.s, item.index, item.time),
+                      if (!isEmpty) ...[
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.redAccent,
+                            borderRadius: BorderRadius.circular(99),
+                          ),
+                          child: Text(
+                            '$count',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                         ),
-                        const SizedBox(height: 8),
-                      ],
-
-                      // 섹션 2: 재구매 필요 알림
-                      if (lowStockList.isNotEmpty) ...[
-                        _buildSectionLabel(
-                          '재구매 알림',
-                          Icons.shopping_bag_outlined,
-                        ),
-                        ...lowStockList.map((s) => _buildStockItem(context, s)),
                       ],
                     ],
                   ),
-          ),
-        ],
+                  IconButton(
+                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(Icons.close),
+                  ),
+                ],
+              ),
+              const Divider(height: 30),
+
+              Expanded(
+                child: snapshot.connectionState == ConnectionState.waiting
+                    ? const Center(child: CircularProgressIndicator())
+                    : snapshot.hasError
+                        ? const Center(
+                            child: Text(
+                              '알림을 불러오지 못했어요.',
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: Colors.black54,
+                              ),
+                            ),
+                          )
+                        : isEmpty
+                            ? _buildEmptyState()
+                            : ListView(
+                                children: [
+                                  // 섹션 1: 오늘 미복용 알림
+                                  if (doseList.isNotEmpty) ...[
+                                    _buildSectionLabel(
+                                      '오늘 복용 알림',
+                                      Icons.medication_liquid,
+                                    ),
+                                    ...doseList.map(
+                                      (item) => _buildPillItem(item),
+                                    ),
+                                    const SizedBox(height: 8),
+                                  ],
+
+                                  // 섹션 2: 재구매 필요 알림
+                                  if (stockList.isNotEmpty) ...[
+                                    _buildSectionLabel(
+                                      '재구매 알림',
+                                      Icons.shopping_bag_outlined,
+                                    ),
+                                    ...stockList.map(
+                                      (item) =>
+                                          _buildStockItem(context, item),
+                                    ),
+                                  ],
+                                ],
+                              ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -146,21 +161,10 @@ class NotificationSheet extends StatelessWidget {
   }
 
   // 미복용 알림 카드
-  Widget _buildPillItem(Supplement s, int doseIndex, TimeOfDay? time) {
-    String timeLabel = '';
-    if (time != null) {
-      final isPm = time.hour >= 12;
-      final h = time.hour == 0
-          ? 12
-          : (time.hour > 12 ? time.hour - 12 : time.hour);
-      final m = time.minute.toString().padLeft(2, '0');
-      timeLabel = '${isPm ? "오후" : "오전"} $h:$m';
-    }
-    final doseLabel = s.dailyFrequency > 1
-        ? ' (${doseIndex + 1}회차${timeLabel.isNotEmpty ? " · $timeLabel" : ""})'
-        : timeLabel.isNotEmpty
-        ? ' · $timeLabel'
-        : '';
+  Widget _buildPillItem(DoseReminder item) {
+    final timeLabel = _formatTimeString(item.supplementTime);
+    final doseLabel =
+        ' (${item.doseIndex + 1}회차${timeLabel.isNotEmpty ? " · $timeLabel" : ""})';
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -188,7 +192,7 @@ class NotificationSheet extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  '[${s.name}]을(를) 아직 복용하지 않으셨어요!',
+                  '[${item.supplementName}]을(를) 아직 복용하지 않으셨어요!',
                   style: const TextStyle(fontSize: 13, color: Colors.black87),
                 ),
               ],
@@ -200,9 +204,9 @@ class NotificationSheet extends StatelessWidget {
   }
 
   // 재구매 알림 카드
-  Widget _buildStockItem(BuildContext context, Supplement s) {
-    final int? daysLeft = s.daysUntilEmpty;
-    final bool isCritical = s.remaining <= AppConstants.criticalStockThreshold;
+  Widget _buildStockItem(BuildContext context, StockReminder item) {
+    final bool isCritical =
+        item.stockCount <= AppConstants.criticalStockThreshold;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -232,7 +236,7 @@ class NotificationSheet extends StatelessWidget {
                       style: TextStyle(fontWeight: FontWeight.bold),
                     ),
                     // D-Day 배지
-                    if (daysLeft != null)
+                    if (item.daysLeft != null)
                       Container(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 7,
@@ -245,7 +249,9 @@ class NotificationSheet extends StatelessWidget {
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: Text(
-                          daysLeft <= 0 ? '오늘 소진' : 'D-$daysLeft',
+                          item.daysLeft! <= 0
+                              ? '오늘 소진'
+                              : 'D-${item.daysLeft}',
                           style: const TextStyle(
                             fontSize: 10,
                             fontWeight: FontWeight.bold,
@@ -257,7 +263,7 @@ class NotificationSheet extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  '[${s.name}]이(가) ${s.remaining}정 남았습니다.',
+                  '[${item.supplementName}]이(가) ${item.stockCount}정 남았습니다.',
                   style: const TextStyle(fontSize: 13, color: Colors.black87),
                 ),
                 const SizedBox(height: 8),
@@ -297,6 +303,24 @@ class NotificationSheet extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  String _formatTimeString(String value) {
+    if (value.isEmpty) return '';
+
+    final parts = value.split(':');
+    if (parts.length < 2) return value;
+
+    final hour = int.tryParse(parts[0]);
+    final minute = int.tryParse(parts[1]);
+
+    if (hour == null || minute == null) return value;
+
+    final isPm = hour >= 12;
+    final displayHour = hour == 0 ? 12 : (hour > 12 ? hour - 12 : hour);
+    final displayMinute = minute.toString().padLeft(2, '0');
+
+    return '${isPm ? "오후" : "오전"} $displayHour:$displayMinute';
   }
 
   // 알림 없음 상태

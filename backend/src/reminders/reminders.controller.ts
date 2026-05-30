@@ -1,7 +1,5 @@
-import { Controller, Post, Body } from '@nestjs/common';
-import { IntakeService } from './intake.service';
-import { CheckIntakeDto } from './dto/check-intake.dto';
-import { CompleteIntakeDto } from './dto/complete-intake.dto';
+import { Controller, Get, Param } from '@nestjs/common';
+import { RemindersService } from './reminders.service';
 
 type JsonValue =
   | string
@@ -40,27 +38,13 @@ function serializeBigInt(value: unknown): JsonValue {
   return null;
 }
 
-@Controller('intake')
-export class IntakeController {
-  constructor(private readonly intakeService: IntakeService) {}
+@Controller('reminders')
+export class RemindersController {
+  constructor(private readonly remindersService: RemindersService) {}
 
-  @Post('check-safety')
-  async checkSafety(@Body() dto: CheckIntakeDto) {
-    const analysis = await this.intakeService.checkOverdose(dto);
-    const hasWarning = analysis.some(
-      (item) => item.status === 'warning' || item.status === 'danger',
-    );
-
-    return {
-      success: true,
-      hasWarning,
-      results: analysis,
-    };
-  }
-
-  @Post('complete')
-  async complete(@Body() dto: CompleteIntakeDto) {
-    const data = await this.intakeService.completeIntake(dto);
+  @Get('today/:userUuid')
+  async getTodayReminders(@Param('userUuid') userUuid: string) {
+    const data = await this.remindersService.getTodayReminders(userUuid);
 
     return {
       success: true,

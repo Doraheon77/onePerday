@@ -50,6 +50,16 @@ class _CabinetScreenState extends State<CabinetScreen> {
   final TextEditingController _searchController = TextEditingController();
 
   @override
+  void initState() {
+    super.initState();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      SupplementProvider.of(context).loadCabinetFromServer();
+    });
+  }
+
+  @override
   void dispose() {
     _searchController.dispose();
     super.dispose();

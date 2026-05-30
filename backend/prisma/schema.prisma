@@ -448,7 +448,7 @@ model users {
   sessions                    sessions[]
   webauthn_challenges         webauthn_challenges[]
   webauthn_credentials        webauthn_credentials[]
-  users_info                  UsersInfo?  @relation("UsersToUsersInfo")
+  users_info                  UsersInfo?             @relation("UsersToUsersInfo")
 
   @@index([instance_id])
   @@index([is_anonymous])
@@ -491,266 +491,234 @@ model webauthn_credentials {
   @@schema("auth")
 }
 
-// =============================================
-// 사용자 정보
-// =============================================
-
 model UsersInfo {
-  id           String   @id @db.Uuid
-  name         String?  @db.Text
-  gender       String?  @db.Text
-  birth_year   Int?
-  health_goals Int[]
-  conditions   Int[]
-  allergies    Int[]
-  special_notes Int[]
-  created_at   DateTime @default(now()) @db.Timestamptz
-
-  // Relations
-  users                users?                @relation("UsersToUsersInfo", fields: [id], references: [id])
-  supplement_inventory SupplementInventory[]
+  name                 String?
+  gender               String?
+  birth_year           Int?
+  health_goals         BigInt[]
+  conditions           BigInt[]
+  created_at           DateTime              @default(now()) @db.Timestamptz(6)
+  id                   String                @id @db.Uuid
+  allergies            BigInt[]
+  special_notes        BigInt[]
   daily_supplements    DailySupplements[]
-  purchases            Purchase[]
+  supplement_inventory SupplementInventory[]
+  users                users                 @relation("UsersToUsersInfo", fields: [id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   @@map("users_info")
   @@schema("public")
 }
 
-// =============================================
-// 영양제
-// =============================================
-
 model Supplements {
-  product_name     String  @unique @db.Text
-  category         String? @db.Text
-  brand_name       String? @db.Text
-  reference_amount String? @db.Text
-  serving_size     Float?
-  serving_unit     String? @db.Text
-  serving_weight   String? @db.Text
-  daily_servings   String? @db.Text
-  total_weight     String? @db.Text
-  manufacturer     String? @db.Text
-  origin           String? @db.Text
-  image_url        String? @db.Text
-  shop_url         String? @db.Text
-  price            String? @db.Text
-  id               String  @id @db.Text
-
-  // Relations
+  product_name         String                   @unique(map: "supplements_name_unique")
+  category             String?
+  brand_name           String?
+  reference_amount     String?
+  serving_size         Float?
+  serving_unit         String?
+  serving_weight       String?
+  daily_servings       String?
+  total_weight         String?
+  manufacturer         String?
+  origin               String?
+  id                   BigInt                   @id @default(autoincrement())
+  image_url            String?
+  shop_url             String?
+  price                BigInt?
+  supplement_inventory SupplementInventory[]
   ingredients          SupplementsIngredients[]
-  purchases            Purchase[]
-  supplements_test     SupplementsTest[]
 
   @@map("supplements")
-  @@schema("public")  
+  @@schema("public")
 }
 
 model SupplementsIngredients {
-  product_name    String?  @db.Text
-  ingredient_name String  @db.Text
+  product_name    String?
+  ingredient_name String?
   amount          Float?
-  unit            String? @db.Text
-  id              String  @id @db.Text
-
-  // Relations
-  supplement Supplements? @relation(fields: [product_name], references: [product_name])
+  unit            String?
+  id              Int          @id @default(autoincrement())
+  supplement      Supplements? @relation(fields: [product_name], references: [product_name], onDelete: Cascade, onUpdate: NoAction)
 
   @@map("supplements_ingredients")
   @@schema("public")
 }
 
 model SupplementsTemp {
-  product_name     String? @db.Text
-  category         String? @db.Text
-  brand_name       String? @db.Text
-  reference_amount String? @db.Text
+  product_name     String?
+  category         String?
+  brand_name       String?
+  reference_amount String?
   serving_size     Float?
-  serving_unit     String? @db.Text
-  serving_weight   String? @db.Text
-  daily_servings   String? @db.Text
-  total_weight     String? @db.Text
-  manufacturer     String? @db.Text
-  origin           String? @db.Text
-  image_url        String? @db.Text
-  shop_url         String? @db.Text
-  price            String? @db.Text
-  id               String  @id @db.Text
+  serving_unit     String?
+  serving_weight   String?
+  daily_servings   String?
+  total_weight     String?
+  manufacturer     String?
+  origin           String?
+  image_url        String?
+  shop_url         String?
+  price            BigInt?
+  id               BigInt  @id @default(autoincrement())
 
   @@map("supplements_temp")
   @@schema("public")
 }
 
 model SupplementsTest {
-  product_name     String? @db.Text
-  category         String? @db.Text
-  brand_name       String? @db.Text
-  reference_amount String? @db.Text
+  product_name     String  @unique(map: "supplements_test_식품명_key")
+  category         String?
+  brand_name       String?
+  reference_amount String?
   serving_size     Float?
-  serving_unit     String? @db.Text
-  serving_weight   String? @db.Text
-  daily_servings   String? @db.Text
-  total_weight     String? @db.Text
-  manufacturer     String? @db.Text
-  origin           String? @db.Text
-  image_url        String? @db.Text
-  shop_url         String? @db.Text
-  price            String? @db.Text
-  id               String  @id @db.Text
-
-  // Relations
-  supplement Supplements? @relation(fields: [product_name], references: [product_name])
+  serving_unit     String?
+  serving_weight   String?
+  daily_servings   String?
+  total_weight     String?
+  manufacturer     String?
+  origin           String?
+  id               BigInt  @id @default(autoincrement())
+  image_url        String?
+  shop_url         String?
+  price            BigInt?
 
   @@map("supplements_test")
   @@schema("public")
 }
 
-// =============================================
-// 영양제 성분 기준
-// =============================================
-
 model NutrientGuide {
-  nutrient_name String? @db.Text
-  target_area   String? @db.Text
-  source        String? @db.Text
-  id            String  @id @db.Text
+  nutrient_name String?
+  target_area   String[]
+  source        String?
+  id            BigInt   @id @default(autoincrement())
 
   @@map("nutrient_guide")
   @@schema("public")
 }
 
-model NutrientStandards {
-  gender             String? @db.Text
-  age_min            Int?
-  age_max            Int?
-  state              String? @db.Text
-  nutrient_name      String? @db.Text
-  avg_requirement    Float?
-  recommended_intake Float?
-  adequate_intake    Float?
-  upper_limit        Float?
-  id                 String  @id @db.Text
-
-  @@map("nutrientstandards")
-  @@schema("public")
-}
-
 model EnergyRatioStandards {
-  gender   String? @db.Text
-  age_min  Int?
-  age_max  Int?
-  carbs_min Int?
-  carbs_max Int?
-  protein_min Int?
-  protein_max Int?
-  fat_min  Int?
-  fat_max  Int?
-  saturated_fat_min Int?
-  saturated_fat_max Int?
-  trans_fat_min     Int?
-  trans_fat_max     Int?
-  id       String  @id @db.Text
+  gender            String?
+  age_min           BigInt?
+  age_max           BigInt?
+  carbs_min         BigInt?
+  carbs_max         BigInt?
+  protein_min       BigInt?
+  protein_max       BigInt?
+  fat_min           BigInt?
+  fat_max           BigInt?
+  saturated_fat_min BigInt?
+  saturated_fat_max BigInt?
+  trans_fat_min     BigInt?
+  trans_fat_max     BigInt?
+  id                BigInt  @id @default(autoincrement())
 
   @@map("energy_ratio_standards")
   @@schema("public")
 }
 
-// =============================================
-// 마스터 테이블
-// =============================================
-
 model HealthGoalsList {
-  id         String   @id @db.Text
-  name       String?  @db.Text
-  label_ko   String?  @db.Text
-  created_at DateTime @default(now()) @db.Timestamptz
+  id         Int      @id @default(autoincrement())
+  name       String   @unique
+  label_ko   String
+  created_at DateTime @default(now()) @db.Timestamptz(6)
 
   @@map("health_goals_list")
   @@schema("public")
 }
 
 model ConditionsList {
-  id         String   @id @db.Text
-  name       String?  @db.Text
-  label_ko   String?  @db.Text
-  created_at DateTime @default(now()) @db.Timestamptz
+  id         Int      @id @default(autoincrement())
+  name       String   @unique
+  label_ko   String
+  created_at DateTime @default(now()) @db.Timestamptz(6)
 
   @@map("conditions_list")
   @@schema("public")
 }
 
 model AllergiesList {
-  id         String   @id @db.Text
-  name       String?  @db.Text
-  label_ko   String?  @db.Text
-  created_at DateTime @default(now()) @db.Timestamptz
+  id         Int      @id @default(autoincrement())
+  name       String   @unique
+  label_ko   String
+  created_at DateTime @default(now()) @db.Timestamptz(6)
 
   @@map("allergies_list")
   @@schema("public")
 }
 
 model SpecialNotesList {
-  id         String   @id @db.Text
-  name       String?  @db.Text
-  label_ko   String?  @db.Text
-  created_at DateTime @default(now()) @db.Timestamptz
+  id         Int      @id @default(autoincrement())
+  name       String   @unique
+  label_ko   String
+  created_at DateTime @default(now()) @db.Timestamptz(6)
 
   @@map("special_notes_list")
   @@schema("public")
 }
 
-// =============================================
-// 복용 관리
-// =============================================
-
 model SupplementInventory {
-  user_uuid   String  @db.Uuid
-  is_current  String? @db.Text
-  stock_count String? @db.Text
-  status      String? @db.Text
+  id                BigInt             @id @default(autoincrement())
+  user_uuid         String             @db.Uuid
+  supplement_id     BigInt
+  daily_dose        Int?               @default(1)
+  daily_frequency   Int?               @default(1)
+  stock_count       Int?               @default(0)
+  total_count       Int?               @default(0)
+  alarm_times       Json?              @default("[]")
+  status            String?            @default("active")
+  created_at        DateTime?          @default(now()) @db.Timestamp(6)
+  daily_supplements DailySupplements[]
+  supplements       Supplements        @relation(fields: [supplement_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  user              UsersInfo          @relation(fields: [user_uuid], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
-  // Relations
-  user UsersInfo @relation(fields: [user_uuid], references: [id])
-
-  @@id([user_uuid])
   @@map("supplement_inventory")
   @@schema("public")
 }
 
 model DailySupplements {
-  user_uuid       String  @db.Uuid
-  id              String  @db.Text
-  date            DateTime? @db.Date
-  supplement_time String? @db.Text
+  id                   BigInt              @id @default(autoincrement())
+  user_uuid            String              @db.Uuid
+  inventory_id         BigInt
+  date                 DateTime            @db.Date
+  dose_index           Int?                @default(0)
+  supplement_time      String?
+  is_taken             Boolean?            @default(false)
+  taken_at             DateTime?           @db.Timestamp(6)
+  supplement_inventory SupplementInventory @relation(fields: [inventory_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  user                 UsersInfo           @relation(fields: [user_uuid], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
-  // Relations
-  user UsersInfo @relation(fields: [user_uuid], references: [id])
-
-  @@id([user_uuid, id])
   @@map("daily_supplements")
   @@schema("public")
 }
 
-// =============================================
-// 구매 기록
-// =============================================
-
 model Purchase {
-  id            String   @id @db.Text
-  supplement_id String?  @db.Text
-  gender        String?  @db.Text
-  birth_year    Int?
-  pregnant      String?  @db.Text
-
-  // Relations
-  user_uuid     String? @db.Uuid 
-  user          UsersInfo? @relation(fields: [user_uuid], references: [id])
-
-  supplement Supplements? @relation(fields: [supplement_id], references: [id])
+  id            BigInt  @id @default(autoincrement())
+  supplement_id BigInt
+  gender        String?
+  birth_year    BigInt?
+  pregnant      String?
 
   @@map("purchase")
   @@schema("public")
 }
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model nutrientStandards {
+  gender             String?
+  age_min            BigInt?
+  age_max            BigInt?
+  state              String?
+  nutrient_name      String?
+  avg_requirement    Float?
+  recommended_intake Float?
+  adequate_intake    Float?
+  upper_limit        Float?
+  id                 BigInt  @id @default(autoincrement())
+
+  @@schema("public")
+}
+
 enum aal_level {
   aal1
   aal2
