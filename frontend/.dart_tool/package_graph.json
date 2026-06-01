@@ -389,6 +389,11 @@
       ]
     },
     {
+      "name": "lints",
+      "version": "6.1.0",
+      "dependencies": []
+    },
+    {
       "name": "state_notifier",
       "version": "1.0.0",
       "dependencies": [
@@ -1538,11 +1543,6 @@
         "meta",
         "pub_semver"
       ]
-    },
-    {
-      "name": "lints",
-      "version": "6.1.0",
-      "dependencies": []
     }
   ],
   "configVersion": 1

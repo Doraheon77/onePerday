@@ -97,7 +97,12 @@ class AuthService {
     required List<String> allergies,
     required List<String> healthGoals,
   }) async {
-    final user = supabase.auth.currentUser;
+    var user = supabase.auth.currentUser;
+
+    if (user == null){
+      await supabase.auth.refreshSession();
+      user = supabase.auth.currentUser;
+    }
 
     if (user == null) {
       throw Exception('로그인된 사용자가 없습니다.');
@@ -126,6 +131,7 @@ class AuthService {
       'conditions': conditionIds,
       'allergies': allergyIds,
       'health_goals': goalIds,
+      'special_notes': <int>[],
     });
 
   }
