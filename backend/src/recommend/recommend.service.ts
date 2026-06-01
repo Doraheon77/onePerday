@@ -218,11 +218,11 @@ export class RecommendService {
     // 6. 유저 연령/성별 기반 일일 권장량(dailyPercent) 계산 추가
     const currentYear = new Date().getFullYear();
     const userAge = userInfo.birth_year ? currentYear - userInfo.birth_year : 30;
-    const userGender = userInfo.gender || '남자';
+    const mappedGender = this.mapGender(userInfo.gender);
 
     const standards = await this.prisma.nutrientStandards.findMany({
       where: {
-        gender: userGender,
+        gender: mappedGender,
         age_min: { lte: userAge },
         age_max: { gte: userAge },
       }
@@ -284,5 +284,20 @@ export class RecommendService {
     }
 
     return score;
+  }
+
+  /**
+   * 유저 프로필 성별('남성'/'여성')을 데이터베이스 표준 성별('남자'/'여자')로 매핑
+   */
+  private mapGender(gender: string | null): string {
+    if (!gender) return '남자';
+    const g = gender.trim();
+    if (g === '남성' || g === '남자' || g.toLowerCase() === 'male' || g.toLowerCase() === 'm') {
+      return '남자';
+    }
+    if (g === '여성' || g === '여자' || g.toLowerCase() === 'female' || g.toLowerCase() === 'f') {
+      return '여자';
+    }
+    return '남자'; // 기본값 폴백
   }
 }

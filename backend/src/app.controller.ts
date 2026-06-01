@@ -36,7 +36,9 @@ export class AppController {
     }
 
     const userAge = age ? parseInt(age, 10) : 30;
-    const userGender = gender ? gender : '남자';
+    let userGender = gender ? gender : '남자';
+    if (userGender === '남성') userGender = '남자';
+    else if (userGender === '여성') userGender = '여자';
 
     const categories = categoriesStr ? categoriesStr.split(',').filter(c => c.trim().length > 0) : [];
     const ingredients = ingredientsStr ? ingredientsStr.split(',').filter(i => i.trim().length > 0) : [];
