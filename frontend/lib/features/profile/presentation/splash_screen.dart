@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:go_router/go_router.dart';
 import 'package:simcap/services/auth_service.dart';
 
@@ -30,11 +31,17 @@ class _SplashScreenState extends State<SplashScreen> {
       return;
     }
 
+    final prefs = await SharedPreferences.getInstance();
+    final termsAgreed = prefs.getBool('termsAgreed') ?? false;
+    if (!mounted) return;
+    if (!termsAgreed) {
+      context.go('/terms');
+      return;
+    }
+
     try {
       final hasUserInfo = await _authService.hasUserInfo();
-
       if (!mounted) return;
-
       if (hasUserInfo) {
         context.go('/home');
       } else {
@@ -53,9 +60,7 @@ class _SplashScreenState extends State<SplashScreen> {
   Widget build(BuildContext context) {
     return const Scaffold(
       backgroundColor: Colors.white,
-      body: Center(
-        child: CircularProgressIndicator(),
-      ),
+      body: Center(child: CircularProgressIndicator()),
     );
   }
 }

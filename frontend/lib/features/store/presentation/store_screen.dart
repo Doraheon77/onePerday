@@ -67,7 +67,8 @@ class _StoreScreenState extends State<StoreScreen> {
       // Supabase Auth 연동을 통한 로그인 사용자별 동적 UUID 로드 (비로그인 상태일 시 기존 하드코딩 UUID를 폴백으로 사용)
       final authService = AuthService();
       final user = authService.currentUser;
-      final String currentUserId = user?.id ?? 'bc49b355-8ea3-4e6e-9331-52d1d4c46d99';
+      final String currentUserId =
+          user?.id ?? 'bc49b355-8ea3-4e6e-9331-52d1d4c46d99';
 
       // [개선된 코드] 전체 리스트와 맞춤 추천 리스트를 동시에 조회
       final results = await Future.wait([
@@ -222,7 +223,7 @@ class _StoreScreenState extends State<StoreScreen> {
     final displayList = _recommendedProducts.take(3).toList();
 
     return SizedBox(
-      height: 180,
+      height: MediaQuery.of(context).size.width * 9 / 16,
       child: ListView.builder(
         padding: const EdgeInsets.symmetric(horizontal: 12),
         scrollDirection: Axis.horizontal,
@@ -320,7 +321,7 @@ class _StoreScreenState extends State<StoreScreen> {
           'categories': ['관절/뼈', '오메가3'],
           'ingredients': ['비타민C'],
           'priceRange': '5만원 이상',
-        }
+        },
       },
       {
         'label': '수험생',
@@ -329,7 +330,7 @@ class _StoreScreenState extends State<StoreScreen> {
           'categories': ['눈 건강', '면역'],
           'ingredients': ['비타민C'],
           'priceRange': '3~5만원',
-        }
+        },
       },
       {
         'label': '운동매니아',
@@ -337,7 +338,7 @@ class _StoreScreenState extends State<StoreScreen> {
         'extra': {
           'categories': ['단백질'],
           'ingredients': ['마그네슘'],
-        }
+        },
       },
       {
         'label': '직장인',
@@ -345,7 +346,7 @@ class _StoreScreenState extends State<StoreScreen> {
         'extra': {
           'categories': ['눈 건강'],
           'ingredients': ['밀크씨슬', '유산균'],
-        }
+        },
       },
     ];
 

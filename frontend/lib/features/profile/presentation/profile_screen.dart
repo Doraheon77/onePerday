@@ -145,7 +145,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           );
         }
       }
-    } 
+    }
   }
 
   // 생활 습관(흡연) 업데이트 함수 (생활 습관은 로컬 캐시에 저장되며 백엔드 추천 스코어링에는 영향을 주지 않으므로 로컬 저장소에 보관)
@@ -849,7 +849,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   // 내가 쓴 리뷰 섹션
   Widget _buildMyReviewsSection() {
-    const bool hasReviews = false;
+    final recentReviews = <dynamic>[];
+    final hasReviews = recentReviews.isNotEmpty;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -910,7 +911,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   // 구매 기록 섹션 — Provider 데이터 연동
   Widget _buildPurchaseHistorySection() {
     final purchases = SupplementProvider.of(context).purchases;
-    final recentPurchases = purchases.take(2).toList();
+    final recentPurchases = purchases.take(3).toList();
     final hasData = recentPurchases.isNotEmpty;
 
     return Column(
@@ -1505,4 +1506,105 @@ class _ProfileScreenState extends State<ProfileScreen> {
       onTap: onTap,
     );
   }
+
+  void _showPolicySheet(String type) {
+    final isTerms = type == 'terms';
+    final title = isTerms ? '서비스 이용 약관' : '개인정보 처리방침';
+    final content = isTerms ? _termsContent : _privacyContent;
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => DraggableScrollableSheet(
+        initialChildSize: 0.85,
+        minChildSize: 0.5,
+        maxChildSize: 0.95,
+        expand: false,
+        builder: (_, controller) => Column(
+          children: [
+            Container(
+              margin: const EdgeInsets.only(top: 12, bottom: 4),
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => Navigator.pop(ctx),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                  ),
+                ],
+              ),
+            ),
+            const Divider(height: 1),
+            Expanded(
+              child: SingleChildScrollView(
+                controller: controller,
+                padding: const EdgeInsets.all(20),
+                child: Text(
+                  content,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    height: 1.7,
+                    color: Colors.black87,
+                  ),
+                ),
+              ),
+            ),
+            Padding(
+              padding: EdgeInsets.fromLTRB(
+                20,
+                12,
+                20,
+                MediaQuery.of(ctx).padding.bottom + 16,
+              ),
+              child: SizedBox(
+                width: double.infinity,
+                height: 50,
+                child: ElevatedButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: const Text(
+                    '확인',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
+
+const String _termsContent =
+    '서비스 이용 약관\n\n제1조 (목적)\nOnePerDay 팀이 제공하는 서비스의 이용에 관한 사항을 규정합니다.\n\n제7조 (의학적 면책)\n본 서비스의 정보는 의료 전문가의 진단을 대체하지 않습니다.\n\n2026년 5월 28일부터 효력을 가집니다.';
+const String _privacyContent =
+    '개인정보 처리방침\n\n수집 항목: 소셜 연동 식별자, 닉네임, 이메일, 건강 정보(선택)\n보유 기간: 회원 탈퇴 시까지\n\n문의: support@oneperday.kr\n\n2026년 5월 28일부터 효력을 가집니다.';

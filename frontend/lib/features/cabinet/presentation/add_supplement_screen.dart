@@ -122,7 +122,9 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
           _tabController.animateTo(_tabManual);
         });
       } else {
-        throw Exception('Server responded with status code: ${response.statusCode}');
+        throw Exception(
+          'Server responded with status code: ${response.statusCode}',
+        );
       }
     } catch (e) {
       debugPrint('OCR Upload Error: $e');
@@ -182,6 +184,20 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
   // ── 수량 조절 ─────────────────────────────────────────────────────────────
   // ── 등록 ─────────────────────────────────────────────────────────────────
   void _onRegister() {
+    final remainingText = _remainingController.text.trim();
+    if (remainingText.isNotEmpty) {
+      final parsed = int.tryParse(remainingText);
+      if (parsed == null || parsed < 0) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('잔여 수량은 0 이상의 숫자만 입력 가능합니다.'),
+            backgroundColor: AppColors.danger,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        return;
+      }
+    }
     final name = _nameController.text.trim();
     if (name.isEmpty) {
       setState(() => _showNameError = true);

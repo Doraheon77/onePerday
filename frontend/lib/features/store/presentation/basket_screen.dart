@@ -3,6 +3,8 @@ import 'package:portone_flutter/v1.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:go_router/go_router.dart';
+import 'package:simcap/features/store/data/store_product_data.dart';
+import 'package:simcap/features/store/presentation/supplement_detail_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:simcap/core/constant/app_constants.dart';
 import 'package:simcap/providers/supplement_provider.dart';
@@ -536,19 +538,22 @@ class _BasketScreenState extends State<BasketScreen> {
 
       if (supplementIds.isNotEmpty) {
         final cabinetSuppsJson = notifier.supplements
-            .map((s) => {
-                  'name': s.name,
-                  'ingredients': s.nutrients.map((n) => n.name).toList(),
-                })
+            .map(
+              (s) => {
+                'name': s.name,
+                'ingredients': s.nutrients.map((n) => n.name).toList(),
+              },
+            )
             .toList();
 
         final conflictApi = ConflictApiService();
-        final backendConflicts = await conflictApi.checkConflictsBySupplementIds(
-          supplementIds: supplementIds,
-          cabinetSupplements: cabinetSuppsJson,
-          userHealth: userHealth,
-          userAllergies: userAllergies,
-        );
+        final backendConflicts = await conflictApi
+            .checkConflictsBySupplementIds(
+              supplementIds: supplementIds,
+              cabinetSupplements: cabinetSuppsJson,
+              userHealth: userHealth,
+              userAllergies: userAllergies,
+            );
 
         for (final conflict in backendConflicts) {
           results.add(
@@ -1280,7 +1285,29 @@ class _BasketScreenState extends State<BasketScreen> {
                 ),
                 onPressed: _isOrdering
                     ? null
-                    : () => _showPaymentMethodSheet(context),
+                    : () {
+                        final items = SupplementProvider.of(context).cartItems;
+                        if (items.isEmpty) return;
+                        final first = items.first;
+                        final matched = allProducts
+                            .where(
+                              (p) =>
+                                  p.id == first.productId ||
+                                  p.name == first.name,
+                            )
+                            .toList();
+                        final product = matched.isNotEmpty
+                            ? matched.first
+                            : StoreProduct(
+                                id: first.productId,
+                                name: first.name,
+                                brand: first.brand,
+                                price: first.price,
+                                description: '',
+                                nutrients: const [],
+                              );
+                        context.push('/store/purchase', extra: product);
+                      },
                 child: _isOrdering
                     ? const SizedBox(
                         width: 20,

@@ -12,6 +12,8 @@ import 'package:simcap/features/cabinet/presentation/barcode_scan_screen.dart';
 import 'package:simcap/features/cabinet/presentation/label_camera_screen.dart';
 import 'package:simcap/features/cabinet/domain/dataModels/supplement_model.dart';
 import 'package:simcap/features/profile/presentation/login_screen.dart';
+import 'package:simcap/features/profile/presentation/terms_agreement_screen.dart';
+import 'package:simcap/features/store/presentation/purchase_screen.dart';
 import 'package:simcap/features/profile/presentation/onboarding_survey_screen.dart';
 import 'package:simcap/features/profile/presentation/profile_screen.dart';
 import 'package:simcap/features/profile/presentation/purchase_history_screen.dart';
@@ -77,15 +79,16 @@ class AppRouter {
     navigatorKey: navigatorKey,
     initialLocation: '/splash',
     routes: [
-      GoRoute(
-        path: '/',
-        redirect:(context, state) => '/splash',
-      ),
+      GoRoute(path: '/', redirect: (context, state) => '/splash'),
       GoRoute(
         path: '/splash',
-        builder:(context, state) => const SplashScreen(),
+        builder: (context, state) => const SplashScreen(),
       ),
       GoRoute(path: '/login', builder: (context, state) => const LoginScreen()),
+      GoRoute(
+        path: '/terms',
+        builder: (context, state) => const TermsAgreementScreen(),
+      ),
       GoRoute(
         path: '/onboarding',
         builder: (context, state) => const OnboardingSurveyScreen(),
@@ -114,11 +117,16 @@ class AppRouter {
                   } else if (state.extra is Map<String, dynamic>) {
                     final map = state.extra as Map<String, dynamic>;
                     keyword = map['keyword'] as String? ?? '';
-                    initialCategories = (map['categories'] as List<dynamic>?)?.cast<String>() ?? [];
-                    initialIngredients = (map['ingredients'] as List<dynamic>?)?.cast<String>() ?? [];
+                    initialCategories =
+                        (map['categories'] as List<dynamic>?)?.cast<String>() ??
+                        [];
+                    initialIngredients =
+                        (map['ingredients'] as List<dynamic>?)
+                            ?.cast<String>() ??
+                        [];
                     initialPriceRange = map['priceRange'] as String?;
                   }
-                  
+
                   return _slideRight(
                     context,
                     state,
@@ -135,6 +143,17 @@ class AppRouter {
                 path: 'basket',
                 pageBuilder: (context, state) =>
                     _slideRight(context, state, const BasketScreen()),
+              ),
+              GoRoute(
+                path: 'purchase',
+                pageBuilder: (context, state) {
+                  final product = state.extra as StoreProduct;
+                  return _slideUp(
+                    context,
+                    state,
+                    PurchaseScreen(product: product),
+                  );
+                },
               ),
               GoRoute(
                 path: 'detail',
@@ -168,6 +187,17 @@ class AppRouter {
             path: '/cabinet',
             builder: (context, state) => const CabinetScreen(),
             routes: [
+              GoRoute(
+                path: 'purchase',
+                pageBuilder: (context, state) {
+                  final product = state.extra as StoreProduct;
+                  return _slideUp(
+                    context,
+                    state,
+                    PurchaseScreen(product: product),
+                  );
+                },
+              ),
               GoRoute(
                 path: 'detail',
                 pageBuilder: (context, state) {

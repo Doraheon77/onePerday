@@ -671,6 +671,30 @@ class _SupplementInfoScreenState extends State<SupplementInfoScreen> {
     );
   }
 
+  Widget _stepButton(String label, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 44,
+        height: 44,
+        decoration: BoxDecoration(
+          color: AppColors.primaryLight,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: AppColors.primary.withOpacity(0.3)),
+        ),
+        alignment: Alignment.center,
+        child: Text(
+          label,
+          style: const TextStyle(
+            color: AppColors.primary,
+            fontWeight: FontWeight.bold,
+            fontSize: 14,
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _subHeader(String title, String subtitle) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 6),

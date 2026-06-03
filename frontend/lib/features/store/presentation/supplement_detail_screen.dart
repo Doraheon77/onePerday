@@ -53,34 +53,43 @@ class StoreProduct {
     List<NutrientInfo> parsedNutrients = [];
     if (json['supplements_ingredients'] != null) {
       parsedNutrients = (json['supplements_ingredients'] as List)
-          .map((si) => NutrientInfo(
-                name: si['ingredient_name']?.toString() ?? '',
-                amount: double.tryParse(si['amount']?.toString() ?? '0') ?? 0.0,
-                unit: si['unit']?.toString() ?? '',
-                dailyPercent: double.tryParse(si['dailyPercent']?.toString() ?? '0') ?? 0.0,
-              ))
+          .map(
+            (si) => NutrientInfo(
+              name: si['ingredient_name']?.toString() ?? '',
+              amount: double.tryParse(si['amount']?.toString() ?? '0') ?? 0.0,
+              unit: si['unit']?.toString() ?? '',
+              dailyPercent:
+                  double.tryParse(si['dailyPercent']?.toString() ?? '0') ?? 0.0,
+            ),
+          )
           .toList();
     } else if (json['ingredients'] != null) {
       parsedNutrients = (json['ingredients'] as List)
-          .map((ing) => NutrientInfo(
-                name: ing.toString(),
-                amount: 0.0,
-                unit: '',
-                dailyPercent: 0.0,
-              ))
+          .map(
+            (ing) => NutrientInfo(
+              name: ing.toString(),
+              amount: 0.0,
+              unit: '',
+              dailyPercent: 0.0,
+            ),
+          )
           .toList();
     }
 
     int parsedDose = 1;
     if (json['serving_size'] != null) {
-      parsedDose = (double.tryParse(json['serving_size'].toString()) ?? 1.0).round();
+      parsedDose = (double.tryParse(json['serving_size'].toString()) ?? 1.0)
+          .round();
     } else if (json['dailyDose'] != null) {
       parsedDose = int.tryParse(json['dailyDose'].toString()) ?? 1;
     }
 
     int parsedFrequency = 1;
     if (json['daily_servings'] != null) {
-      final freqStr = json['daily_servings'].toString().replaceAll(RegExp(r'[^0-9]'), '');
+      final freqStr = json['daily_servings'].toString().replaceAll(
+        RegExp(r'[^0-9]'),
+        '',
+      );
       parsedFrequency = int.tryParse(freqStr) ?? 1;
     } else if (json['dailyFrequency'] != null) {
       parsedFrequency = int.tryParse(json['dailyFrequency'].toString()) ?? 1;
@@ -147,22 +156,22 @@ class StoreProduct {
   static double? _parseWeightToMg(String? weightStr) {
     if (weightStr == null || weightStr.isEmpty) return null;
     final cleaned = weightStr.replaceAll(RegExp(r'\s+'), '').toLowerCase();
-    
+
     // 정수 및 실수를 파싱하는 정규식
     final regExp = RegExp(r'^([0-9.]+)([a-zμ]+)$');
     final match = regExp.firstMatch(cleaned);
-    
+
     if (match == null) {
       final fallbackRegExp = RegExp(r'([0-9.]+)\s*([a-zA-Zμ]+)');
       final fallbackMatch = fallbackRegExp.firstMatch(cleaned);
       if (fallbackMatch == null) return null;
-      
+
       final val = double.tryParse(fallbackMatch.group(1) ?? '');
       final unit = fallbackMatch.group(2) ?? '';
       if (val == null) return null;
       return _convertToMg(val, unit);
     }
-    
+
     final val = double.tryParse(match.group(1) ?? '');
     final unit = match.group(2) ?? '';
     if (val == null) return null;
@@ -340,7 +349,7 @@ class _SupplementDetailScreenState extends State<SupplementDetailScreen> {
     return supplements.any((s) => s.name == widget.product.name);
   }
 
-   bool _hasOverdoseRiskWithCurrentProduct(BuildContext context) {
+  bool _hasOverdoseRiskWithCurrentProduct(BuildContext context) {
     final cabinets = SupplementProvider.of(context).supplements;
 
     final Map<String, double> totals = {};
@@ -412,33 +421,17 @@ class _SupplementDetailScreenState extends State<SupplementDetailScreen> {
 
   /// 캐비닛에 추가
   void _addToCabinet(BuildContext context) {
-    final notifier = SupplementProvider.of(context);
-
-    // 이미 있으면 추가 안 함
     if (_isAlreadyInCabinet(context)) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('${widget.product.name}은(는) 이미 캐비닛에 있습니다.'),
+          content: Text('\${widget.product.name}은(는) 이미 캐비닛에 있습니다.'),
           behavior: SnackBarBehavior.floating,
         ),
       );
       return;
     }
-
-    notifier.addSupplement(widget.product.toSupplement());
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('${widget.product.name}을(를) 캐비닛에 추가했습니다!'),
-        behavior: SnackBarBehavior.floating,
-        backgroundColor: AppColors.primary,
-        action: SnackBarAction(
-          label: '캐비닛 보기',
-          textColor: Colors.white,
-          onPressed: () => context.go('/cabinet'),
-        ),
-      ),
-    );
+    // 영양제 정보 페이지 거쳐서 등록 (복용 알림 설정 위함)
+    context.push('/cabinet/info', extra: widget.product.toSupplement());
   }
 
   // ── 결제 수단 선택 바텀시트 ──────────────────────────────────────────────
@@ -1988,7 +1981,7 @@ class _SupplementDetailScreenState extends State<SupplementDetailScreen> {
               ),
               onPressed: _isPaymentLoading
                   ? null
-                  : () => _showPaymentMethodSheet(context, p),
+                  : () => context.push('/store/purchase', extra: p),
               child: _isPaymentLoading
                   ? const SizedBox(
                       width: 18,

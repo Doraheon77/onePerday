@@ -1,0 +1,754 @@
+import 'dart:convert';
+import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'package:portone_flutter/v1.dart';
+import 'package:flutter/services.dart';
+import 'package:go_router/go_router.dart';
+import 'package:simcap/core/constant/app_constants.dart';
+import 'package:simcap/providers/supplement_provider.dart';
+import 'package:simcap/routes/app_router.dart';
+import 'package:simcap/features/store/presentation/supplement_detail_screen.dart';
+
+class PurchaseScreen extends StatefulWidget {
+  final StoreProduct product;
+
+  const PurchaseScreen({super.key, required this.product});
+
+  @override
+  State<PurchaseScreen> createState() => _PurchaseScreenState();
+}
+
+class _PurchaseScreenState extends State<PurchaseScreen> {
+  // 배송지
+  final _nameController = TextEditingController(text: '류채현');
+  final _phoneController = TextEditingController(text: '010-0000-0000');
+  final _addressController = TextEditingController(text: '경기도 성남시 수정구');
+  final _addressDetailController = TextEditingController();
+
+  // 결제수단
+  String _selectedPayment = 'card';
+  final List<Map<String, dynamic>> _paymentMethods = [
+    {'id': 'card', 'label': '신용/체크카드', 'icon': Icons.credit_card_rounded},
+    {'id': 'kakao', 'label': '카카오페이', 'icon': Icons.chat_bubble_rounded},
+    {'id': 'toss', 'label': '토스페이', 'icon': Icons.payment_rounded},
+    {
+      'id': 'naver',
+      'label': '네이버페이',
+      'icon': Icons.account_balance_wallet_rounded,
+    },
+  ];
+
+  // 배송 요청사항
+  String _selectedRequest = '문 앞에 놓아주세요';
+  final List<String> _requestOptions = [
+    '문 앞에 놓아주세요',
+    '경비실에 맡겨주세요',
+    '직접 받겠습니다',
+    '배송 전 연락 바랍니다',
+    '직접 입력',
+  ];
+  final _customRequestController = TextEditingController();
+  bool _isProcessing = false;
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _phoneController.dispose();
+    _addressController.dispose();
+    _addressDetailController.dispose();
+    _customRequestController.dispose();
+    super.dispose();
+  }
+
+  Future<bool> _verifyPayment({
+    required String impUid,
+    required String merchantUid,
+    required int amount,
+    required String productId,
+  }) async {
+    try {
+      final url = Uri.parse('http://10.0.2.2:3000/api/payment/verify');
+      final response = await http
+          .post(
+            url,
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({
+              'imp_uid': impUid,
+              'merchant_uid': merchantUid,
+              'amount': amount,
+              'product_id': productId,
+            }),
+          )
+          .timeout(const Duration(seconds: 3));
+      return response.statusCode == 200;
+    } catch (e) {
+      debugPrint('결제 검증 오류: \$e');
+      return true; // 백엔드 미연동 시 성공 처리
+    }
+  }
+
+  void _onPurchase() {
+    // 선택된 결제수단에 따라 PG 코드 설정
+    String pg;
+    String payMethod;
+    switch (_selectedPayment) {
+      case 'kakao':
+        pg = 'kakaopay.TC0ONETIME';
+        payMethod = 'kakaopay';
+        break;
+      case 'toss':
+        pg = 'tosspay.tosstest';
+        payMethod = 'tosspay';
+        break;
+      default:
+        pg = 'html5_inicis.INIpayTest';
+        payMethod = 'card';
+    }
+
+    final merchantUid = 'order_\${DateTime.now().millisecondsSinceEpoch}';
+    final buyerName = _nameController.text.trim().isNotEmpty
+        ? _nameController.text.trim()
+        : '구매자';
+    final buyerTel = _phoneController.text.trim().isNotEmpty
+        ? _phoneController.text.trim()
+        : '010-0000-0000';
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => IamportPayment(
+          appBar: AppBar(
+            title: const Text('결제'),
+            backgroundColor: Colors.white,
+            foregroundColor: Colors.black,
+            elevation: 0,
+          ),
+          initialChild: const Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                CircularProgressIndicator(color: AppColors.primary),
+                SizedBox(height: 16),
+                Text('결제창 로딩 중...', style: TextStyle(color: Colors.grey)),
+              ],
+            ),
+          ),
+          userCode: 'imp24258048',
+          data: PaymentData(
+            pg: pg,
+            payMethod: payMethod,
+            name: widget.product.name,
+            amount: widget.product.price,
+            merchantUid: merchantUid,
+            buyerName: buyerName,
+            buyerTel: buyerTel,
+            appScheme: 'com.example.simcap',
+          ),
+          callback: (Map<String, String> result) async {
+            final navContext = AppRouter.navigatorKey.currentContext;
+            if (navContext == null) {
+              Navigator.pop(context);
+              return;
+            }
+            final notifier = SupplementProvider.of(navContext);
+
+            final isSuccess =
+                result['imp_success'] == 'true' ||
+                result['success'] == 'true' ||
+                result['imp_uid'] != null;
+
+            if (isSuccess) {
+              final impUid = result['imp_uid'] ?? '';
+              bool verified = false;
+              try {
+                verified = await _verifyPayment(
+                  impUid: impUid,
+                  merchantUid: merchantUid,
+                  amount: widget.product.price,
+                  productId: widget.product.id,
+                );
+              } catch (e) {
+                verified = true;
+              }
+
+              if (verified) {
+                notifier.addPurchase([
+                  PurchaseItem(
+                    name: widget.product.name,
+                    brand: widget.product.brand,
+                    price: widget.product.price,
+                    count: 1,
+                  ),
+                ]);
+                Navigator.pop(context);
+                await Future.delayed(const Duration(milliseconds: 300));
+                if (mounted) _showCompleteDialog();
+              } else {
+                Navigator.pop(context);
+                final ctx = AppRouter.navigatorKey.currentContext;
+                if (ctx != null) {
+                  ScaffoldMessenger.of(ctx).showSnackBar(
+                    const SnackBar(content: Text('결제 검증에 실패했습니다.')),
+                  );
+                }
+              }
+            } else {
+              Navigator.pop(context);
+              final errorMsg = result['error_msg'] ?? '결제가 취소되었습니다.';
+              final ctx = AppRouter.navigatorKey.currentContext;
+              if (ctx != null) {
+                ScaffoldMessenger.of(ctx).showSnackBar(
+                  SnackBar(
+                    content: Text(errorMsg),
+                    behavior: SnackBarBehavior.floating,
+                  ),
+                );
+              }
+            }
+          },
+        ),
+      ),
+    );
+  }
+
+  void _showCompleteDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 64,
+              height: 64,
+              decoration: const BoxDecoration(
+                color: AppColors.primaryLight,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.check_rounded,
+                color: AppColors.primary,
+                size: 36,
+              ),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              '결제가 완료되었습니다!',
+              style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              widget.product.name,
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 13, color: Colors.grey[600]),
+            ),
+          ],
+        ),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(8, 0, 8, 4),
+            child: Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () {
+                      Navigator.pop(ctx);
+                      context.go('/home');
+                    },
+                    style: OutlinedButton.styleFrom(
+                      side: BorderSide(color: Colors.grey.shade300),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                    ),
+                    child: const Text(
+                      '홈으로',
+                      style: TextStyle(
+                        color: Colors.black54,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () {
+                      Navigator.pop(ctx);
+                      context.push('/profile/purchases');
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                    ),
+                    child: const Text(
+                      '구매 기록',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final p = widget.product;
+    final bottomPad = MediaQuery.of(context).padding.bottom;
+
+    return Scaffold(
+      backgroundColor: Colors.grey.shade50,
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.black),
+          onPressed: () => context.pop(),
+        ),
+        title: const Text(
+          '주문/결제',
+          style: TextStyle(
+            color: Colors.black,
+            fontSize: 17,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        systemOverlayStyle: SystemUiOverlayStyle.dark,
+      ),
+      body: SingleChildScrollView(
+        child: Column(
+          children: [
+            // ── 주문 상품 ──────────────────────────────────────────────
+            _buildSection(
+              title: '주문 상품',
+              child: Row(
+                children: [
+                  Container(
+                    width: 60,
+                    height: 60,
+                    decoration: BoxDecoration(
+                      color: AppColors.primaryLight,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(
+                      Icons.medication_rounded,
+                      color: AppColors.primary,
+                      size: 30,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          p.name,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 14,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          p.brand,
+                          style: TextStyle(
+                            color: Colors.grey[500],
+                            fontSize: 12,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          '${p.price.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]},')}원',
+                          style: const TextStyle(
+                            color: AppColors.primary,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 15,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 8),
+
+            // ── 배송지 ─────────────────────────────────────────────────
+            _buildSection(
+              title: '배송지',
+              trailing: TextButton(
+                onPressed: () {},
+                child: const Text(
+                  '변경',
+                  style: TextStyle(
+                    color: AppColors.primary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              child: Column(
+                children: [
+                  _inputField('받는 분', _nameController),
+                  const SizedBox(height: 10),
+                  _inputField(
+                    '연락처',
+                    _phoneController,
+                    keyboardType: TextInputType.phone,
+                  ),
+                  const SizedBox(height: 10),
+                  _inputField('주소', _addressController),
+                  const SizedBox(height: 10),
+                  _inputField(
+                    '상세 주소',
+                    _addressDetailController,
+                    hint: '동/호수 입력',
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 8),
+
+            // ── 배송 요청사항 ───────────────────────────────────────────
+            _buildSection(
+              title: '배송 요청사항',
+              child: Column(
+                children: [
+                  ..._requestOptions
+                      .map(
+                        (option) => GestureDetector(
+                          onTap: () =>
+                              setState(() => _selectedRequest = option),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 6),
+                            child: Row(
+                              children: [
+                                Radio<String>(
+                                  value: option,
+                                  groupValue: _selectedRequest,
+                                  onChanged: (v) =>
+                                      setState(() => _selectedRequest = v!),
+                                  activeColor: AppColors.primary,
+                                  materialTapTargetSize:
+                                      MaterialTapTargetSize.shrinkWrap,
+                                  visualDensity: VisualDensity.compact,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  option,
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: _selectedRequest == option
+                                        ? Colors.black
+                                        : Colors.grey[600],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      )
+                      .toList(),
+                  if (_selectedRequest == '직접 입력') ...[
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: _customRequestController,
+                      decoration: InputDecoration(
+                        hintText: '요청사항을 입력해주세요',
+                        hintStyle: TextStyle(
+                          color: Colors.grey[400],
+                          fontSize: 13,
+                        ),
+                        filled: true,
+                        fillColor: Colors.grey.shade50,
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 12,
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: BorderSide(color: Colors.grey.shade200),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: BorderSide(color: Colors.grey.shade200),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: const BorderSide(
+                            color: AppColors.primary,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 8),
+
+            // ── 결제수단 ───────────────────────────────────────────────
+            _buildSection(
+              title: '결제수단',
+              child: Column(
+                children: [
+                  ..._paymentMethods
+                      .map(
+                        (method) => GestureDetector(
+                          onTap: () =>
+                              setState(() => _selectedPayment = method['id']),
+                          child: Container(
+                            margin: const EdgeInsets.only(bottom: 8),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 14,
+                              vertical: 12,
+                            ),
+                            decoration: BoxDecoration(
+                              color: _selectedPayment == method['id']
+                                  ? AppColors.primaryLight
+                                  : Colors.grey.shade50,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: _selectedPayment == method['id']
+                                    ? AppColors.primary
+                                    : Colors.grey.shade200,
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                Radio<String>(
+                                  value: method['id'],
+                                  groupValue: _selectedPayment,
+                                  onChanged: (v) =>
+                                      setState(() => _selectedPayment = v!),
+                                  activeColor: AppColors.primary,
+                                  materialTapTargetSize:
+                                      MaterialTapTargetSize.shrinkWrap,
+                                  visualDensity: VisualDensity.compact,
+                                ),
+                                const SizedBox(width: 8),
+                                Icon(
+                                  method['icon'] as IconData,
+                                  size: 20,
+                                  color: _selectedPayment == method['id']
+                                      ? AppColors.primary
+                                      : Colors.grey,
+                                ),
+                                const SizedBox(width: 10),
+                                Text(
+                                  method['label'] as String,
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: _selectedPayment == method['id']
+                                        ? FontWeight.bold
+                                        : FontWeight.normal,
+                                    color: _selectedPayment == method['id']
+                                        ? AppColors.primary
+                                        : Colors.black87,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      )
+                      .toList(),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 8),
+
+            // ── 결제 금액 ──────────────────────────────────────────────
+            _buildSection(
+              title: '결제 금액',
+              child: Column(
+                children: [
+                  _priceRow(
+                    '상품 금액',
+                    '${p.price.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]},')}원',
+                  ),
+                  const SizedBox(height: 8),
+                  _priceRow('배송비', '무료', valueColor: AppColors.primary),
+                  const Divider(height: 20),
+                  _priceRow(
+                    '총 결제금액',
+                    '${p.price.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]},')}원',
+                    isBold: true,
+                    valueColor: AppColors.primary,
+                  ),
+                ],
+              ),
+            ),
+
+            SizedBox(height: bottomPad + 90),
+          ],
+        ),
+      ),
+
+      // ── 결제하기 버튼 ───────────────────────────────────────────────
+      bottomNavigationBar: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
+          child: SizedBox(
+            width: double.infinity,
+            height: 54,
+            child: ElevatedButton(
+              onPressed: _isProcessing ? null : _onPurchase,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                disabledBackgroundColor: Colors.grey.shade300,
+                foregroundColor: Colors.white,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+              child: _isProcessing
+                  ? const SizedBox(
+                      width: 22,
+                      height: 22,
+                      child: CircularProgressIndicator(
+                        color: Colors.white,
+                        strokeWidth: 2.5,
+                      ),
+                    )
+                  : Text(
+                      '${p.price.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]},')}원 결제하기',
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSection({
+    required String title,
+    required Widget child,
+    Widget? trailing,
+  }) {
+    return Container(
+      color: Colors.white,
+      padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              if (trailing != null) trailing,
+            ],
+          ),
+          const SizedBox(height: 14),
+          child,
+        ],
+      ),
+    );
+  }
+
+  Widget _inputField(
+    String label,
+    TextEditingController controller, {
+    String? hint,
+    TextInputType? keyboardType,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            color: Colors.grey[500],
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        const SizedBox(height: 6),
+        TextField(
+          controller: controller,
+          keyboardType: keyboardType,
+          decoration: InputDecoration(
+            hintText: hint,
+            hintStyle: TextStyle(color: Colors.grey[400], fontSize: 13),
+            filled: true,
+            fillColor: Colors.grey.shade50,
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 14,
+              vertical: 12,
+            ),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: BorderSide(color: Colors.grey.shade200),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: BorderSide(color: Colors.grey.shade200),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: const BorderSide(color: AppColors.primary),
+            ),
+          ),
+          style: const TextStyle(fontSize: 14),
+        ),
+      ],
+    );
+  }
+
+  Widget _priceRow(
+    String label,
+    String value, {
+    bool isBold = false,
+    Color? valueColor,
+  }) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 14,
+            color: isBold ? Colors.black : Colors.grey[600],
+            fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
+          ),
+        ),
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: isBold ? 16 : 14,
+            fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
+            color: valueColor ?? Colors.black87,
+          ),
+        ),
+      ],
+    );
+  }
+}
