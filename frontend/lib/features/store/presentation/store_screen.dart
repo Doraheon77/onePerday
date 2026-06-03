@@ -161,7 +161,7 @@ class _StoreScreenState extends State<StoreScreen> {
     return Column(
       children: [
         SizedBox(
-          height: 160,
+          height: MediaQuery.of(context).size.width * 9 / 16,
           child: PageView.builder(
             controller: _pageController,
             onPageChanged: (index) {

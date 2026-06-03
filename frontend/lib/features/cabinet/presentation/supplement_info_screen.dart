@@ -23,7 +23,9 @@ class _SupplementInfoScreenState extends State<SupplementInfoScreen> {
     _remainingController = TextEditingController(
       text: widget.supplement.remaining > 0
           ? widget.supplement.remaining.toString()
-          : '',
+          : (widget.supplement.total > 0
+                ? widget.supplement.total.toString()
+                : ''),
     );
     _alarmTimes = List.from(widget.supplement.alarmTimes);
   }
@@ -134,10 +136,10 @@ class _SupplementInfoScreenState extends State<SupplementInfoScreen> {
             s.name.isEmpty || s.name == '데이터 찾는 중...' ? '분석 중...' : s.name,
           ),
           _readOnlyField('브랜드명', s.brand.isNotEmpty ? s.brand : '분석 중...'),
-          _readOnlyField(
+          _readOnlyFieldExpanded(
             '주요 성분',
             s.nutrients.isNotEmpty
-                ? s.nutrients.map((n) => n.name).join(', ')
+                ? s.nutrients.map((n) => n.name).join('\n')
                 : '분석 중...',
           ),
           _readOnlyField('1회 복용량', '${s.dailyDose}정'),
@@ -691,6 +693,37 @@ class _SupplementInfoScreenState extends State<SupplementInfoScreen> {
             fontSize: 14,
           ),
         ),
+      ),
+    );
+  }
+
+  // 주요 성분 등 긴 텍스트 — 줄바꿈으로 전체 표시
+  Widget _readOnlyFieldExpanded(String label, String value) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 90,
+            child: Text(
+              label,
+              style: TextStyle(color: Colors.grey[500], fontSize: 13),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: const TextStyle(fontSize: 14, height: 1.6),
+            ),
+          ),
+        ],
       ),
     );
   }
