@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:simcap/core/constant/app_constants.dart';
 import 'package:simcap/features/store/presentation/supplement_detail_screen.dart';
+import 'package:simcap/services/auth_service.dart';
+import 'package:simcap/services/review_api_service.dart';
 
 // ── 리뷰 모델 ──────────────────────────────────────────────────────────────
 class ProductReview {
@@ -88,24 +90,42 @@ class ReviewScreen extends StatefulWidget {
 
 class _ReviewScreenState extends State<ReviewScreen> {
   String _sortBy = '최신순'; // 최신순 / 별점높은순 / 별점낮은순
+  List<ProductReview> _reviews = [];
+  bool _isLoading = true;
+  final ReviewApiService _reviewApiService = ReviewApiService();
+  final AuthService _authService = AuthService();
+
+  @override
+  void initState() {
+    super.initState();
+    _loadReviews();
+  }
+
+  Future<void> _loadReviews() async {
+    setState(() => _isLoading = true);
+    final list = await _reviewApiService.fetchReviews(widget.product.id);
+    setState(() {
+      _reviews = list;
+      _isLoading = false;
+    });
+  }
 
   List<ProductReview> get _sortedReviews {
-    final reviews = getDummyReviews(widget.product.id);
+    final list = List<ProductReview>.from(_reviews);
     switch (_sortBy) {
       case '별점높은순':
-        return reviews..sort((a, b) => b.rating.compareTo(a.rating));
+        return list..sort((a, b) => b.rating.compareTo(a.rating));
       case '별점낮은순':
-        return reviews..sort((a, b) => a.rating.compareTo(b.rating));
+        return list..sort((a, b) => a.rating.compareTo(b.rating));
       default:
-        return reviews..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+        return list..sort((a, b) => b.createdAt.compareTo(a.createdAt));
     }
   }
 
   double get _avgRating {
-    final reviews = getDummyReviews(widget.product.id);
-    if (reviews.isEmpty) return 0;
-    return reviews.map((r) => r.rating).reduce((a, b) => a + b) /
-        reviews.length;
+    if (_reviews.isEmpty) return 0;
+    return _reviews.map((r) => r.rating).reduce((a, b) => a + b) /
+        _reviews.length;
   }
 
   @override
@@ -127,7 +147,9 @@ class _ReviewScreenState extends State<ReviewScreen> {
           onPressed: () => Navigator.pop(context),
         ),
       ),
-      body: ListView(
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
+          : ListView(
         children: [
           // ── 평점 요약 카드 ───────────────────────────────────────
           _buildRatingSummary(reviews),
@@ -498,15 +520,49 @@ class _ReviewScreenState extends State<ReviewScreen> {
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: () {
+                  onPressed: () async {
+                    final currentUser = _authService.currentUser;
+                    if (currentUser == null) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('로그인이 필요합니다.'),
+                          backgroundColor: Colors.redAccent,
+                          behavior: SnackBarBehavior.floating,
+                        ),
+                      );
+                      Navigator.pop(ctx);
+                      return;
+                    }
+
                     Navigator.pop(ctx);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('리뷰가 등록되었습니다.'),
-                        backgroundColor: AppColors.primary,
-                        behavior: SnackBarBehavior.floating,
-                      ),
+                    
+                    final success = await _reviewApiService.createReview(
+                      productId: widget.product.id,
+                      userId: currentUser.id,
+                      rating: rating,
+                      content: controller.text.trim(),
                     );
+
+                    if (mounted) {
+                      if (success) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('리뷰가 등록되었습니다.'),
+                            backgroundColor: AppColors.primary,
+                            behavior: SnackBarBehavior.floating,
+                          ),
+                        );
+                        _loadReviews();
+                      } else {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('리뷰 등록에 실패했습니다. 다시 시도해 주세요.'),
+                            backgroundColor: Colors.redAccent,
+                            behavior: SnackBarBehavior.floating,
+                          ),
+                        );
+                      }
+                    }
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,

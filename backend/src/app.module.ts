@@ -12,6 +12,7 @@ import { LabelRecognitionModule } from './label-recognition/label-recognition.mo
 import { SupplementSearchService } from './supplement-search.service';
 import { PrismaService } from './prisma/prisma.service';
 import { RecommendModule } from './recommend/recommend.module';
+import { ReviewModule } from './review/review.module';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { RecommendModule } from './recommend/recommend.module';
     RecommendModule,
     ChatbotModule,
     LabelRecognitionModule,
+    ReviewModule,
   ],
   controllers: [AppController],
   providers: [AppService, PrismaService, SupplementSearchService],

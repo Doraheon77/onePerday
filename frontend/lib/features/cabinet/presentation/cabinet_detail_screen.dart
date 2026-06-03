@@ -147,9 +147,21 @@ class _CabinetDetailScreenState extends State<CabinetDetailScreen> {
     }
   }
 
-  // 리뷰 작성 — 백엔드 연동 전 TODO 안내
+  // 리뷰 작성 — 스토어 상품 매칭 후 리뷰 화면 이동
   void _onWriteReview() {
-    _showSnackBar('리뷰 작성 기능은 준비 중입니다.');
+    final matched = allProducts
+        .where(
+          (p) =>
+              p.name.contains(item.name) ||
+              item.name.contains(p.name),
+        )
+        .toList();
+
+    if (matched.isNotEmpty) {
+      context.push('/store/review', extra: matched.first);
+    } else {
+      _showSnackBar('스토어에 등록되지 않은 영양제는 리뷰를 작성할 수 없습니다.', isError: true);
+    }
   }
 
   void _showSnackBar(String message, {bool isError = false}) {

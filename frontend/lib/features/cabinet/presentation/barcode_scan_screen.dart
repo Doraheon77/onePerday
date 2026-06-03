@@ -1,4 +1,6 @@
 import 'dart:io';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -156,37 +158,8 @@ class _BarcodeScanScreenState extends State<BarcodeScanScreen> {
       final XFile photo = await _cameraController!.takePicture();
       if (!mounted) return;
 
-      // 1.5초 로딩 후 영양제 정보 페이지로 이동
-      await Future.delayed(const Duration(milliseconds: 1500));
-      if (!mounted) return;
-
-      await context.push(
-        '/cabinet/info',
-        extra: Supplement(
-          name: '촬영된 영양제',
-          brand: 'OnePerDay',
-          remaining: 0,
-          total: 90,
-          dailyDose: 1,
-          dailyFrequency: 1,
-          nutrients: [
-            Nutrient(name: '비타민C', value: 500, unit: 'mg', percent: 50),
-            Nutrient(name: '비타민D', value: 1000, unit: 'IU', percent: 25),
-          ],
-          analysisGuide: 'OCR 서비스 연동 후 정확한 정보가 자동으로 채워집니다.',
-          aiSummary: '',
-        ),
-      );
-
-      // 정보 페이지에서 돌아온 경우 카메라 재시작
-      if (mounted) {
-        setState(() {
-          _isCapturing = false;
-          _isProcessing = false;
-          _hasScanned = false;
-        });
-        _startBarcodeScanning();
-      }
+      final File imageFile = File(photo.path);
+      await _uploadAndProcessOCR(imageFile);
     } catch (e) {
       debugPrint('촬영 실패: $e');
       if (mounted) {
@@ -200,7 +173,6 @@ class _BarcodeScanScreenState extends State<BarcodeScanScreen> {
     }
   }
 
-  // ── 갤러리 선택 ──────────────────────────────────────────────────────────
   Future<void> _pickGalleryForOCR() async {
     await _cameraController?.stopImageStream();
     final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
@@ -209,34 +181,86 @@ class _BarcodeScanScreenState extends State<BarcodeScanScreen> {
       return;
     }
     if (!mounted) return;
-    setState(() => _isProcessing = true);
+    setState(() {
+      _isProcessing = true;
+    });
 
-    await Future.delayed(const Duration(milliseconds: 1500));
-    if (!mounted) return;
+    final File imageFile = File(image.path);
+    await _uploadAndProcessOCR(imageFile);
+  }
 
-    await context.push(
-      '/cabinet/info',
-      extra: Supplement(
-        name: '촬영된 영양제',
-        brand: 'OnePerDay',
-        remaining: 0,
-        total: 90,
-        dailyDose: 1,
-        dailyFrequency: 1,
-        nutrients: [
-          Nutrient(name: '비타민C', value: 500, unit: 'mg', percent: 50),
-          Nutrient(name: '비타민D', value: 1000, unit: 'IU', percent: 25),
-        ],
-        analysisGuide: 'OCR 서비스 연동 후 정확한 정보가 자동으로 채워집니다.',
-        aiSummary: '',
-      ),
-    );
+  Future<void> _uploadAndProcessOCR(File imageFile) async {
+    try {
+      final uri = Uri.parse('${AppConstants.apiBaseUrl}/supplements/ocr');
+      final request = http.MultipartRequest('POST', uri);
 
-    if (mounted) {
+      request.files.add(
+        await http.MultipartFile.fromPath('image', imageFile.path),
+      );
+
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final Map<String, dynamic> result = json.decode(
+          utf8.decode(response.bodyBytes),
+        );
+
+        if (!mounted) return;
+
+        final String name = result['productName'] ?? '알 수 없는 영양제';
+        final String brand = result['brandName'] ?? '알 수 없는 브랜드';
+        final String nutrientsStr = result['nutrients'] ?? '비타민C, 비타민D';
+        
+        final List<Nutrient> nutrientsList = nutrientsStr
+            .split(',')
+            .where((e) => e.trim().isNotEmpty)
+            .map((e) => Nutrient(name: e.trim(), value: 0, unit: '', percent: 0.0))
+            .toList();
+
+        final supplement = Supplement(
+          name: name,
+          brand: brand,
+          imagePath: imageFile.path,
+          remaining: 0,
+          total: 90,
+          dailyDose: 1,
+          dailyFrequency: 1,
+          nutrients: nutrientsList,
+          analysisGuide: 'OCR 분석 완료: 백엔드에서 성분 정보를 가져왔습니다.',
+          aiSummary: '',
+        );
+
+        await context.push(
+          '/cabinet/info',
+          extra: supplement,
+        );
+
+        if (mounted) {
+          setState(() {
+            _isCapturing = false;
+            _isProcessing = false;
+            _hasScanned = false;
+          });
+          _startBarcodeScanning();
+        }
+      } else {
+        throw Exception('서버 응답 오류: ${response.statusCode}');
+      }
+    } catch (e) {
+      debugPrint('OCR Upload Error: $e');
+      if (!mounted) return;
       setState(() {
+        _isCapturing = false;
         _isProcessing = false;
         _hasScanned = false;
       });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('OCR 분석에 실패했습니다. 내용을 직접 확인해주세요.'),
+          duration: Duration(seconds: 2),
+        ),
+      );
       _startBarcodeScanning();
     }
   }
