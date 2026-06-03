@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Query, UseInterceptors, UploadedFile, BadRequestException } from '@nestjs/common';
+import { Controller, Get, Post, Delete, Body, Param, Query, UseInterceptors, UploadedFile, BadRequestException } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { AppService } from './app.service';
 import { PrismaService } from './prisma/prisma.service';
@@ -400,6 +400,109 @@ export class AppController {
     // BigInt 처리
     return JSON.parse(
       JSON.stringify(result, (key, value) =>
+        typeof value === 'bigint' ? value.toString() : value,
+      ),
+    );
+  }
+
+  // 유저 전체 목록 조회 (검색 포함)
+  @Get('admin/users')
+  async getUsers(@Query('search') search?: string) {
+    const usersInfo = await this.prisma.usersInfo.findMany({
+      where: search ? {
+        OR: [
+          { name: { contains: search, mode: 'insensitive' } },
+          { users: { email: { contains: search, mode: 'insensitive' } } },
+        ]
+      } : undefined,
+      select: {
+        id: true,
+        name: true,
+        gender: true,
+        birth_year: true,
+        created_at: true,
+        users: {
+          select: {
+            email: true,
+            created_at: true,
+          }
+        }
+      }
+    });
+
+    return usersInfo;
+  }
+
+  // 유저 삭제
+  @Delete('admin/users/:id')
+  async deleteUser(@Param('id') id: string) {
+    return this.prisma.users.delete({
+      where: { id }
+    });
+  }
+
+  // 영양제 추가
+@Post('admin/supplements')
+async addSupplement(@Body() body: { product_name: string; brand_name: string }) {
+  const lastSupp = await this.prisma.supplementsTemp.findFirst({
+    orderBy: { id: 'desc' }
+  });
+  const newId = lastSupp ? lastSupp.id + BigInt(1) : BigInt(1);
+  
+  return JSON.parse(JSON.stringify(
+    await this.prisma.supplementsTemp.create({
+      data: {
+        id: newId,
+        product_name: body.product_name,
+        brand_name: body.brand_name,
+      }
+    }),
+    (key, value) => typeof value === 'bigint' ? value.toString() : value
+  ));
+}
+
+  // 영양제 삭제
+  @Delete('admin/supplements/:id')
+  async deleteSupplement(@Param('id') id: string) {
+    return this.prisma.supplementsTemp.delete({
+      where: { id: BigInt(id) }
+    });
+  }
+
+  @Get('admin/supplements')
+  async getAdminSupplements(
+    @Query('page') page?: string,
+    @Query('keyword') keyword?: string,
+  ) {
+    const pageNum = page ? parseInt(page, 10) : 1;
+    const take = 50;
+    const skip = (pageNum - 1) * take;
+
+    const whereClause: any = {};
+    if (keyword && keyword.trim().length > 0) {
+      whereClause.OR = [
+        { product_name: { contains: keyword.trim(), mode: 'insensitive' } },
+        { brand_name: { contains: keyword.trim(), mode: 'insensitive' } },
+      ];
+    }
+
+    const [data, total] = await Promise.all([
+      this.prisma.supplementsTemp.findMany({
+        take,
+        skip,
+        where: whereClause,
+        orderBy: { id: 'asc' },
+      }),
+      this.prisma.supplementsTemp.count({ where: whereClause }),
+    ]);
+
+    return JSON.parse(
+      JSON.stringify({
+        data,
+        total,
+        page: pageNum,
+        totalPages: Math.ceil(total / take),
+      }, (key, value) =>
         typeof value === 'bigint' ? value.toString() : value,
       ),
     );
