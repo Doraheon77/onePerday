@@ -511,6 +511,7 @@ model UsersInfo {
   supplement_inventory SupplementInventory[]
   daily_supplements    DailySupplements[]
   purchases            Purchase[]
+  reviews Review[]
 
   @@map("users_info")
   @@schema("public")
@@ -576,6 +577,9 @@ model SupplementsTemp {
   shop_url         String? @db.Text
   price            BigInt?
   id               BigInt  @id
+
+  // Relations
+  reviews Review[]
 
   @@map("supplements_temp")
   @@schema("public")
@@ -741,6 +745,7 @@ model Purchase {
   gender        String?  @db.Text
   birth_year    Int?
   pregnant      String?  @db.Text
+  purchase_time DateTime @default(now()) @db.Timestamptz
 
   // Relations
   user_uuid     String? @db.Uuid 
@@ -751,6 +756,26 @@ model Purchase {
   @@map("purchase")
   @@schema("public")
 }
+
+// =============================================
+// 리뷰
+// =============================================
+model Review {
+  review_id      BigInt   @id @default(autoincrement())
+  supplements_id BigInt?
+  user_id        String?  @db.Uuid
+  write_time     DateTime @default(now()) @db.Timestamptz
+  score          BigInt?
+  content        String?  @db.Text
+
+  // Relations
+  supplement SupplementsTemp? @relation(fields: [supplements_id], references: [id])
+  user       UsersInfo?       @relation(fields: [user_id], references: [id])
+
+  @@map("review")
+  @@schema("public")
+}
+
 enum aal_level {
   aal1
   aal2
