@@ -20,9 +20,9 @@ class PurchaseScreen extends StatefulWidget {
 
 class _PurchaseScreenState extends State<PurchaseScreen> {
   // 배송지
-  final _nameController = TextEditingController(text: '류채현');
-  final _phoneController = TextEditingController(text: '010-0000-0000');
-  final _addressController = TextEditingController(text: '경기도 성남시 수정구');
+  final _nameController = TextEditingController();
+  final _phoneController = TextEditingController();
+  final _addressController = TextEditingController();
   final _addressDetailController = TextEditingController();
 
   // 결제수단
@@ -342,11 +342,23 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
                       color: AppColors.primaryLight,
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: const Icon(
-                      Icons.medication_rounded,
-                      color: AppColors.primary,
-                      size: 30,
-                    ),
+                    clipBehavior: Clip.hardEdge,
+                    child: p.imageUrl != null && p.imageUrl!.isNotEmpty
+                        ? Image.network(
+                            p.imageUrl!,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) =>
+                                const Icon(
+                                  Icons.medication_rounded,
+                                  color: AppColors.primary,
+                                  size: 30,
+                                ),
+                          )
+                        : const Icon(
+                            Icons.medication_rounded,
+                            color: AppColors.primary,
+                            size: 30,
+                          ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -403,15 +415,16 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
               ),
               child: Column(
                 children: [
-                  _inputField('받는 분', _nameController),
+                  _inputField('받는 분', _nameController, hint: '홍길동'),
                   const SizedBox(height: 10),
                   _inputField(
                     '연락처',
                     _phoneController,
+                    hint: '010-0000-0000',
                     keyboardType: TextInputType.phone,
                   ),
                   const SizedBox(height: 10),
-                  _inputField('주소', _addressController),
+                  _inputField('주소', _addressController, hint: '서울시 강남구'),
                   const SizedBox(height: 10),
                   _inputField(
                     '상세 주소',
