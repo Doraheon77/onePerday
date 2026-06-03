@@ -7,6 +7,7 @@ import type { LlmExtracted } from './supplement-search.service';
 import * as path from 'path';
 import * as fs from 'fs';
 import { spawn } from 'child_process';
+import { SupabaseService } from './supabase/supabase.service';
 
 @Controller()
 export class AppController {
@@ -14,6 +15,7 @@ export class AppController {
     private readonly appService: AppService,
     private readonly prisma: PrismaService,
     private readonly searchService: SupplementSearchService,
+    private readonly supabaseService: SupabaseService,
   ) { }
 
   @Get()
@@ -436,9 +438,16 @@ export class AppController {
   // 유저 삭제
   @Delete('admin/users/:id')
   async deleteUser(@Param('id') id: string) {
-    return this.prisma.users.delete({
+    // 1. users_info 먼저 삭제
+    await this.prisma.usersInfo.delete({
       where: { id }
     });
+
+    // 2. auth.users 삭제
+    const { error } = await this.supabaseService.getClient().auth.admin.deleteUser(id);
+    if (error) throw new Error(error.message);
+    
+    return { success: true };
   }
 
   // 영양제 추가
