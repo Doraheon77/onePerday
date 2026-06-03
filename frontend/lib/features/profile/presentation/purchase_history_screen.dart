@@ -150,6 +150,7 @@ class _PurchaseHistoryScreenState extends State<PurchaseHistoryScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _buildCardHeader(record),
+          _buildDeliveryProgress(record.status),
           const Divider(height: 1),
           _buildItemList(record),
           const Divider(height: 1),
@@ -205,6 +206,66 @@ class _PurchaseHistoryScreenState extends State<PurchaseHistoryScreen> {
           ),
           _buildStatusBadge(record.status),
         ],
+      ),
+    );
+  }
+
+  Widget _buildDeliveryProgress(PurchaseStatus status) {
+    final steps = ['주문 완료', '배송 준비', '배송 중', '배송 완료'];
+    final stepIndex =
+        {
+          PurchaseStatus.ordered: 0,
+          PurchaseStatus.shipping: 2,
+          PurchaseStatus.delivered: 3,
+          PurchaseStatus.cancelled: -1,
+        }[status] ??
+        0;
+
+    if (status == PurchaseStatus.cancelled) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+      child: Row(
+        children: List.generate(steps.length * 2 - 1, (i) {
+          if (i.isOdd) {
+            final lineIdx = i ~/ 2;
+            final filled = lineIdx < stepIndex;
+            return Expanded(
+              child: Container(
+                height: 2,
+                color: filled ? AppColors.primary : Colors.grey.shade200,
+              ),
+            );
+          }
+          final idx = i ~/ 2;
+          final done = idx <= stepIndex;
+          return Column(
+            children: [
+              Container(
+                width: 22,
+                height: 22,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: done ? AppColors.primary : Colors.grey.shade200,
+                ),
+                child: Icon(
+                  done ? Icons.check : Icons.circle,
+                  size: done ? 14 : 6,
+                  color: done ? Colors.white : Colors.grey.shade400,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                steps[idx],
+                style: TextStyle(
+                  fontSize: 9,
+                  color: done ? AppColors.primary : Colors.grey.shade400,
+                  fontWeight: done ? FontWeight.bold : FontWeight.normal,
+                ),
+              ),
+            ],
+          );
+        }),
       ),
     );
   }

@@ -762,7 +762,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   // 내가 쓴 리뷰 섹션
   Widget _buildMyReviewsSection() {
-    const bool hasReviews = false;
+    final recentReviews = <dynamic>[];
+    final hasReviews = recentReviews.isNotEmpty;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -788,34 +789,130 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ],
         ),
         const SizedBox(height: 8),
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: AppColors.scaffoldBg,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppColors.border),
-          ),
-          child: Column(
-            children: [
-              Icon(
-                Icons.rate_review_outlined,
-                size: 36,
-                color: Colors.grey[300],
-              ),
-              const SizedBox(height: 8),
-              Text(
-                '아직 작성한 리뷰가 없습니다',
-                style: TextStyle(fontSize: 14, color: Colors.grey[400]),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                '구매한 상품에 리뷰를 남겨보세요',
-                style: TextStyle(fontSize: 12, color: Colors.grey[400]),
-              ),
-            ],
-          ),
-        ),
+        if (!hasReviews)
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: AppColors.scaffoldBg,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: AppColors.border),
+            ),
+            child: Column(
+              children: [
+                Icon(
+                  Icons.rate_review_outlined,
+                  size: 36,
+                  color: Colors.grey[300],
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  '아직 작성한 리뷰가 없습니다',
+                  style: TextStyle(fontSize: 14, color: Colors.grey[400]),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '구매한 상품에 리뷰를 남겨보세요',
+                  style: TextStyle(fontSize: 12, color: Colors.grey[400]),
+                ),
+              ],
+            ),
+          )
+        else
+          ...recentReviews
+              .map(
+                (r) => Container(
+                  height: 90,
+                  margin: const EdgeInsets.only(bottom: 8),
+                  padding: const EdgeInsets.fromLTRB(14, 10, 12, 10),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: Colors.grey.shade200),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              r.productName,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 13,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 4),
+                            Row(
+                              children: List.generate(
+                                5,
+                                (i) => Icon(
+                                  i < r.rating
+                                      ? Icons.star_rounded
+                                      : Icons.star_outline_rounded,
+                                  size: 14,
+                                  color: i < r.rating
+                                      ? Colors.amber
+                                      : Colors.grey.shade300,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Expanded(
+                              child: Text(
+                                r.content,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey[600],
+                                ),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Row(
+                            children: [
+                              Text(
+                                '상세보기',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: Colors.grey[400],
+                                ),
+                              ),
+                              Icon(
+                                Icons.chevron_right,
+                                size: 14,
+                                color: Colors.grey[400],
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            r.createdAt
+                                .toString()
+                                .substring(0, 10)
+                                .replaceAll('-', '.'),
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: Colors.grey[400],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              )
+              .toList(),
       ],
     );
   }
@@ -823,7 +920,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   // 구매 기록 섹션 — Provider 데이터 연동
   Widget _buildPurchaseHistorySection() {
     final purchases = SupplementProvider.of(context).purchases;
-    final recentPurchases = purchases.take(2).toList();
+    final recentPurchases = purchases.take(3).toList();
     final hasData = recentPurchases.isNotEmpty;
 
     return Column(
@@ -1419,4 +1516,106 @@ class _ProfileScreenState extends State<ProfileScreen> {
       onTap: onTap,
     );
   }
+
+  void _showPolicySheet(String type) {
+    final isTerms = type == 'terms';
+    final title = isTerms ? '서비스 이용 약관' : '개인정보 처리방침';
+    final content = isTerms ? _termsContent : _privacyContent;
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => DraggableScrollableSheet(
+        initialChildSize: 0.85,
+        minChildSize: 0.5,
+        maxChildSize: 0.95,
+        expand: false,
+        builder: (_, controller) => Column(
+          children: [
+            Container(
+              margin: const EdgeInsets.only(top: 12, bottom: 4),
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => Navigator.pop(ctx),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                  ),
+                ],
+              ),
+            ),
+            const Divider(height: 1),
+            Expanded(
+              child: SingleChildScrollView(
+                controller: controller,
+                padding: const EdgeInsets.all(20),
+                child: Text(
+                  content,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    height: 1.7,
+                    color: Colors.black87,
+                  ),
+                ),
+              ),
+            ),
+            Padding(
+              padding: EdgeInsets.fromLTRB(
+                20,
+                12,
+                20,
+                MediaQuery.of(ctx).padding.bottom + 16,
+              ),
+              child: SizedBox(
+                width: double.infinity,
+                height: 50,
+                child: ElevatedButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: const Text(
+                    '확인',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
+
+const String _termsContent =
+    '서비스 이용 약관\n\n제1조 (목적)\n본 약관은 OnePerDay 팀이 제공하는 스마트폰 어플리케이션 OnePerDay 및 관련 서비스의 이용과 관련하여 회사와 회원 간의 권리, 의무 및 책임사항을 규정함을 목적으로 합니다.\n\n제7조 (의학적 면책 조항)\n[중요] 본 서비스에서 제공하는 건강 및 영양 정보는 정보 제공 목적으로만 제공되며, 전문 의료진의 의학적 소견, 진료, 진단, 처방을 대체할 수 없습니다.\n\n제10조 (청약철회 및 환불)\n상품을 구매한 회원은 전자상거래법에 따라 상품 수령일로부터 7일 이내에 청약의 철회를 신청할 수 있습니다.\n\n본 약관은 2026년 5월 28일부터 효력을 가집니다.';
+
+const String _privacyContent =
+    '개인정보 처리방침\n\n제1조 (처리 목적)\n회원 가입 및 관리, 개인 맞춤 건강 분석, 스토어 주문 및 결제 목적으로 개인정보를 처리합니다.\n\n제2조 (수집 항목)\n■ 회원 가입: 소셜 연동 식별자, 닉네임, 이메일\n■ 건강 분석: 나이, 성별, 건강 상태 (선택 동의)\n■ 구매 시: 이름, 전화번호, 배송지 주소\n\n■ 개인정보 보호책임자: support@oneperday.kr\n\n본 개인정보 처리방침은 2026년 5월 28일부터 효력을 가집니다.';

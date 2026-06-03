@@ -183,7 +183,7 @@ class _StoreScreenState extends State<StoreScreen> {
 
   Widget _buildRecommendList() {
     return SizedBox(
-      height: 180,
+      height: MediaQuery.of(context).size.width * 9 / 16,
       child: ListView.builder(
         padding: const EdgeInsets.symmetric(horizontal: 12),
         scrollDirection: Axis.horizontal,

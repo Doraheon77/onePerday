@@ -165,6 +165,21 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
   // ── 수량 조절 ─────────────────────────────────────────────────────────────
   // ── 등록 ─────────────────────────────────────────────────────────────────
   void _onRegister() {
+    // 잔여 수량 유효성 검사
+    final remainingText = _remainingController.text.trim();
+    if (remainingText.isNotEmpty) {
+      final parsed = int.tryParse(remainingText);
+      if (parsed == null || parsed < 0) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('잔여 수량은 0 이상의 숫자만 입력 가능합니다.'),
+            backgroundColor: AppColors.danger,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        return;
+      }
+    }
     final name = _nameController.text.trim();
     if (name.isEmpty) {
       setState(() => _showNameError = true);

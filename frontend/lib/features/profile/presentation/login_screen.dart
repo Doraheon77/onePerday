@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -35,7 +36,13 @@ class _LoginScreenState extends State<LoginScreen> {
 
       if (!mounted) return;
 
-      if (hasUserInfo) {
+      final prefs = await SharedPreferences.getInstance();
+      final termsAgreed = prefs.getBool('termsAgreed') ?? false;
+      if (!mounted) return;
+
+      if (!termsAgreed) {
+        context.go('/terms');
+      } else if (hasUserInfo) {
         context.go('/home');
       } else {
         context.go('/onboarding');
@@ -58,9 +65,9 @@ class _LoginScreenState extends State<LoginScreen> {
     } catch (e) {
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('구글 로그인 실패: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('구글 로그인 실패: $e')));
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -75,9 +82,9 @@ class _LoginScreenState extends State<LoginScreen> {
     } catch (e) {
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('카카오 로그인 실패: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('카카오 로그인 실패: $e')));
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -127,7 +134,9 @@ class _LoginScreenState extends State<LoginScreen> {
                 color: Colors.white,
                 textColor: Colors.black87,
                 border: true,
-                onPressed: _isLoading ? null : () => _handleGoogleLogin(context),
+                onPressed: _isLoading
+                    ? null
+                    : () => _handleGoogleLogin(context),
               ),
               AnimatedSwitcher(
                 duration: const Duration(milliseconds: 200),

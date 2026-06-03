@@ -11,6 +11,8 @@ import 'package:simcap/features/cabinet/presentation/supplement_info_screen.dart
 import 'package:simcap/features/cabinet/presentation/barcode_scan_screen.dart';
 import 'package:simcap/features/cabinet/domain/dataModels/supplement_model.dart';
 import 'package:simcap/features/profile/presentation/login_screen.dart';
+import 'package:simcap/features/profile/presentation/terms_agreement_screen.dart';
+import 'package:simcap/features/store/presentation/purchase_screen.dart';
 import 'package:simcap/features/profile/presentation/onboarding_survey_screen.dart';
 import 'package:simcap/features/profile/presentation/profile_screen.dart';
 import 'package:simcap/features/profile/presentation/purchase_history_screen.dart';
@@ -76,15 +78,23 @@ class AppRouter {
     navigatorKey: navigatorKey,
     initialLocation: '/splash',
     routes: [
-      GoRoute(
-        path: '/',
-        redirect:(context, state) => '/splash',
-      ),
+      GoRoute(path: '/', redirect: (context, state) => '/splash'),
       GoRoute(
         path: '/splash',
-        builder:(context, state) => const SplashScreen(),
+        builder: (context, state) => const SplashScreen(),
       ),
       GoRoute(path: '/login', builder: (context, state) => const LoginScreen()),
+      GoRoute(
+        path: '/terms',
+        builder: (context, state) => const TermsAgreementScreen(),
+      ),
+      GoRoute(
+        path: '/purchase',
+        pageBuilder: (context, state) {
+          final product = state.extra as StoreProduct;
+          return _slideUp(context, state, PurchaseScreen(product: product));
+        },
+      ),
       GoRoute(
         path: '/onboarding',
         builder: (context, state) => const OnboardingSurveyScreen(),
@@ -129,6 +139,19 @@ class AppRouter {
                     context,
                     state,
                     SupplementDetailScreen(product: product),
+                  );
+                },
+              ),
+              GoRoute(
+                path: 'purchase',
+                pageBuilder: (context, state) {
+                  final product = state.extra is StoreProduct
+                      ? state.extra as StoreProduct
+                      : dummyProduct;
+                  return _slideUp(
+                    context,
+                    state,
+                    PurchaseScreen(product: product),
                   );
                 },
               ),

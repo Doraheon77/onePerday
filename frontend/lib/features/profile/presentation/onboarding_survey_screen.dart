@@ -497,9 +497,10 @@ class _OnboardingSurveyScreenState extends State<OnboardingSurveyScreen> {
               onPageChanged: (idx) {
                 setState(() => _currentPage = idx);
                 if (idx == 5 && _showRecommendAfterLoad) {
+                  // 로딩 2초 후 바로 홈으로 이동
                   Future.delayed(const Duration(seconds: 2), () {
                     if (!mounted) return;
-                    _showRecommendSheet();
+                    context.go('/home');
                   });
                 }
               },
