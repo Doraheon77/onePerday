@@ -96,7 +96,8 @@ class _SupplementInfoScreenState extends State<SupplementInfoScreen> {
     final notifier = SupplementProvider.of(context);
     await notifier.addSupplement(
       newSupplement,
-      backendSupplementId: widget.supplement.supplementId ?? widget.supplement.id,
+      backendSupplementId:
+          widget.supplement.supplementId ?? widget.supplement.id,
     );
 
     ScaffoldMessenger.of(context).showSnackBar(
@@ -158,7 +159,68 @@ class _SupplementInfoScreenState extends State<SupplementInfoScreen> {
 
           _sectionTitle('수량 설정'),
           _subHeader('잔여 개수', '현재 남아있는 수량'),
-          _editableField('예: 30', _remainingController, isNumber: true),
+          Row(
+            children: [
+              Expanded(
+                child: Container(
+                  margin: const EdgeInsets.only(bottom: 10),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade50,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.grey.shade200),
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: _remainingController,
+                          keyboardType: TextInputType.number,
+                          decoration: InputDecoration(
+                            border: InputBorder.none,
+                            hintText: '예: 30',
+                            hintStyle: TextStyle(
+                              color: Colors.grey[400],
+                              fontSize: 14,
+                            ),
+                          ),
+                          style: const TextStyle(fontSize: 15),
+                        ),
+                      ),
+                      if (widget.supplement.total > 0)
+                        Text(
+                          '/ \${widget.supplement.total}',
+                          style: TextStyle(
+                            color: Colors.grey[400],
+                            fontSize: 14,
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              _stepButton('+1', () {
+                final cur = int.tryParse(_remainingController.text) ?? 0;
+                final total = widget.supplement.total;
+                if (total > 0 && cur + 1 > total) return;
+                setState(
+                  () => _remainingController.text = (cur + 1).toString(),
+                );
+              }),
+              const SizedBox(width: 6),
+              _stepButton('-1', () {
+                final cur = int.tryParse(_remainingController.text) ?? 0;
+                if (cur <= 0) return;
+                setState(
+                  () => _remainingController.text = (cur - 1).toString(),
+                );
+              }),
+            ],
+          ),
 
           const SizedBox(height: 20),
 
