@@ -383,6 +383,7 @@ class _SupplementDetailScreenState extends State<SupplementDetailScreen> {
         'count': 1,
       },
     ];
+    
 
     final results = await IntakeApiService().checkOverdoseByCartItems(
       cartItems: cartItems,

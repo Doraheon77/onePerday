@@ -45,7 +45,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
       final cartItems = supplements.map((s) {
         return {
-          'productId': s.id,
+          'productId': s.supplementId,
           'name': s.name,
           'brand': s.brand,
           'count': 1,
@@ -57,6 +57,15 @@ class _HomeScreenState extends State<HomeScreen> {
         age: 24,
         gender: 'female',
       );
+
+      debugPrint('===== HOME INTAKE RESULT =====');
+      for (final r in results) {
+        debugPrint(
+          '${r.nutrientName} current=${r.currentTotal} '
+          'recommended=${r.recommendedIntake} adequate=${r.adequateIntake} '
+          'upper=${r.upperLimit} status=${r.status}',
+        );
+      }
 
       setState(() {
         _hasNutritionDanger = results.any((r) => r.status == 'danger');
@@ -416,25 +425,14 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   // ── 복용 스트릭 & 통계 카드 ──────────────────────────────────────────────
-  Widget _buildBarGraph(String label, double ratio) {
-    final matched = _homeIntakeResults.where(
-      (r) => r.nutrientName.trim() == label.trim(),
-    ).toList();
-
-    final result = matched.isNotEmpty ? matched.first : null;
-    final status = result?.status ?? 'safe';
-
-    final standardAmount = result == null
-        ? 0.0
-        : result.upperLimit > 0
-            ? result.upperLimit
-            : result.recommendedIntake > 0
-                ? result.recommendedIntake
-                : result.adequateIntake;
-
-    final apiRatio = standardAmount > 0
-        ? result!.currentTotal / standardAmount
-        : ratio;
+  Widget _buildStreakCard() {
+    final notifier = SupplementProvider.of(context);
+    final streak = notifier.currentStreak;
+    final best = notifier.bestStreak;
+    final monthly = notifier.monthlyComplianceRate;
+    final total = notifier.totalDoneDays;
+    final done = notifier.todayDoneCount;
+    final supplementTotal = notifier.todayTotalCount;
 
     // 영양제 미등록 시 안내 카드
     if (supplementTotal == 0) {
@@ -804,13 +802,32 @@ class _HomeScreenState extends State<HomeScreen> {
 
   // ── 바 그래프 ─────────────────────────────────────────────────────────────
   Widget _buildBarGraph(String label, double ratio) {
-    final Color barColor = status == 'danger'
-      ? AppColors.danger
-      : status == 'warning'
-          ? AppColors.warning
-          : apiRatio >= 0.7
-              ? AppColors.primary
-              : AppColors.warning;
+  final matched = _homeIntakeResults.where(
+    (r) => r.nutrientName.trim() == label.trim(),
+  ).toList();
+
+  final result = matched.isNotEmpty ? matched.first : null;
+  final status = result?.status ?? 'safe';
+
+  final standardAmount = result == null
+      ? 0.0
+      : result.upperLimit > 0
+          ? result.upperLimit
+          : result.recommendedIntake > 0
+              ? result.recommendedIntake
+              : result.adequateIntake;
+
+  final apiRatio = standardAmount > 0
+      ? result!.currentTotal / standardAmount
+      : ratio;
+
+  final Color barColor = status == 'danger'
+    ? AppColors.danger
+    : status == 'warning'
+        ? AppColors.warning
+        : apiRatio >= 0.7
+            ? AppColors.primary
+            : AppColors.warning;
 
   final pct = '${(apiRatio * 100).round()}%';
 
@@ -822,51 +839,51 @@ class _HomeScreenState extends State<HomeScreen> {
               ? '적정 섭취'
               : '섭취 부족';
 
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 18),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Expanded(
-                child: Text(
-                  label,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                pct,
-                style: TextStyle(
-                  fontSize: 13,
+  return Padding(
+    padding: const EdgeInsets.only(bottom: 18),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Expanded(
+              child: Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 14,
                   fontWeight: FontWeight.bold,
-                  color: barColor,
                 ),
+                overflow: TextOverflow.ellipsis,
               ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(10),
-            child: LinearProgressIndicator(
-              value: apiRatio.clamp(0.0, 1.0),
-              backgroundColor: Colors.grey[100],
-              color: barColor,
-              minHeight: 10,
             ),
+            const SizedBox(width: 8),
+            Text(
+              pct,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.bold,
+                color: barColor,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(10),
+          child: LinearProgressIndicator(
+            value: apiRatio.clamp(0.0, 1.0),
+            backgroundColor: Colors.grey[100],
+            color: barColor,
+            minHeight: 10,
           ),
-          const SizedBox(height: 4),
-          Text(statusNote, style: TextStyle(fontSize: 10, color: barColor)),
-        ],
-      ),
-    );
-  }
+        ),
+        const SizedBox(height: 4),
+        Text(statusNote, style: TextStyle(fontSize: 10, color: barColor)),
+      ],
+    ),
+  );
+}
 
   // ── 복용 목록 ─────────────────────────────────────────────────────────────
   Widget _buildMedicationList() {
