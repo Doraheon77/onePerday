@@ -1,8 +1,9 @@
-import 'dart:io';
 import 'dart:convert';
+import 'dart:io';
+
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 import 'package:flutter/services.dart';
+import 'package:http/http.dart' as http;
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:simcap/core/constant/app_constants.dart';
@@ -50,6 +51,7 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
   @override
   void initState() {
     super.initState();
+
     _tabController = TabController(length: 2, vsync: this)
       ..addListener(() {
         if (_tabController.indexIsChanging) return;
@@ -171,12 +173,16 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
       source: ImageSource.camera,
       imageQuality: 90,
     );
-    if (image != null) _handlePickedImage(File(image.path));
+    if (image != null) {
+      await _handlePickedImage(File(image.path));
+    }
   }
 
   Future<void> _pickFromGallery() async {
     final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
-    if (image != null) _handlePickedImage(File(image.path));
+    if (image != null) {
+      await _handlePickedImage(File(image.path));
+    }
   }
 
   Future<void> _handlePickedImage(File imageFile) async {
@@ -184,23 +190,6 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
     await _processOCR(imageFile);
   }
 
-  // ── 수량 조절 ─────────────────────────────────────────────────────────────
-  // ── 등록 ─────────────────────────────────────────────────────────────────
-  void _onRegister() {
-    final remainingText = _remainingController.text.trim();
-    if (remainingText.isNotEmpty) {
-      final parsed = int.tryParse(remainingText);
-      if (parsed == null || parsed < 0) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('잔여 수량은 0 이상의 숫자만 입력 가능합니다.'),
-            backgroundColor: AppColors.danger,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-        return;
-      }
-    }
   String _toTimeString(TimeOfDay time) {
     final h = time.hour.toString().padLeft(2, '0');
     final m = time.minute.toString().padLeft(2, '0');
@@ -219,6 +208,21 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
         ),
       );
       return;
+    }
+
+    final remainingText = _remainingController.text.trim();
+    if (remainingText.isNotEmpty) {
+      final parsed = int.tryParse(remainingText);
+      if (parsed == null || parsed < 0) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('잔여 수량은 0 이상의 숫자만 입력 가능합니다.'),
+            backgroundColor: AppColors.danger,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        return;
+      }
     }
 
     if (_alarmTimes.length < _dailyFrequency) {
@@ -261,8 +265,7 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
     }
 
     final remainingCount = int.tryParse(_remainingController.text) ?? 0;
-    final totalCount =
-        int.tryParse(_totalController.text) ?? remainingCount;
+    final totalCount = int.tryParse(_totalController.text) ?? remainingCount;
 
     final newSupplement = Supplement(
       name: name,

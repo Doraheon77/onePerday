@@ -10,6 +10,7 @@
         "camera",
         "cupertino_icons",
         "flutter",
+        "flutter_lints",
         "flutter_local_notifications",
         "flutter_localizations",
         "flutter_riverpod",
@@ -59,6 +60,13 @@
         "stream_channel",
         "test_api",
         "vector_math"
+      ]
+    },
+    {
+      "name": "flutter_lints",
+      "version": "6.0.0",
+      "dependencies": [
+        "lints"
       ]
     },
     {
@@ -310,7 +318,7 @@
     },
     {
       "name": "meta",
-      "version": "1.18.0",
+      "version": "1.17.0",
       "dependencies": []
     },
     {
@@ -367,7 +375,7 @@
     },
     {
       "name": "test_api",
-      "version": "0.7.11",
+      "version": "0.7.10",
       "dependencies": [
         "async",
         "boolean_selector",
@@ -379,6 +387,11 @@
         "string_scanner",
         "term_glyph"
       ]
+    },
+    {
+      "name": "lints",
+      "version": "6.1.0",
+      "dependencies": []
     },
     {
       "name": "state_notifier",
@@ -873,7 +886,7 @@
     },
     {
       "name": "test",
-      "version": "1.31.0",
+      "version": "1.30.0",
       "dependencies": [
         "analyzer",
         "async",
@@ -1231,7 +1244,7 @@
     },
     {
       "name": "test_core",
-      "version": "0.6.17",
+      "version": "0.6.16",
       "dependencies": [
         "analyzer",
         "args",
