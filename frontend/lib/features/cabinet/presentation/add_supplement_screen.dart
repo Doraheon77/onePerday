@@ -435,8 +435,8 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
                 child: _isLoadingOCR
                     ? _buildOCRLoading()
                     : _selectedImage != null
-                        ? _buildImagePreviewInCard()
-                        : _buildLabelGuide(),
+                    ? _buildImagePreviewInCard()
+                    : _buildLabelGuide(),
               ),
             ),
             const SizedBox(height: 24),
@@ -825,8 +825,8 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
               final label = _dailyFrequency == 1
                   ? (isSet ? _formatTime(_alarmTimes[i]) : '알림 시간 설정하기')
                   : (isSet
-                      ? '${i + 1}회차 · ${_formatTime(_alarmTimes[i])}'
-                      : '알림 시간${i + 1} 설정하기');
+                        ? '${i + 1}회차 · ${_formatTime(_alarmTimes[i])}'
+                        : '알림 시간${i + 1} 설정하기');
 
               return GestureDetector(
                 onTap: () => _pickAlarmTime(i),
@@ -870,8 +870,8 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
             _alarmTimes.isEmpty
                 ? '알림 시간을 설정해주세요.'
                 : _alarmTimes.length < _dailyFrequency
-                    ? '나머지 알림 시간도 설정해주세요.'
-                    : '알림 시간을 탭하면 변경할 수 있습니다.',
+                ? '나머지 알림 시간도 설정해주세요.'
+                : '알림 시간을 탭하면 변경할 수 있습니다.',
             style: TextStyle(fontSize: 11, color: Colors.grey[500]),
           ),
         ],
@@ -928,8 +928,8 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
     final h = time.hour == 0
         ? 12
         : time.hour <= 12
-            ? time.hour
-            : time.hour - 12;
+        ? time.hour
+        : time.hour - 12;
     final m = time.minute.toString().padLeft(2, '0');
     return '$period $h:$m';
   }
@@ -969,8 +969,9 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
                   backgroundColor: Colors.white,
                   labelStyle: TextStyle(
                     color: isSelected ? AppColors.primary : Colors.black54,
-                    fontWeight:
-                        isSelected ? FontWeight.bold : FontWeight.normal,
+                    fontWeight: isSelected
+                        ? FontWeight.bold
+                        : FontWeight.normal,
                   ),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(10),
