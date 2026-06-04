@@ -31,7 +31,9 @@ class Nutrient {
 }
 
 class Supplement {
-  final String id; // 고유 식별자
+  final String id; // 프론트 로컬 ID
+  final String? supplementId; // 서버 supplements.id
+  final String? inventoryId; // 서버 supplement_inventory.id
   final String name;
   final String brand;
 
@@ -60,6 +62,8 @@ class Supplement {
 
   Supplement({
     String? id,
+    this.supplementId,
+    this.inventoryId,
     required this.name,
     required this.brand,
     this.imagePath,
@@ -93,6 +97,8 @@ class Supplement {
   factory Supplement.fromJson(Map<String, dynamic> json) {
     return Supplement(
       id: json['id'] as String?,
+      supplementId: json['supplementId']?.toString(),
+      inventoryId: json['inventoryId']?.toString(),
       name: json['name'] ?? '',
       brand: json['brand'] ?? '',
       imagePath: json['imagePath'] as String?,
@@ -118,6 +124,8 @@ class Supplement {
 
   Map<String, dynamic> toJson() => {
     'id': id,
+    if (supplementId != null) 'supplementId': supplementId,
+    if (inventoryId != null) 'inventoryId': inventoryId,
     'name': name,
     'brand': brand,
     if (imagePath != null) 'imagePath': imagePath,
@@ -134,6 +142,8 @@ class Supplement {
 
   Supplement copyWith({
     String? id,
+    String? supplementId,
+    String? inventoryId,
     String? name,
     String? brand,
     String? imagePath,
@@ -149,6 +159,8 @@ class Supplement {
   }) {
     return Supplement(
       id: id ?? this.id,
+      supplementId: supplementId ?? this.supplementId,
+      inventoryId: inventoryId ?? this.inventoryId,
       name: name ?? this.name,
       brand: brand ?? this.brand,
       imagePath: imagePath ?? this.imagePath,

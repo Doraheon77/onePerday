@@ -62,7 +62,7 @@ class _SupplementInfoScreenState extends State<SupplementInfoScreen> {
     }
   }
 
-  void _addToCabinet() {
+  Future<void> _addToCabinet() async {
     if (_alarmTimes.length < widget.supplement.dailyFrequency) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -94,7 +94,10 @@ class _SupplementInfoScreenState extends State<SupplementInfoScreen> {
     );
 
     final notifier = SupplementProvider.of(context);
-    notifier.addSupplement(newSupplement);
+    await notifier.addSupplement(
+      newSupplement,
+      backendSupplementId: widget.supplement.supplementId ?? widget.supplement.id,
+    );
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(

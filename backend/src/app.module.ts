@@ -12,7 +12,8 @@ import { LabelRecognitionModule } from './label-recognition/label-recognition.mo
 import { SupplementSearchService } from './supplement-search.service';
 import { PrismaService } from './prisma/prisma.service';
 import { RecommendModule } from './recommend/recommend.module';
-
+import { CabinetModule } from './cabinet/cabinet.module';
+import { RemindersModule } from './reminders/reminders.module';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
@@ -24,6 +25,8 @@ import { RecommendModule } from './recommend/recommend.module';
     RecommendModule,
     ChatbotModule,
     LabelRecognitionModule,
+    RemindersModule,
+    CabinetModule,
   ],
   controllers: [AppController],
   providers: [AppService, PrismaService, SupplementSearchService],

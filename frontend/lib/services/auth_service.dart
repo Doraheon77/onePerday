@@ -37,11 +37,15 @@ class AuthService {
 
     final data = await supabase
         .from('users_info')
-        .select('id')
+        .select('name, gender, birth_year')
         .eq('id', user.id)
         .maybeSingle();
 
-    return data != null;
+    if (data == null) return false;
+
+    return (data['name'] as String?)?.isNotEmpty == true &&
+        (data['gender'] as String?)?.isNotEmpty == true &&
+        data['birth_year'] != null;
   }
 
   // Mapping lists matching database BigInt IDs
@@ -93,7 +97,12 @@ class AuthService {
     required List<String> allergies,
     required List<String> healthGoals,
   }) async {
-    final user = supabase.auth.currentUser;
+    var user = supabase.auth.currentUser;
+
+    if (user == null){
+      await supabase.auth.refreshSession();
+      user = supabase.auth.currentUser;
+    }
 
     if (user == null) {
       throw Exception('로그인된 사용자가 없습니다.');
@@ -114,14 +123,17 @@ class AuthService {
         .whereType<int>()
         .toList();
 
-    await supabase.from('users_info').update({
+    await supabase.from('users_info').upsert({
+      'id': user.id,
       'name': name,
       'gender': gender,
       'birth_year': birthYear,
       'conditions': conditionIds,
       'allergies': allergyIds,
       'health_goals': goalIds,
-    }).eq('id', user.id);
+      'special_notes': <int>[],
+    });
+
   }
 
   Future<void> signOut() async {

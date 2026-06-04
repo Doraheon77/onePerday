@@ -1,9 +1,9 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import 'package:simcap/services/api_config.dart';
+import 'package:simcap/core/constant/app_constants.dart';
 
 class IntakeApiService {
-  static const String baseUrl = ApiConfig.baseUrl;
+  String get baseUrl => AppConstants.apiBaseUrl;
 
   Future<List<IntakeResult>> checkOverdoseByCartItems({
     required List<dynamic> cartItems,
@@ -42,6 +42,30 @@ class IntakeApiService {
         .map((e) => IntakeResult.fromJson(e as Map<String, dynamic>))
         .toList();
   }
+
+  Future<void> completeIntake({
+    required String userUuid,
+    required String inventoryId,
+    required int doseIndex,
+    required String date,
+    required String supplementTime,
+  }) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/intake/complete'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'userUuid': userUuid,
+        'inventoryId': int.parse(inventoryId),
+        'doseIndex': doseIndex,
+        'date': date,
+        'supplementTime': supplementTime,
+      }),
+    );
+
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw Exception('복용 완료 저장 실패: ${response.body}');
+    }
+  }
 }
 
 class IntakeResult {
@@ -66,15 +90,22 @@ class IntakeResult {
   });
 
   factory IntakeResult.fromJson(Map<String, dynamic> json) {
+    final status = json['status']?.toString() ?? 'safe';
+
     return IntakeResult(
-      nutrientName: json['nutrientName'] ?? '',
-      currentTotal: (json['currentTotal'] ?? 0).toDouble(),
-      recommendedIntake: (json['recommendedIntake'] ?? 0).toDouble(),
-      adequateIntake: (json['adequateIntake'] ?? 0).toDouble(),
-      upperLimit: (json['upperLimit'] ?? 0).toDouble(),
-      isExceeded: json['isExceeded'] ?? json['status'] == 'danger',
-      unit: json['unit'] ?? '',
-      status: json['status'] ?? 'safe',
+      nutrientName: json['nutrientName']?.toString() ?? '',
+      currentTotal: _toDouble(json['currentTotal']),
+      recommendedIntake: _toDouble(json['recommendedIntake']),
+      adequateIntake: _toDouble(json['adequateIntake']),
+      upperLimit: _toDouble(json['upperLimit']),
+      isExceeded: json['isExceeded'] == true || status == 'danger',
+      unit: json['unit']?.toString() ?? '',
+      status: status,
     );
+  }
+
+  static double _toDouble(dynamic value) {
+    if (value is num) return value.toDouble();
+    return double.tryParse(value?.toString() ?? '') ?? 0;
   }
 }

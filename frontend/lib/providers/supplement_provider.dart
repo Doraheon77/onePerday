@@ -4,6 +4,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:simcap/core/constant/app_constants.dart';
 import 'package:simcap/features/cabinet/domain/dataModels/supplement_model.dart';
 import 'package:simcap/services/notification_service.dart';
+import 'package:simcap/services/auth_service.dart';
+import 'package:simcap/services/cabinet_api_service.dart';
 
 // 복용 기록 모델
 // 날짜별로 어떤 영양제를 복용했는지 추적
@@ -305,6 +307,47 @@ class SupplementNotifier extends ChangeNotifier {
 
   List<Supplement> get supplements => List.unmodifiable(_supplements);
 
+  Future<void> loadCabinetFromServer() async {
+    final user = AuthService().currentUser;
+
+    if (user == null) {
+      debugPrint('[SupplementNotifier] 로그인 사용자 없음: 캐비넷 서버 조회 생략');
+      return;
+      }
+      try {
+        final cabinetItems = await CabinetApiService().fetchCabinetItems(
+          userUuid: user.id,
+          );
+
+    _supplements = cabinetItems.map((item) {
+      return Supplement(
+        id: item.id,
+        supplementId: item.supplementId,
+        inventoryId: item.id,
+        name: item.productName ?? '알 수 없는 영양제',
+        brand: item.brandName ?? '',
+        imagePath: item.imageUrl,
+        remaining: item.stockCount,
+        total: item.totalCount,
+        dailyDose: item.dailyDose,
+        dailyFrequency: item.dailyFrequency,
+        alarmTimes: item.alarmTimes.map(_parseTimeString).toList(),
+        nutrients: const [],
+        analysisGuide: '서버에서 불러온 영양제입니다.',
+        aiSummary: '분석 데이터 준비 중',
+      );
+    }).toList();
+
+    NotificationService.instance.scheduleAllDoseAlarms(_supplements);
+    NotificationService.instance.checkAndNotifyLowStock(_supplements);
+
+    notifyListeners();
+    await _saveSupplements();
+  } catch (e) {
+    debugPrint('[SupplementNotifier] 서버 캐비넷 조회 실패: $e');
+  }
+}
+
   /// 오늘 복용해야 할 영양제 목록 (전체)
   List<Supplement> get todaySupplements => List.unmodifiable(_supplements);
 
@@ -551,14 +594,21 @@ class SupplementNotifier extends ChangeNotifier {
 
   // 캐비닛 CRUD
 
-  void addSupplement(Supplement supplement) {
-    _supplements.add(supplement);
-    // 복용 알림 재스케줄 + 재구매 알림 체크
-    NotificationService.instance.scheduleAllDoseAlarms(_supplements);
-    NotificationService.instance.checkAndNotifyLowStock(_supplements);
-    notifyListeners();
-    _saveSupplements();
-  }
+    Future<Supplement> addSupplement(
+      Supplement supplement, {
+      String? backendSupplementId,
+    }) async {
+      _supplements.add(supplement);
+
+      NotificationService.instance.scheduleAllDoseAlarms(_supplements);
+      NotificationService.instance.checkAndNotifyLowStock(_supplements);
+
+      notifyListeners();
+      await _saveSupplements();
+
+      return supplement;
+    }
+
 
   void updateSupplement(int index, Supplement updated) {
     if (index < 0 || index >= _supplements.length) return;
@@ -685,6 +735,19 @@ class SupplementNotifier extends ChangeNotifier {
     notifyListeners();
     _savePurchases();
   }
+
+  TimeOfDay _parseTimeString(String value) {
+    final parts = value.split(':');
+    
+    if (parts.length < 2) {
+      return const TimeOfDay(hour: 9, minute: 0);
+      }
+
+  final hour = int.tryParse(parts[0]) ?? 9;
+  final minute = int.tryParse(parts[1]) ?? 0;
+
+  return TimeOfDay(hour: hour, minute: minute);
+}
 
   /// 시간을 제거하고 날짜만 반환 (날짜 비교용)
   DateTime _dateOnly(DateTime dt) => DateTime(dt.year, dt.month, dt.day);

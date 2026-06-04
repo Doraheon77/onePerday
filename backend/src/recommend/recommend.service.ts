@@ -144,7 +144,7 @@ export class RecommendService {
 
       const productName = supplement.product_name || '';
       const brandName = supplement.brand_name || '';
-      const ingredients = supplement.supplements_ingredients.map(
+      const ingredients = supplement.ingredients.map(
         (i) => i.ingredient_name || '',
       );
 
@@ -192,7 +192,7 @@ export class RecommendService {
     const recommendedList = safeSupplements.map((supplement) => {
       const productName = supplement.product_name || '';
       const brandName = supplement.brand_name || '';
-      const ingredients = supplement.supplements_ingredients.map(
+      const ingredients = supplement.ingredients.map(
         (i) => i.ingredient_name || '',
       );
 
@@ -229,7 +229,7 @@ export class RecommendService {
     });
 
     const enrichedRecommendations = topRecommendations.map((product) => {
-      const mappedIngredients = product.supplements_ingredients.map((ing) => {
+      const mappedIngredients = product.ingredients.map((ing) => {
         const std = standards.find((s) => s.nutrient_name === ing.ingredient_name);
         const dri = std?.recommended_intake || std?.adequate_intake || std?.avg_requirement || null;
         const amount = ing.amount || 0;
@@ -247,7 +247,7 @@ export class RecommendService {
 
       return {
         ...product,
-        supplements_ingredients: mappedIngredients,
+        ingredients: mappedIngredients,
       };
     });
 

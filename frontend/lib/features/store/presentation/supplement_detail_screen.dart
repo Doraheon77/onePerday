@@ -129,6 +129,7 @@ class StoreProduct {
     }
 
     return Supplement(
+      supplementId: id,
       name: name,
       brand: brand,
       remaining: calculatedPills,
@@ -420,7 +421,10 @@ class _SupplementDetailScreenState extends State<SupplementDetailScreen> {
   }
 
   /// 캐비닛에 추가
-  void _addToCabinet(BuildContext context) {
+  Future<void> _addToCabinet(BuildContext context) async {
+    final notifier = SupplementProvider.of(context);
+
+    // 이미 있으면 추가 안 함
     if (_isAlreadyInCabinet(context)) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(

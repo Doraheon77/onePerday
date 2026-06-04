@@ -1,6 +1,7 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CheckIntakeDto } from './dto/check-intake.dto';
+import { CompleteIntakeDto } from './dto/complete-intake.dto';
 
 export interface IntakeResult {
   nutrientName: string;
@@ -82,7 +83,7 @@ export class IntakeService {
         countMap.get(supplement.product_name || '') ??
         1;
 
-      for (const ingredient of supplement.supplements_ingredients) {
+      for (const ingredient of supplement.ingredients) {
         const name = ingredient.ingredient_name?.trim();
         const amount = ingredient.amount ?? 0;
         const unit = ingredient.unit?.trim() || 'mg';
@@ -156,6 +157,162 @@ export class IntakeService {
     }
 
     return results;
+  }
+
+  async getTodayReminders(userUuid: string) {
+    const today = this.getDateOnly(new Date());
+
+    const inventories = await this.prisma.supplementInventory.findMany({
+      where: {
+        user_uuid: userUuid,
+        status: 'active',
+      },
+      include: {
+        supplements: true,
+        daily_supplements: {
+          where: {
+            date: today,
+          },
+        },
+      },
+      orderBy: {
+        created_at: 'desc',
+      },
+    });
+
+    const reminders = inventories.flatMap((item) => {
+      const alarmTimes = Array.isArray(item.alarm_times)
+        ? (item.alarm_times as string[])
+        : [];
+
+      return alarmTimes.map((time, index) => {
+        const log = item.daily_supplements.find(
+          (daily) => daily.dose_index === index,
+        );
+
+        const isTaken = log?.is_taken === true;
+
+        return {
+          inventoryId: item.id.toString(),
+          userUuid: item.user_uuid,
+          supplementId: item.supplement_id.toString(),
+          supplementName: item.supplements.product_name,
+          brandName: item.supplements.brand_name,
+          imageUrl: item.supplements.image_url,
+          doseIndex: index,
+          supplementTime: time,
+          date: today.toISOString().slice(0, 10),
+          isTaken,
+          status: this.getReminderStatus(time, isTaken),
+          stockCount: item.stock_count ?? 0,
+          totalCount: item.total_count ?? 0,
+        };
+      });
+    });
+
+    return reminders.sort((a, b) => {
+      const priority = { DUE: 1, MISSED: 2, UPCOMING: 3, TAKEN: 4 };
+
+      if (priority[a.status] !== priority[b.status]) {
+        return priority[a.status] - priority[b.status];
+      }
+
+      return a.supplementTime.localeCompare(b.supplementTime);
+    });
+  }
+
+  async completeIntake(dto: CompleteIntakeDto) {
+    const date = this.getDateOnly(new Date(dto.date));
+    const inventoryId = BigInt(dto.inventoryId);
+
+    return this.prisma.$transaction(async (tx) => {
+      const inventory = await tx.supplementInventory.findFirst({
+        where: {
+          id: inventoryId,
+          user_uuid: dto.userUuid,
+          status: 'active',
+        },
+      });
+
+      if (!inventory) {
+        throw new NotFoundException('Cabinet item not found');
+      }
+
+      const existing = await tx.dailySupplements.findFirst({
+        where: {
+          user_uuid: dto.userUuid,
+          inventory_id: inventoryId,
+          date,
+          dose_index: dto.doseIndex,
+        },
+      });
+
+      const wasAlreadyTaken = existing?.is_taken === true;
+
+      const log = existing
+        ? await tx.dailySupplements.update({
+            where: {
+              id: existing.id,
+            },
+            data: {
+              is_taken: true,
+              taken_at: existing.taken_at ?? new Date(),
+              supplement_time: dto.supplementTime ?? existing.supplement_time,
+            },
+          })
+        : await tx.dailySupplements.create({
+            data: {
+              user_uuid: dto.userUuid,
+              inventory_id: inventoryId,
+              date,
+              dose_index: dto.doseIndex,
+              supplement_time: dto.supplementTime,
+              is_taken: true,
+              taken_at: new Date(),
+            },
+          });
+
+      if (!wasAlreadyTaken) {
+        const dailyDose = inventory.daily_dose ?? 1;
+        const dailyFrequency = inventory.daily_frequency ?? 1;
+        const dosePerTime = Math.max(1, Math.ceil(dailyDose / dailyFrequency));
+        const currentStock = inventory.stock_count ?? 0;
+        const nextStock = Math.max(0, currentStock - dosePerTime);
+
+        await tx.supplementInventory.update({
+          where: {
+            id: inventoryId,
+          },
+          data: {
+            stock_count: nextStock,
+          },
+        });
+      }
+
+      return log;
+    });
+  }
+
+  private getDateOnly(date: Date) {
+    return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  }
+
+  private getReminderStatus(
+    supplementTime: string,
+    isTaken: boolean,
+  ): 'UPCOMING' | 'DUE' | 'MISSED' | 'TAKEN' {
+    if (isTaken) return 'TAKEN';
+
+    const now = new Date();
+    const [hour, minute] = supplementTime.split(':').map(Number);
+    const target = new Date(now);
+    target.setHours(hour, minute, 0, 0);
+
+    const dueEnd = new Date(target.getTime() + 60 * 60 * 1000);
+
+    if (now < target) return 'UPCOMING';
+    if (now <= dueEnd) return 'DUE';
+    return 'MISSED';
   }
 
   private mapGender(gender: 'male' | 'female') {

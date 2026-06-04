@@ -6,6 +6,7 @@ import 'package:simcap/features/cabinet/domain/dataModels/supplement_model.dart'
 import 'package:simcap/providers/supplement_provider.dart';
 import 'notification_sheet.dart';
 import 'package:simcap/services/intake_api_service.dart';
+import 'package:simcap/services/auth_service.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -67,6 +68,63 @@ class _HomeScreenState extends State<HomeScreen> {
       });
     }
   }
+  String _formatDateForApi(DateTime date) {
+    return DateFormat('yyyy-MM-dd').format(date);
+  }
+
+  String _formatTimeForApi(TimeOfDay? time) {
+    final t = time ?? const TimeOfDay(hour: 9, minute: 0);
+    final h = t.hour.toString().padLeft(2, '0');
+    final m = t.minute.toString().padLeft(2, '0');
+    return '$h:$m';
+  }
+
+  Future<void> _completeDose({
+    required Supplement supplement,
+    required int doseIndex,
+    required TimeOfDay? supplementTime,
+    required VoidCallback onLocalComplete,
+  }) async {
+    final user = AuthService().currentUser;
+
+    if (user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('로그인이 필요합니다.'),
+          backgroundColor: AppColors.danger,
+        ),
+      );
+      return;
+    }
+
+    final inventoryId = supplement.inventoryId ?? supplement.id;
+
+    try {
+      await IntakeApiService().completeIntake(
+        userUuid: user.id,
+        inventoryId: inventoryId,
+        doseIndex: doseIndex,
+        date: _formatDateForApi(_selectedDate),
+        supplementTime: _formatTimeForApi(supplementTime),
+      );
+
+      onLocalComplete();
+
+      if (mounted) {
+        setState(() {});
+      }
+    } catch (e) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('복용 완료 저장 실패: $e'),
+          backgroundColor: AppColors.danger,
+        ),
+      );
+    }
+  }
+
 
   @override
   void initState() {
@@ -901,9 +959,19 @@ class _HomeScreenState extends State<HomeScreen> {
       final isDone = notifier.isDoneOn(supplement.id, _selectedDate);
       final isEmpty = supplement.remaining <= 0 && !isDone;
       return GestureDetector(
-        onTap: (isToday && (!isEmpty || isDone))
-            ? () => notifier.toggleDose(supplement.id, date: _selectedDate)
+        onTap: (isToday && !isEmpty && !isDone)
+            ? () => _completeDose(
+                  supplement: supplement,
+                  doseIndex: 0,
+                  supplementTime: supplement.alarmTimes.isNotEmpty
+                      ? supplement.alarmTimes.first
+                      : null,
+                  onLocalComplete: () {
+                    notifier.toggleDose(supplement.id, date: _selectedDate);
+                  },
+                )
             : null,
+
         child: _buildMedicationCard(
           supplement,
           isDone,
@@ -976,13 +1044,21 @@ class _HomeScreenState extends State<HomeScreen> {
               builder: (ctx) {
                 final isEmpty = supplement.remaining <= 0 && !isDone;
                 return GestureDetector(
-                  onTap: (isToday && (!isEmpty || isDone))
-                      ? () => notifier.toggleDoseIndex(
-                          supplement.id,
-                          i,
-                          date: _selectedDate,
-                        )
+                  onTap: (isToday && !isEmpty && !isDone)
+                      ? () => _completeDose(
+                            supplement: supplement,
+                            doseIndex: i,
+                            supplementTime: t,
+                            onLocalComplete: () {
+                              notifier.toggleDoseIndex(
+                                supplement.id,
+                                i,
+                                date: _selectedDate,
+                              );
+                            },
+                          )
                       : null,
+                  
                   child: _buildMedicationCard(
                     supplement,
                     isDone,
