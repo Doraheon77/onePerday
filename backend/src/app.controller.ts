@@ -234,7 +234,7 @@ export class AppController {
     fs.writeFileSync(filePath, file.buffer);
 
     // 3. 파이썬 OCR 스크립트 실행
-    const pythonScript = 'c:\\capstone\\onePerday\\ai\\ocr.py';
+    const pythonScript = path.resolve(process.cwd(), '..', 'ai', 'ocr.py');
     
     return new Promise((resolve) => {
       const pyProcess = spawn('python', [pythonScript, filePath], {

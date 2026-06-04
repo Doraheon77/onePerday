@@ -14,6 +14,8 @@ import { PrismaService } from './prisma/prisma.service';
 import { RecommendModule } from './recommend/recommend.module';
 import { CabinetModule } from './cabinet/cabinet.module';
 import { RemindersModule } from './reminders/reminders.module';
+import { ReviewModule } from './review/review.module';
+
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
@@ -27,6 +29,7 @@ import { RemindersModule } from './reminders/reminders.module';
     LabelRecognitionModule,
     RemindersModule,
     CabinetModule,
+    ReviewModule,
   ],
   controllers: [AppController],
   providers: [AppService, PrismaService, SupplementSearchService],

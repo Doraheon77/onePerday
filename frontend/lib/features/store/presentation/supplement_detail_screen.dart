@@ -12,6 +12,7 @@ import 'package:portone_flutter/v1.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:simcap/services/api_config.dart';
+import 'package:simcap/services/review_api_service.dart';
 
 // 스토어 상품 데이터 모델
 // TODO: 백엔드 연동 후 API 응답 모델로 교체
@@ -277,13 +278,27 @@ class _SupplementDetailScreenState extends State<SupplementDetailScreen> {
   bool _isPaymentLoading = false;
   List<String> _contraindications = [];
   bool _isContraLoading = false;
+  List<ProductReview> _reviews = [];
+  bool _isReviewsLoading = true;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _checkContraindications();
+      _loadReviews();
     });
+  }
+
+  Future<void> _loadReviews() async {
+    setState(() => _isReviewsLoading = true);
+    final list = await ReviewApiService().fetchReviews(widget.product.id);
+    if (mounted) {
+      setState(() {
+        _reviews = list;
+        _isReviewsLoading = false;
+      });
+    }
   }
 
   Future<void> _checkContraindications() async {
@@ -1650,7 +1665,7 @@ class _SupplementDetailScreenState extends State<SupplementDetailScreen> {
 
   // ── 리뷰 요약 섹션 ────────────────────────────────────────────────────
   Widget _buildReviewSummary(StoreProduct product) {
-    final reviews = getDummyReviews(product.id);
+    final reviews = _reviews;
     final avg = reviews.isEmpty
         ? 0.0
         : reviews.map((r) => r.rating).reduce((a, b) => a + b) / reviews.length;
@@ -1706,8 +1721,10 @@ class _SupplementDetailScreenState extends State<SupplementDetailScreen> {
                 ),
                 const Spacer(),
                 TextButton(
-                  onPressed: () =>
-                      context.push('/store/review', extra: product),
+                  onPressed: () async {
+                    await context.push('/store/review', extra: product);
+                    _loadReviews();
+                  },
                   child: const Text(
                     '전체보기',
                     style: TextStyle(
