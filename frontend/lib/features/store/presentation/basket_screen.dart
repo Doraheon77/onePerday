@@ -629,6 +629,18 @@ class _BasketScreenState extends State<BasketScreen> {
         age: 24,
         gender: 'female',
       );
+      
+      print('===== API RESULT =====');
+      for (final r in results) {
+        print(
+          '${r.nutrientName}'
+          ' current=${r.currentTotal}'
+          ' recommended=${r.recommendedIntake}'
+          ' adequate=${r.adequateIntake}'
+          ' upper=${r.upperLimit}'
+          ' status=${r.status}',
+        );
+      }
 
       setState(() {
         _isOverdoseLoading = false;

@@ -21,6 +21,7 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _isNutritionChecking = false;
   bool _hasNutritionWarning = false;
   bool _hasNutritionDanger = false;
+  List<IntakeResult> _homeIntakeResults = [];
 
   Future<void> _handleRefresh() async {
     await Future.delayed(const Duration(milliseconds: 800));
@@ -60,6 +61,7 @@ class _HomeScreenState extends State<HomeScreen> {
       setState(() {
         _hasNutritionDanger = results.any((r) => r.status == 'danger');
         _hasNutritionWarning = results.any((r) => r.status == 'warning');
+        _homeIntakeResults = results;
         _isNutritionChecking = false;
       });
     } catch (_) {
@@ -414,14 +416,25 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   // ── 복용 스트릭 & 통계 카드 ──────────────────────────────────────────────
-  Widget _buildStreakCard() {
-    final notifier = SupplementProvider.of(context);
-    final streak = notifier.currentStreak;
-    final best = notifier.bestStreak;
-    final monthly = notifier.monthlyComplianceRate;
-    final total = notifier.totalDoneDays;
-    final done = notifier.todayDoneCount;
-    final supplementTotal = notifier.todayTotalCount;
+  Widget _buildBarGraph(String label, double ratio) {
+    final matched = _homeIntakeResults.where(
+      (r) => r.nutrientName.trim() == label.trim(),
+    ).toList();
+
+    final result = matched.isNotEmpty ? matched.first : null;
+    final status = result?.status ?? 'safe';
+
+    final standardAmount = result == null
+        ? 0.0
+        : result.upperLimit > 0
+            ? result.upperLimit
+            : result.recommendedIntake > 0
+                ? result.recommendedIntake
+                : result.adequateIntake;
+
+    final apiRatio = standardAmount > 0
+        ? result!.currentTotal / standardAmount
+        : ratio;
 
     // 영양제 미등록 시 안내 카드
     if (supplementTotal == 0) {
@@ -791,19 +804,23 @@ class _HomeScreenState extends State<HomeScreen> {
 
   // ── 바 그래프 ─────────────────────────────────────────────────────────────
   Widget _buildBarGraph(String label, double ratio) {
-    final Color barColor = ratio > 1.0
-        ? AppColors.danger
-        : ratio >= 0.7
-        ? AppColors.primary
-        : AppColors.warning;
-    final pct = '${(ratio * 100).round()}%';
-    final statusNote = ratio > 1.5
-        ? '과다 섭취 주의'
-        : ratio > 1.0
-        ? '권장량 초과'
-        : ratio >= 0.7
-        ? '적정 섭취'
-        : '섭취 부족';
+    final Color barColor = status == 'danger'
+      ? AppColors.danger
+      : status == 'warning'
+          ? AppColors.warning
+          : apiRatio >= 0.7
+              ? AppColors.primary
+              : AppColors.warning;
+
+  final pct = '${(apiRatio * 100).round()}%';
+
+  final statusNote = status == 'danger'
+      ? '과다 섭취 주의'
+      : status == 'warning'
+          ? '권장량 초과'
+          : apiRatio >= 0.7
+              ? '적정 섭취'
+              : '섭취 부족';
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 18),
@@ -838,7 +855,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ClipRRect(
             borderRadius: BorderRadius.circular(10),
             child: LinearProgressIndicator(
-              value: ratio.clamp(0.0, 1.0),
+              value: apiRatio.clamp(0.0, 1.0),
               backgroundColor: Colors.grey[100],
               color: barColor,
               minHeight: 10,

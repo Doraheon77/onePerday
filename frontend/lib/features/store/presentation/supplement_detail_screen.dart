@@ -13,6 +13,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:simcap/services/api_config.dart';
 import 'package:simcap/services/review_api_service.dart';
+import 'package:simcap/services/intake_api_service.dart';
 
 // 스토어 상품 데이터 모델
 // TODO: 백엔드 연동 후 API 응답 모델로 교체
@@ -281,11 +282,14 @@ class _SupplementDetailScreenState extends State<SupplementDetailScreen> {
   List<ProductReview> _reviews = [];
   bool _isReviewsLoading = true;
 
+  List<IntakeResult> _intakeResults = [];
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _checkContraindications();
+      _checkDetailOverdose();
       _loadReviews();
     });
   }
@@ -358,6 +362,43 @@ class _SupplementDetailScreenState extends State<SupplementDetailScreen> {
       }
     }
   }
+
+  Future<void> _checkDetailOverdose() async {
+  try {
+    final notifier = SupplementProvider.of(context);
+
+    final cartItems = [
+      ...notifier.supplements.map((s) {
+        return {
+          'productId': s.supplementId,
+          'name': s.name,
+          'brand': s.brand,
+          'count': 1,
+        };
+      }),
+      {
+        'productId': widget.product.id,
+        'name': widget.product.name,
+        'brand': widget.product.brand,
+        'count': 1,
+      },
+    ];
+
+    final results = await IntakeApiService().checkOverdoseByCartItems(
+      cartItems: cartItems,
+      age: 24,
+      gender: 'female',
+    );
+
+    if (mounted) {
+      setState(() {
+        _intakeResults = results;
+      });
+    }
+  } catch (e) {
+    debugPrint('[SupplementDetailScreen] 과다복용 검사 실패: $e');
+  }
+}
 
   /// 이미 캐비닛에 등록된 영양제인지 여부 (이름 기준 비교)
   bool _isAlreadyInCabinet(BuildContext context) {
@@ -1195,19 +1236,40 @@ class _SupplementDetailScreenState extends State<SupplementDetailScreen> {
   }
 
   Widget _buildNutrientRow(NutrientInfo n) {
+    final matched = _intakeResults.where(
+      (r) => r.nutrientName.trim().toLowerCase() == n.name.trim().toLowerCase(),
+    ).toList();
+
+    final result = matched.isNotEmpty ? matched.first : null;
+    final status = result?.status ?? 'safe';
+
     // 0~100%: 초록, 100~150%: 주황(권장량 초과), 150%+: 빨강(상한 섭취량)
-    final Color barColor = n.dailyPercent > 1.5
-        ? AppColors.danger
-        : n.dailyPercent > 1.0
+    final standardAmount = result == null
+    ? 0.0
+    : result.upperLimit > 0
+        ? result.upperLimit
+        : result.recommendedIntake > 0
+            ? result.recommendedIntake
+            : result.adequateIntake;
+
+final ratio = standardAmount > 0 ? result!.currentTotal / standardAmount : 0.0;
+
+final Color barColor = status == 'danger'
+    ? AppColors.danger
+    : status == 'warning'
         ? AppColors.warning
         : AppColors.primary;
-    final Color badgeBg = n.dailyPercent > 1.5
-        ? AppColors.dangerBg
-        : n.dailyPercent > 1.0
+
+final Color badgeBg = status == 'danger'
+    ? AppColors.dangerBg
+    : status == 'warning'
         ? const Color(0xFFFFF3E0)
         : AppColors.primaryLight;
-    final clampedPercent = n.dailyPercent.clamp(0.0, 1.5);
-    final percentLabel = '${(n.dailyPercent * 100).toStringAsFixed(0)}%';
+
+final clampedPercent = ratio.clamp(0.0, 1.5);
+final percentLabel = standardAmount > 0
+    ? '${(ratio * 100).toStringAsFixed(0)}%'
+    : '-';
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 14),
