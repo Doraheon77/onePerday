@@ -83,7 +83,7 @@ export class IntakeService {
         countMap.get(supplement.product_name || '') ??
         1;
 
-      for (const ingredient of supplement.ingredients) {
+      for (const ingredient of supplement.supplements_ingredients) {
         const name = ingredient.ingredient_name?.trim();
         const amount = ingredient.amount ?? 0;
         const unit = ingredient.unit?.trim() || 'mg';

@@ -110,7 +110,14 @@ export class AppController {
     }
 
     const andConditions: any[] = [];
-    
+
+    const catConditions = mappedNutrients.map(nut => ({
+      ingredient_name: { contains: nut, mode: 'insensitive' },
+    }));
+
+    const ingConditions = ingredients.map(nut => ({
+      ingredient_name: { contains: nut, mode: 'insensitive' },
+    }));
     if (categories.length > 0) {
       const fallback = categories.map(cat => ({ product_name: { contains: cat, mode: 'insensitive' } }));
       if (mappedNutrients.length > 0) {
@@ -156,10 +163,8 @@ export class AppController {
     const dataTemp = await this.prisma.supplementsTemp.findMany({
       take: 100, // 백엔드 필터링 적용 후 최대 100개 반환
       where: whereClause,
-      include: {
-        ingredients: true,
       },
-    });
+    );
 
     const productNames = dataTemp.map(p => p.product_name).filter(Boolean) as string[];
     const dbIngredients = await this.prisma.supplementsIngredients.findMany({
@@ -180,7 +185,7 @@ export class AppController {
     });
 
     const enrichedData = data.map(product => {
-      const mappedIngredients = product.ingredients.map(ing => {
+      const mappedIngredients = product.supplements_ingredients.map(ing => {
         const std = standards.find(s => s.nutrient_name === ing.ingredient_name);
         // 권장섭취량 -> 충분섭취량 -> 평균필요량 순서로 기준치 적용
         const dri = std?.recommended_intake || std?.adequate_intake || std?.avg_requirement || null;
@@ -282,7 +287,6 @@ export class AppController {
             const productNames = allSupplementsTemp.map(s => s.product_name).filter(Boolean) as string[];
             const ingredients = await this.prisma.supplementsIngredients.findMany({
               where: { product_name: { in: productNames } },
-              include: { ingredients: true }
             });
             const allSupplements = allSupplementsTemp.map(product => ({
               ...product,

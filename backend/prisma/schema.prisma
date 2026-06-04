@@ -503,7 +503,7 @@ model UsersInfo {
   special_notes        BigInt[]
   daily_supplements    DailySupplements[]
   purchases            Purchase[]
-  reviews Review[]
+  reviews              Review[]
   supplement_inventory SupplementInventory[]
   users                users                 @relation("UsersToUsersInfo", fields: [id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
@@ -529,6 +529,8 @@ model Supplements {
   price                BigInt?
   supplement_inventory SupplementInventory[]
   ingredients          SupplementsIngredients[]
+  purchases            Purchase[]
+  supplements_test     SupplementsTest[]
 
   @@map("supplements")
   @@schema("public")
@@ -716,7 +718,7 @@ model DailySupplements {
 }
 
 model Purchase {
-  id            BigInt  @id @default(autoincrement())
+  id            BigInt   @id @default(autoincrement())
   supplement_id BigInt?
   gender        String?  @db.Text
   birth_year    Int?
@@ -724,8 +726,8 @@ model Purchase {
   purchase_time DateTime @default(now()) @db.Timestamptz
 
   // Relations
-  user_uuid     String? @db.Uuid 
-  user          UsersInfo? @relation(fields: [user_uuid], references: [id])
+  user_uuid String?    @db.Uuid
+  user      UsersInfo? @relation(fields: [user_uuid], references: [id])
 
   supplement Supplements? @relation(fields: [supplement_id], references: [id])
 

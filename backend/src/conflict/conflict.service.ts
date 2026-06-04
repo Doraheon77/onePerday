@@ -161,9 +161,6 @@ export class ConflictService {
             in: supplementBigIntIds,
           },
         },
-        include: {
-          ingredients: true,
-        },
       });
 
       const productNames = selectedSupplementsTemp.map((s) => s.product_name).filter(Boolean) as string[];
