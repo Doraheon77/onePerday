@@ -29,13 +29,21 @@ class DoseRecord {
     'doseIndex': doseIndex,
   };
 
-  factory DoseRecord.fromJson(Map<String, dynamic> json) => DoseRecord(
-    supplementId:
-        json['supplementId'] as String? ?? json['supplementName'] as String,
-    supplementName: json['supplementName'] as String,
-    date: DateTime.parse(json['date'] as String),
-    doseIndex: json['doseIndex'] as int? ?? 0,
-  );
+  factory DoseRecord.fromJson(Map<String, dynamic> json) {
+    final rawId = json['supplementId']?.toString();
+    final rawName = json['supplementName']?.toString() ?? '알 수 없는 영양제';
+    final parsedDate = json['date'] != null 
+        ? (DateTime.tryParse(json['date'].toString()) ?? DateTime.now())
+        : DateTime.now();
+    final index = int.tryParse(json['doseIndex']?.toString() ?? '') ?? 0;
+    
+    return DoseRecord(
+      supplementId: rawId ?? rawName,
+      supplementName: rawName,
+      date: parsedDate,
+      doseIndex: index,
+    );
+  }
 }
 
 // 장바구니 아이템 모델
@@ -306,6 +314,7 @@ class SupplementNotifier extends ChangeNotifier {
   }
 
   List<Supplement> get supplements => List.unmodifiable(_supplements);
+  List<DoseRecord> get doseHistory => List.unmodifiable(_doseHistory);
 
   Future<void> loadCabinetFromServer() async {
     final user = AuthService().currentUser;
@@ -332,7 +341,7 @@ class SupplementNotifier extends ChangeNotifier {
         dailyDose: item.dailyDose,
         dailyFrequency: item.dailyFrequency,
         alarmTimes: item.alarmTimes.map(_parseTimeString).toList(),
-        nutrients: const [],
+        nutrients: item.nutrients,
         analysisGuide: '서버에서 불러온 영양제입니다.',
         aiSummary: '분석 데이터 준비 중',
       );
@@ -458,20 +467,27 @@ class SupplementNotifier extends ChangeNotifier {
 
   /// 특정 날짜에 해당 영양제를 복용했는지 여부
   /// 특정 날짜 + 인덱스 복용 여부
-  bool isDoneOnIndex(String supplementId, DateTime date, int doseIndex) {
+  bool isDoneOnIndex(String? supplementId, DateTime date, int doseIndex) {
+    if (supplementId == null || supplementId == 'null') return false;
     final day = _dateOnly(date);
     return _doseHistory.any(
-      (r) =>
-          r.supplementId == supplementId &&
-          _dateOnly(r.date) == day &&
-          r.doseIndex == doseIndex,
+      (r) {
+        if (r.supplementId == 'null') return false;
+        return r.supplementId == supplementId &&
+            _dateOnly(r.date) == day &&
+            r.doseIndex == doseIndex;
+      },
     );
   }
 
-  bool isDoneOn(String supplementId, DateTime date) {
+  bool isDoneOn(String? supplementId, DateTime date) {
+    if (supplementId == null || supplementId == 'null') return false;
     final day = _dateOnly(date);
     return _doseHistory.any(
-      (r) => r.supplementId == supplementId && _dateOnly(r.date) == day,
+      (r) {
+        if (r.supplementId == 'null') return false;
+        return r.supplementId == supplementId && _dateOnly(r.date) == day;
+      },
     );
   }
 
@@ -620,13 +636,20 @@ class SupplementNotifier extends ChangeNotifier {
     _saveSupplements();
   }
 
-  void removeSupplement(String id) {
+  Future<void> removeSupplement(String id) async {
     _supplements.removeWhere((s) => s.id == id);
     _doseHistory.removeWhere((r) => r.supplementId == id);
     NotificationService.instance.scheduleAllDoseAlarms(_supplements);
     notifyListeners();
-    _saveSupplements();
-    _saveDoseHistory();
+    await _saveSupplements();
+    await _saveDoseHistory();
+
+    try {
+      await CabinetApiService().deleteCabinetItem(inventoryId: id);
+      debugPrint('[SupplementNotifier] 서버 캐비넷 삭제 성공: $id');
+    } catch (e) {
+      debugPrint('[SupplementNotifier] 서버 캐비넷 삭제 실패: $e');
+    }
   }
 
   // ── 구매 기록 CRUD ────────────────────────────────────────────────────

@@ -211,6 +211,7 @@ class _BarcodeScanScreenState extends State<BarcodeScanScreen> {
         final String name = result['productName'] ?? '알 수 없는 영양제';
         final String brand = result['brandName'] ?? '알 수 없는 브랜드';
         final String nutrientsStr = result['nutrients'] ?? '비타민C, 비타민D';
+        final String? imageUrl = result['imageUrl'];
         
         final List<Nutrient> nutrientsList = nutrientsStr
             .split(',')
@@ -219,9 +220,11 @@ class _BarcodeScanScreenState extends State<BarcodeScanScreen> {
             .toList();
 
         final supplement = Supplement(
+          supplementId: result['id']?.toString() ?? result['supplementId']?.toString(),
           name: name,
           brand: brand,
           imagePath: imageFile.path,
+          imageUrl: imageUrl,
           remaining: 0,
           total: 90,
           dailyDose: 1,

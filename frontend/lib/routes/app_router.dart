@@ -17,7 +17,7 @@ import 'package:simcap/features/store/presentation/purchase_screen.dart';
 import 'package:simcap/features/profile/presentation/onboarding_survey_screen.dart';
 import 'package:simcap/features/profile/presentation/profile_screen.dart';
 import 'package:simcap/features/profile/presentation/purchase_history_screen.dart';
-import 'package:simcap/features/store/presentation/my_reviews_screen.dart';
+import 'package:simcap/features/profile/presentation/my_reviews_screen.dart';
 import 'package:simcap/features/store/presentation/review_screen.dart';
 import 'package:simcap/features/store/presentation/store_screen.dart';
 import 'package:simcap/features/store/presentation/search_screen.dart';

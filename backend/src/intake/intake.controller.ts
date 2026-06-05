@@ -67,4 +67,14 @@ export class IntakeController {
       data: serializeBigInt(data),
     };
   }
+
+  @Post('cancel')
+  async cancel(@Body() dto: CompleteIntakeDto) {
+    const data = await this.intakeService.cancelIntake(dto);
+
+    return {
+      success: true,
+      data: serializeBigInt(data),
+    };
+  }
 }

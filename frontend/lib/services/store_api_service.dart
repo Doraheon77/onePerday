@@ -6,6 +6,9 @@ import 'package:simcap/services/api_config.dart';
 class StoreApiService {
   static const String baseUrl = ApiConfig.baseUrl;
 
+  // Static cache for fetched supplements to prevent redundant API queries
+  static List<StoreProduct>? _cachedSupplements;
+
   Future<List<StoreProduct>> fetchSupplements({
     String? keyword,
     bool record = false,
@@ -13,6 +16,15 @@ class StoreApiService {
     List<String> ingredients = const [],
     String? priceRange,
   }) async {
+    final isGeneralFetch = keyword == null &&
+        categories.isEmpty &&
+        ingredients.isEmpty &&
+        priceRange == null;
+
+    if (isGeneralFetch && _cachedSupplements != null) {
+      return _cachedSupplements!;
+    }
+
     // 쿼리 파라미터 동적 생성
     final queryParams = <String, String>{};
     if (keyword != null && keyword.trim().isNotEmpty) {
@@ -40,9 +52,15 @@ class StoreApiService {
     // NestJS 백엔드에서 배열로 응답이 올 것이라 가정
     final results = decoded as List<dynamic>? ?? [];
 
-    return results
+    final list = results
         .map((e) => StoreProduct.fromJson(e as Map<String, dynamic>))
         .toList();
+
+    if (isGeneralFetch) {
+      _cachedSupplements = list;
+    }
+
+    return list;
   }
 
   // [개선된 코드] 유저 ID를 받아 맞춤 추천 영양제를 반환하는 함수 추가

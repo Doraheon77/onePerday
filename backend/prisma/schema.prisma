@@ -530,7 +530,7 @@ model Supplements {
   supplement_inventory SupplementInventory[]
   ingredients          SupplementsIngredients[]
   purchases            Purchase[]
-  supplements_test     SupplementsTest[]
+  supplements_test     SupplementsTest?
 
   @@map("supplements")
   @@schema("public")

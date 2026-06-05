@@ -1,12 +1,90 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:simcap/core/constant/app_constants.dart';
 import 'package:go_router/go_router.dart';
 import 'package:simcap/features/cabinet/domain/dataModels/supplement_model.dart';
+import 'package:simcap/features/store/data/store_product_data.dart';
+import 'package:simcap/services/store_api_service.dart';
+import 'package:simcap/features/store/presentation/supplement_detail_screen.dart';
 
-class SupplementCard extends StatelessWidget {
+class SupplementCard extends StatefulWidget {
   final Supplement item;
 
   const SupplementCard({super.key, required this.item});
+
+  @override
+  State<SupplementCard> createState() => _SupplementCardState();
+}
+
+class _SupplementCardState extends State<SupplementCard> {
+  Supplement get item => widget.item;
+  String? _resolvedImageUrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _resolveImage();
+  }
+
+  @override
+  void didUpdateWidget(SupplementCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.item.name != widget.item.name ||
+        oldWidget.item.imageUrl != widget.item.imageUrl ||
+        oldWidget.item.imagePath != widget.item.imagePath) {
+      _resolveImage();
+    }
+  }
+
+  Future<void> _resolveImage() async {
+    // 1. 이미 displayImage가 존재하는 경우
+    if (item.displayImage != null && item.displayImage!.isNotEmpty) {
+      if (mounted) {
+        setState(() {
+          _resolvedImageUrl = item.displayImage;
+        });
+      }
+      return;
+    }
+
+    // 2. 로컬 더미 데이터(allProducts)에서 이름 매칭 시도
+    StoreProduct? dummyMatched;
+    for (final p in allProducts) {
+      if (p.name.contains(item.name) || item.name.contains(p.name)) {
+        dummyMatched = p;
+        break;
+      }
+    }
+    if (dummyMatched != null && dummyMatched.imageUrl != null) {
+      if (mounted) {
+        setState(() {
+          _resolvedImageUrl = dummyMatched!.imageUrl;
+        });
+      }
+      return;
+    }
+
+    // 3. DB 데이터에서 이름 매칭 시도
+    try {
+      final realProducts = await StoreApiService().fetchSupplements();
+      StoreProduct? matched;
+      for (final p in realProducts) {
+        if (p.name.contains(item.name) || item.name.contains(p.name)) {
+          matched = p;
+          break;
+        }
+      }
+      if (matched != null && matched.imageUrl != null) {
+        if (mounted) {
+          setState(() {
+            _resolvedImageUrl = matched!.imageUrl;
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint('SupplementCard DB 상품 매칭 실패: $e');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -83,6 +161,55 @@ class SupplementCard extends StatelessWidget {
   }
 
   Widget _buildCircleIcon() {
+    String? imageSource = _resolvedImageUrl ?? item.displayImage;
+
+    // 만약 이미지가 없으면, 로컬 더미 데이터(allProducts)에서 이름 매칭 시도
+    if (imageSource == null || imageSource.isEmpty) {
+      StoreProduct? matched;
+      for (final p in allProducts) {
+        if (p.name.contains(item.name) || item.name.contains(p.name)) {
+          matched = p;
+          break;
+        }
+      }
+      if (matched != null && matched.imageUrl != null) {
+        imageSource = matched!.imageUrl;
+      }
+    }
+
+    if (imageSource != null && imageSource.isNotEmpty) {
+      final isNetwork = imageSource.startsWith('http') || imageSource.startsWith('https');
+      return Container(
+        width: 50,
+        height: 50,
+        decoration: const BoxDecoration(
+          color: AppColors.primaryLight,
+          shape: BoxShape.circle,
+        ),
+        child: ClipOval(
+          child: isNetwork
+              ? Image.network(
+                  imageSource,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => const Icon(
+                    Icons.medication_rounded,
+                    color: Color(0xFF4CAF50),
+                    size: 26,
+                  ),
+                )
+              : Image.file(
+                  File(imageSource),
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => const Icon(
+                    Icons.medication_rounded,
+                    color: Color(0xFF4CAF50),
+                    size: 26,
+                  ),
+                ),
+        ),
+      );
+    }
+
     return Container(
       width: 50,
       height: 50,

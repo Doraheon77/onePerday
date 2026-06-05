@@ -121,6 +121,7 @@ export class AppController {
     if (categories.length > 0) {
       const fallback = categories.map(cat => ({ product_name: { contains: cat, mode: 'insensitive' } }));
       if (mappedNutrients.length > 0) {
+        const catConditions = mappedNutrients.map(nut => ({ ingredient_name: { contains: nut, mode: 'insensitive' as const } }));
         const catProductContains = mappedNutrients.map(nut => ({ product_name: { contains: nut, mode: 'insensitive' } }));
         andConditions.push({
           OR: [
@@ -137,6 +138,7 @@ export class AppController {
     }
     
     if (ingredients.length > 0) {
+      const ingConditions = ingredients.map(nut => ({ ingredient_name: { contains: nut, mode: 'insensitive' as const } }));
       const ingProductContains = ingredients.map(nut => ({ product_name: { contains: nut, mode: 'insensitive' } }));
       andConditions.push({
         OR: [
@@ -161,10 +163,9 @@ export class AppController {
     }
 
     const dataTemp = await this.prisma.supplementsTemp.findMany({
-      take: 100, // 백엔드 필터링 적용 후 최대 100개 반환
+      take: 20, // 백엔드 필터링 적용 후 최대 20개 반환
       where: whereClause,
-      },
-    );
+    });
 
     const productNames = dataTemp.map(p => p.product_name).filter(Boolean) as string[];
     const dbIngredients = await this.prisma.supplementsIngredients.findMany({
@@ -173,7 +174,7 @@ export class AppController {
 
     const data = dataTemp.map(product => ({
       ...product,
-      supplements_ingredients: dbIngredients.filter(ing => ing.product_name === product.product_name),
+      ingredients: dbIngredients.filter(ing => ing.product_name === product.product_name),
     }));
 
     const standards = await this.prisma.nutrientStandards.findMany({
@@ -185,7 +186,7 @@ export class AppController {
     });
 
     const enrichedData = data.map(product => {
-      const mappedIngredients = product.supplements_ingredients.map(ing => {
+      const mappedIngredients = product.ingredients.map(ing => {
         const std = standards.find(s => s.nutrient_name === ing.ingredient_name);
         // 권장섭취량 -> 충분섭취량 -> 평균필요량 순서로 기준치 적용
         const dri = std?.recommended_intake || std?.adequate_intake || std?.avg_requirement || null;
@@ -290,7 +291,7 @@ export class AppController {
             });
             const allSupplements = allSupplementsTemp.map(product => ({
               ...product,
-              supplements_ingredients: ingredients.filter(ing => ing.product_name === product.product_name),
+              ingredients: ingredients.filter(ing => ing.product_name === product.product_name),
             }));
 
             const targetName = parsed.productName.replace(/\s+/g, '').toLowerCase();
@@ -343,6 +344,8 @@ export class AppController {
             if (bestMatch && highestSimilarity >= 0.7) {
               parsed.productName = bestMatch.product_name;
               parsed.brandName = bestMatch.brand_name || parsed.brandName;
+              parsed.imageUrl = bestMatch.image_url || undefined;
+              parsed.id = bestMatch.id.toString();
               
               if (bestMatch.ingredients && bestMatch.ingredients.length > 0) {
                 parsed.nutrients = bestMatch.ingredients.map(ing => ing.ingredient_name).join(', ');
@@ -359,7 +362,7 @@ export class AppController {
     });
   }
 
-  private parseOcrText(text: string): { productName: string; brandName: string; nutrients: string } {
+  private parseOcrText(text: string): { productName: string; brandName: string; nutrients: string; imageUrl?: string; id?: string } {
     let productName = '알 수 없는 영양제';
     let brandName = '알 수 없는 브랜드';
     let nutrients = '영양제 성분을 찾을 수 없습니다.';

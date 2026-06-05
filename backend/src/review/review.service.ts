@@ -83,4 +83,32 @@ export class ReviewService {
       userName: review.user?.name || '익명 사용자',
     };
   }
+
+  async getReviewsByUser(userId: string) {
+    const reviews = await this.prisma.review.findMany({
+      where: {
+        user_id: userId,
+      },
+      include: {
+        supplement: {
+          select: {
+            product_name: true,
+            brand_name: true,
+          },
+        },
+      },
+      orderBy: {
+        write_time: 'desc',
+      },
+    });
+
+    return reviews.map((r) => {
+      const serialized = this.serializeReview(r);
+      return {
+        ...serialized,
+        productName: r.supplement?.product_name || '알 수 없는 영양제',
+        brandName: r.supplement?.brand_name || '',
+      };
+    });
+  }
 }

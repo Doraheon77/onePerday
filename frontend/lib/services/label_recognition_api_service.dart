@@ -101,6 +101,7 @@ class SupplementMatch {
     Map<String, dynamic> json,
     Map<String, dynamic>? matchJson,
   ) {
+    final rawIngredients = json['supplements_ingredients'] ?? json['ingredients'];
     return SupplementMatch(
       id: json['id']?.toString() ?? '',
       productName: json['product_name'] as String? ?? '',
@@ -108,10 +109,9 @@ class SupplementMatch {
       imageUrl: json['image_url'] as String?,
       price: int.tryParse(json['price']?.toString() ?? ''),
       confidence: (matchJson?['confidence'] as num?)?.toDouble() ?? 0,
-      ingredients:
-          (json['supplements_ingredients'] as List<dynamic>? ?? const [])
-              .map((item) => MatchedIngredient.fromJson(item))
-              .toList(),
+      ingredients: (rawIngredients as List<dynamic>? ?? const [])
+          .map((item) => MatchedIngredient.fromJson(item))
+          .toList(),
     );
   }
 }
@@ -128,13 +128,20 @@ class MatchedIngredient {
   });
 
   factory MatchedIngredient.fromJson(dynamic json) {
+    if (json is String) {
+      return MatchedIngredient(
+        name: json,
+        amount: null,
+        unit: '',
+      );
+    }
     final data = json is Map<String, dynamic>
         ? json
         : const <String, dynamic>{};
     return MatchedIngredient(
-      name: data['ingredient_name'] as String? ?? '',
-      amount: (data['amount'] as num?)?.toDouble(),
-      unit: data['unit'] as String? ?? '',
+      name: (data['ingredient_name'] ?? data['name'] ?? '').toString(),
+      amount: (data['amount'] as num?)?.toDouble() ?? (data['value'] as num?)?.toDouble(),
+      unit: (data['unit'] ?? '').toString(),
     );
   }
 }

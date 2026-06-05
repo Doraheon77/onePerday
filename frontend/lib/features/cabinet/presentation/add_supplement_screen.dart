@@ -32,6 +32,7 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
 
   bool _isLoadingOCR = false;
   File? _selectedImage;
+  String? _imageUrl; // OCR 또는 기존 아이템에서 가져온 이미지 URL
   final ImagePicker _picker = ImagePicker();
 
   bool _showNameError = false;
@@ -70,7 +71,11 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
       _dailyFrequency = item.dailyFrequency;
       _alarmTimes = List.from(item.alarmTimes);
       _totalController.text = item.total.toString();
-
+      _imageUrl = item.imageUrl; // 기존 이미지 URL 보존
+      if (item.supplementId != null) {
+        _supplementId = int.tryParse(item.supplementId!);
+      }
+      // 전체 개수 입력 시 잔여 개수 비어있으면 자동 반영
       _totalController.addListener(() {
         if (_remainingController.text.isEmpty) {
           setState(() => _remainingController.text = _totalController.text);
@@ -122,8 +127,8 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
 
           _nameController.text = result['productName'] ?? '알 수 없는 영양제';
           _brandController.text = result['brandName'] ?? '알 수 없는 브랜드';
-          _nutrientController.text =
-              result['nutrients']?.toString() ?? '비타민C, 비타민D, 아연';
+          _nutrientController.text = result['nutrients'] ?? '비타민C, 비타민D, 아연';
+          _imageUrl = result['imageUrl']; // OCR에서 매칭된 이미지 URL 저장
           _isLoadingOCR = false;
           _tabController.animateTo(_tabManual);
         });
@@ -253,7 +258,8 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
       return;
     }
 
-    if (_supplementId == null) {
+    // 신규 등록 시에만 영양제 ID 검사
+    if (!_isEditMode && _supplementId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('영양제 ID를 찾을 수 없습니다. 다시 검색해주세요.'),
@@ -268,35 +274,44 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
     final totalCount = int.tryParse(_totalController.text) ?? remainingCount;
 
     final newSupplement = Supplement(
+      id: widget.initialItem?.id,
+      supplementId: _supplementId?.toString() ?? widget.initialItem?.supplementId,
+      inventoryId: widget.initialItem?.inventoryId,
       name: name,
       brand: _brandController.text.trim(),
-      imagePath: _selectedImage?.path,
+      imagePath: _selectedImage?.path ?? widget.initialItem?.imagePath,
+      imageUrl: _imageUrl ?? widget.initialItem?.imageUrl,
       remaining: remainingCount,
       total: totalCount,
       dailyDose: _dailyDose,
       dailyFrequency: _dailyFrequency,
       alarmTimes: _alarmTimes,
-      nutrients: _nutrientController.text
-          .split(',')
-          .where((e) => e.trim().isNotEmpty)
-          .map(
-            (e) => Nutrient(name: e.trim(), value: 0, unit: '', percent: 0.7),
-          )
-          .toList(),
-      analysisGuide: '방금 등록된 영양제입니다.',
-      aiSummary: '분석 데이터 준비 중',
+      nutrients: widget.initialItem != null
+          ? widget.initialItem!.nutrients
+          : _nutrientController.text
+              .split(',')
+              .where((e) => e.trim().isNotEmpty)
+              .map(
+                (e) => Nutrient(name: e.trim(), value: 0, unit: '', percent: 0.7),
+              )
+              .toList(),
+      analysisGuide: widget.initialItem?.analysisGuide ?? '방금 등록된 영양제입니다.',
+      aiSummary: widget.initialItem?.aiSummary ?? '분석 데이터 준비 중',
     );
 
     try {
-      await CabinetApiService().createCabinetItem(
-        userUuid: user.id,
-        supplementId: _supplementId!,
-        dailyDose: _dailyDose,
-        dailyFrequency: _dailyFrequency,
-        stockCount: remainingCount,
-        totalCount: totalCount,
-        alarmTimes: _alarmTimes.map(_toTimeString).toList(),
-      );
+      if (!_isEditMode) {
+        // 신규 등록 시에만 백엔드 서버에 저장 API 호출
+        await CabinetApiService().createCabinetItem(
+          userUuid: user.id,
+          supplementId: _supplementId!,
+          dailyDose: _dailyDose,
+          dailyFrequency: _dailyFrequency,
+          stockCount: remainingCount,
+          totalCount: totalCount,
+          alarmTimes: _alarmTimes.map(_toTimeString).toList(),
+        );
+      }
 
       FocusManager.instance.primaryFocus?.unfocus();
       if (mounted) Navigator.pop(context, newSupplement);
@@ -304,7 +319,7 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('캐비닛 저장 실패: $e'),
+          content: Text(_isEditMode ? '캐비닛 수정 실패: $e' : '캐비닛 저장 실패: $e'),
           backgroundColor: AppColors.danger,
           behavior: SnackBarBehavior.floating,
         ),
@@ -1071,6 +1086,10 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
           border: InputBorder.none,
           errorText: hasError ? '제품명을 입력해 주세요' : null,
           errorStyle: const TextStyle(height: 0),
+        ),
+        style: const TextStyle(
+          fontSize: 15,
+          color: Colors.black87,
         ),
       ),
     );

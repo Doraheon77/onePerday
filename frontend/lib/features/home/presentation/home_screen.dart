@@ -24,17 +24,55 @@ class _HomeScreenState extends State<HomeScreen> {
   List<IntakeResult> _homeIntakeResults = [];
 
   Future<void> _handleRefresh() async {
-    await Future.delayed(const Duration(milliseconds: 800));
+    if (!mounted) return;
+    final notifier = SupplementProvider.of(context);
+    await notifier.loadCabinetFromServer();
+    if (!mounted) return;
+    await _checkHomeNutritionSafety();
     if (mounted) setState(() {});
   }
 
   Future<void> _checkHomeNutritionSafety() async {
     if (_isNutritionChecking) return;
+    if (!mounted) return;
 
     final notifier = SupplementProvider.of(context);
     final supplements = notifier.supplements;
 
-    if (supplements.isEmpty) return;
+    final List<Map<String, dynamic>> takenCartItems = [];
+    for (final s in supplements) {
+      int takenCount = 0;
+      if (s.dailyFrequency <= 1) {
+        if (notifier.isDoneOn(s.id, _selectedDate)) {
+          takenCount = 1;
+        }
+      } else {
+        for (int i = 0; i < s.dailyFrequency; i++) {
+          if (notifier.isDoneOnIndex(s.id, _selectedDate, i)) {
+            takenCount++;
+          }
+        }
+      }
+
+      if (takenCount > 0) {
+        takenCartItems.add({
+          'productId': s.supplementId,
+          'name': s.name,
+          'brand': s.brand,
+          'count': takenCount,
+        });
+      }
+    }
+
+    if (takenCartItems.isEmpty) {
+      setState(() {
+        _hasNutritionDanger = false;
+        _hasNutritionWarning = false;
+        _homeIntakeResults = [];
+        _isNutritionChecking = false;
+      });
+      return;
+    }
 
     setState(() {
       _isNutritionChecking = true;
@@ -43,20 +81,13 @@ class _HomeScreenState extends State<HomeScreen> {
     try {
       final api = IntakeApiService();
 
-      final cartItems = supplements.map((s) {
-        return {
-          'productId': s.supplementId,
-          'name': s.name,
-          'brand': s.brand,
-          'count': 1,
-        };
-      }).toList();
-
       final results = await api.checkOverdoseByCartItems(
-        cartItems: cartItems,
+        cartItems: takenCartItems,
         age: 24,
         gender: 'female',
       );
+
+      if (!mounted) return;
 
       debugPrint('===== HOME INTAKE RESULT =====');
       for (final r in results) {
@@ -74,6 +105,7 @@ class _HomeScreenState extends State<HomeScreen> {
         _isNutritionChecking = false;
       });
     } catch (_) {
+      if (!mounted) return;
       setState(() {
         _isNutritionChecking = false;
       });
@@ -120,6 +152,7 @@ class _HomeScreenState extends State<HomeScreen> {
       );
 
       onLocalComplete();
+      await _checkHomeNutritionSafety();
 
       if (mounted) {
         setState(() {});
@@ -136,11 +169,62 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  Future<void> _cancelDose({
+    required Supplement supplement,
+    required int doseIndex,
+    required TimeOfDay? supplementTime,
+    required VoidCallback onLocalCancel,
+  }) async {
+    final user = AuthService().currentUser;
+
+    if (user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('로그인이 필요합니다.'),
+          backgroundColor: AppColors.danger,
+        ),
+      );
+      return;
+    }
+
+    final inventoryId = supplement.inventoryId ?? supplement.id;
+
+    try {
+      await IntakeApiService().cancelIntake(
+        userUuid: user.id,
+        inventoryId: inventoryId,
+        doseIndex: doseIndex,
+        date: _formatDateForApi(_selectedDate),
+        supplementTime: _formatTimeForApi(supplementTime),
+      );
+
+      onLocalCancel();
+      await _checkHomeNutritionSafety();
+
+      if (mounted) {
+        setState(() {});
+      }
+    } catch (e) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('복용 취소 실패: $e'),
+          backgroundColor: AppColors.danger,
+        ),
+      );
+    }
+  }
+
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
+      final notifier = SupplementProvider.of(context);
+      await notifier.loadCabinetFromServer();
+      if (!mounted) return;
       _checkHomeNutritionSafety();
     });
   }
@@ -887,98 +971,130 @@ class _HomeScreenState extends State<HomeScreen> {
 
   // ── 복용 목록 ─────────────────────────────────────────────────────────────
   Widget _buildMedicationList() {
-    final notifier = SupplementProvider.of(context);
-    final supplements = notifier.todaySupplements;
+    try {
+      final notifier = SupplementProvider.of(context);
+      final supplements = notifier.todaySupplements;
 
-    if (supplements.isEmpty) {
-      return Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: const Center(
-          child: Text(
-            '등록된 영양제가 없습니다.\n캐비닛에서 영양제를 추가해보세요!',
-            textAlign: TextAlign.center,
-            style: TextStyle(color: Colors.grey, height: 1.6),
+      if (supplements.isEmpty) {
+        return Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
           ),
-        ),
-      );
-    }
-
-    // 알림 시간 기준 정렬 (첫 번째 알림 시간, 없으면 맨 뒤)
-    final sorted = [...supplements]
-      ..sort((a, b) {
-        final aTime = a.alarmTimes.isNotEmpty
-            ? a.alarmTimes.first.hour * 60 + a.alarmTimes.first.minute
-            : 9999;
-        final bTime = b.alarmTimes.isNotEmpty
-            ? b.alarmTimes.first.hour * 60 + b.alarmTimes.first.minute
-            : 9999;
-        return aTime.compareTo(bTime);
-      });
-
-    // 오전/오후 구분 헤더 추가
-    final List<Widget> items = [];
-    String? lastPeriod;
-
-    for (final s in sorted) {
-      final firstAlarm = s.alarmTimes.isNotEmpty ? s.alarmTimes.first : null;
-      String? period;
-      if (firstAlarm != null) {
-        final isPm = firstAlarm.hour >= 12;
-        final h = firstAlarm.hour == 0
-            ? 12
-            : firstAlarm.hour > 12
-            ? firstAlarm.hour - 12
-            : firstAlarm.hour;
-        final m = firstAlarm.minute.toString().padLeft(2, '0');
-        period = '${isPm ? "오후" : "오전"} $h:$m';
-      }
-
-      if (period != null && period != lastPeriod) {
-        if (lastPeriod != null) {
-          items.add(const SizedBox(height: 4));
-        }
-        items.add(
-          Padding(
-            padding: const EdgeInsets.only(left: 4, bottom: 8, top: 4),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AppColors.primaryLight,
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    period,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.primary,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Divider(color: Colors.grey.shade200, height: 1),
-                ),
-              ],
+          child: const Center(
+            child: Text(
+              '등록된 영양제가 없습니다.\n캐비닛에서 영양제를 추가해보세요!',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.grey, height: 1.6),
             ),
           ),
         );
-        lastPeriod = period;
       }
 
-      items.add(_buildMedicationToggleCard(s, notifier));
-    }
+      // 알림 시간 기준 정렬 (첫 번째 알림 시간, 없으면 맨 뒤)
+      final sorted = [...supplements]
+        ..sort((a, b) {
+          final aTime = a.alarmTimes.isNotEmpty
+              ? a.alarmTimes.first.hour * 60 + a.alarmTimes.first.minute
+              : 9999;
+          final bTime = b.alarmTimes.isNotEmpty
+              ? b.alarmTimes.first.hour * 60 + b.alarmTimes.first.minute
+              : 9999;
+          return aTime.compareTo(bTime);
+        });
 
-    return Column(children: items);
+      // 오전/오후 구분 헤더 추가
+      final List<Widget> items = [];
+      String? lastPeriod;
+
+      for (final s in sorted) {
+        final firstAlarm = s.alarmTimes.isNotEmpty ? s.alarmTimes.first : null;
+        String? period;
+        if (firstAlarm != null) {
+          final isPm = firstAlarm.hour >= 12;
+          final h = firstAlarm.hour == 0
+              ? 12
+              : firstAlarm.hour > 12
+              ? firstAlarm.hour - 12
+              : firstAlarm.hour;
+          final m = firstAlarm.minute.toString().padLeft(2, '0');
+          period = '${isPm ? "오후" : "오전"} $h:$m';
+        }
+
+        if (period != null && period != lastPeriod) {
+          if (lastPeriod != null) {
+            items.add(const SizedBox(height: 4));
+          }
+          items.add(
+            Padding(
+              padding: const EdgeInsets.only(left: 4, bottom: 8, top: 4),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppColors.primaryLight,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      period,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Divider(color: Colors.grey.shade200, height: 1),
+                  ),
+                ],
+              ),
+            ),
+          );
+          lastPeriod = period;
+        }
+
+        items.add(_buildMedicationToggleCard(s, notifier));
+      }
+
+      return Column(children: items);
+    } catch (e, stack) {
+      debugPrint('ERROR IN _buildMedicationList: $e\n$stack');
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.red.shade50,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.red.shade200),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              '오류가 발생했습니다:',
+              style: TextStyle(fontWeight: FontWeight.bold, color: Colors.red),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              e.toString(),
+              style: TextStyle(color: Colors.red.shade900, fontSize: 12),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              stack.toString(),
+              style: TextStyle(color: Colors.red.shade700, fontSize: 10),
+            ),
+          ],
+        ),
+      );
+    }
   }
 
   Widget _buildMedicationToggleCard(
@@ -993,17 +1109,32 @@ class _HomeScreenState extends State<HomeScreen> {
       final isDone = notifier.isDoneOn(supplement.id, _selectedDate);
       final isEmpty = supplement.remaining <= 0 && !isDone;
       return GestureDetector(
-        onTap: (isToday && !isEmpty && !isDone)
-            ? () => _completeDose(
-                  supplement: supplement,
-                  doseIndex: 0,
-                  supplementTime: supplement.alarmTimes.isNotEmpty
-                      ? supplement.alarmTimes.first
-                      : null,
-                  onLocalComplete: () {
-                    notifier.toggleDose(supplement.id, date: _selectedDate);
-                  },
-                )
+        onTap: isToday
+            ? () {
+                if (isDone) {
+                  _cancelDose(
+                    supplement: supplement,
+                    doseIndex: 0,
+                    supplementTime: supplement.alarmTimes.isNotEmpty
+                        ? supplement.alarmTimes.first
+                        : null,
+                    onLocalCancel: () {
+                      notifier.toggleDose(supplement.id, date: _selectedDate);
+                    },
+                  );
+                } else if (!isEmpty) {
+                  _completeDose(
+                    supplement: supplement,
+                    doseIndex: 0,
+                    supplementTime: supplement.alarmTimes.isNotEmpty
+                        ? supplement.alarmTimes.first
+                        : null,
+                    onLocalComplete: () {
+                      notifier.toggleDose(supplement.id, date: _selectedDate);
+                    },
+                  );
+                }
+              }
             : null,
 
         child: _buildMedicationCard(
@@ -1078,19 +1209,36 @@ class _HomeScreenState extends State<HomeScreen> {
               builder: (ctx) {
                 final isEmpty = supplement.remaining <= 0 && !isDone;
                 return GestureDetector(
-                  onTap: (isToday && !isEmpty && !isDone)
-                      ? () => _completeDose(
-                            supplement: supplement,
-                            doseIndex: i,
-                            supplementTime: t,
-                            onLocalComplete: () {
-                              notifier.toggleDoseIndex(
-                                supplement.id,
-                                i,
-                                date: _selectedDate,
-                              );
-                            },
-                          )
+                  onTap: isToday
+                      ? () {
+                          if (isDone) {
+                            _cancelDose(
+                              supplement: supplement,
+                              doseIndex: i,
+                              supplementTime: t,
+                              onLocalCancel: () {
+                                notifier.toggleDoseIndex(
+                                  supplement.id,
+                                  i,
+                                  date: _selectedDate,
+                                );
+                              },
+                            );
+                          } else if (!isEmpty) {
+                            _completeDose(
+                              supplement: supplement,
+                              doseIndex: i,
+                              supplementTime: t,
+                              onLocalComplete: () {
+                                notifier.toggleDoseIndex(
+                                  supplement.id,
+                                  i,
+                                  date: _selectedDate,
+                                );
+                              },
+                            );
+                          }
+                        }
                       : null,
                   
                   child: _buildMedicationCard(

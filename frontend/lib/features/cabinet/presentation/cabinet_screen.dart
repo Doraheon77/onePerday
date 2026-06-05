@@ -4,6 +4,8 @@ import 'package:simcap/features/cabinet/widgets/supplement_card.dart';
 import 'package:simcap/features/cabinet/domain/dataModels/supplement_model.dart';
 import 'package:simcap/providers/supplement_provider.dart';
 import 'package:go_router/go_router.dart';
+import 'package:simcap/features/cabinet/presentation/barcode_scan_screen.dart';
+import 'package:simcap/services/store_api_service.dart';
 
 // ── 정렬 옵션 ─────────────────────────────────────────────────────────────────
 enum _SortOption {
@@ -163,8 +165,46 @@ class _CabinetScreenState extends State<CabinetScreen> {
   }
 
   Future<void> _navigateAndAddSupplement() async {
-    // 바로 카메라 화면으로 이동 — 뒤로가기 시 캐비닛으로 복귀
-    await context.push('/cabinet/scan');
+    final result = await context.push<ScanResult>('/cabinet/scan');
+    if (result == null || !mounted) return;
+
+    if (result.isBarcode && result.barcodeValue != null) {
+      try {
+        final products = await StoreApiService().fetchSupplements(keyword: result.barcodeValue);
+        if (products.isNotEmpty) {
+          if (mounted) {
+            context.push('/cabinet/info', extra: products.first.toSupplement());
+          }
+        } else {
+          if (mounted) {
+            context.push(
+              '/cabinet/add',
+              extra: Supplement(
+                name: result.barcodeValue!,
+                brand: '',
+                remaining: 0,
+                total: 0,
+                nutrients: [],
+              ),
+            );
+          }
+        }
+      } catch (e) {
+        debugPrint('바코드 제품 조회 실패: $e');
+        if (mounted) {
+          context.push(
+            '/cabinet/add',
+            extra: Supplement(
+              name: result.barcodeValue!,
+              brand: '',
+              remaining: 0,
+              total: 0,
+              nutrients: [],
+            ),
+          );
+        }
+      }
+    }
   }
 
   @override

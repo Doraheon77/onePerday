@@ -66,6 +66,30 @@ class IntakeApiService {
       throw Exception('복용 완료 저장 실패: ${response.body}');
     }
   }
+
+  Future<void> cancelIntake({
+    required String userUuid,
+    required String inventoryId,
+    required int doseIndex,
+    required String date,
+    required String supplementTime,
+  }) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/intake/cancel'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'userUuid': userUuid,
+        'inventoryId': int.parse(inventoryId),
+        'doseIndex': doseIndex,
+        'date': date,
+        'supplementTime': supplementTime,
+      }),
+    );
+
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw Exception('복용 취소 실패: ${response.body}');
+    }
+  }
 }
 
 class IntakeResult {

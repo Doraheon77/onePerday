@@ -15,4 +15,9 @@ export class ReviewController {
   async getReviewsByProduct(@Param('productId') productId: string) {
     return this.reviewService.getReviewsByProduct(productId);
   }
+
+  @Get('user/:userId')
+  async getReviewsByUser(@Param('userId') userId: string) {
+    return this.reviewService.getReviewsByUser(userId);
+  }
 }

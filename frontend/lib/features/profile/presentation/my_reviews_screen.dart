@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:simcap/core/constant/app_constants.dart';
 import 'package:simcap/features/store/presentation/review_screen.dart';
+import 'package:simcap/services/review_api_service.dart';
+import 'package:simcap/services/auth_service.dart';
 
 // ── 내가 쓴 리뷰 관리 화면 ────────────────────────────────────────────────
 class MyReviewsScreen extends StatefulWidget {
@@ -11,30 +13,37 @@ class MyReviewsScreen extends StatefulWidget {
 }
 
 class _MyReviewsScreenState extends State<MyReviewsScreen> {
-  // TODO: 백엔드 연동 후 실제 데이터로 교체
-  // 현재는 더미 데이터로 UI 구성
-  final List<ProductReview> _myReviews = [
-    ProductReview(
-      id: 'my001',
-      productId: 'p01',
-      productName: '고함량 비타민D 5000IU',
-      userName: '나',
-      rating: 5.0,
-      content: '꾸준히 먹고 있는데 확실히 피로감이 줄었어요. 캡슐도 작아서 삼키기 편하고 냄새도 없어서 좋습니다.',
-      createdAt: DateTime(2025, 3, 15),
-      isMine: true,
-    ),
-    ProductReview(
-      id: 'my002',
-      productId: 'p03',
-      productName: '프리미엄 오메가3 1200mg',
-      userName: '나',
-      rating: 4.0,
-      content: '생선 비린내가 거의 없어서 먹기 편해요. 효과는 꾸준히 먹어봐야 알 것 같아요.',
-      createdAt: DateTime(2025, 2, 10),
-      isMine: true,
-    ),
-  ];
+  List<ProductReview> _myReviews = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadMyReviews();
+  }
+
+  Future<void> _loadMyReviews() async {
+    final user = AuthService().currentUser;
+    if (user == null) {
+      setState(() => _isLoading = false);
+      return;
+    }
+
+    try {
+      final reviews = await ReviewApiService().fetchUserReviews(user.id);
+      if (mounted) {
+        setState(() {
+          _myReviews = reviews;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('내 리뷰 로드 실패: $e');
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
 
   void _deleteReview(String reviewId) {
     showDialog(
@@ -215,14 +224,16 @@ class _MyReviewsScreenState extends State<MyReviewsScreen> {
           onPressed: () => Navigator.pop(context),
         ),
       ),
-      body: _myReviews.isEmpty
-          ? _buildEmptyState()
-          : ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: _myReviews.length,
-              itemBuilder: (context, index) =>
-                  _buildReviewCard(_myReviews[index]),
-            ),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _myReviews.isEmpty
+              ? _buildEmptyState()
+              : ListView.builder(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: _myReviews.length,
+                  itemBuilder: (context, index) =>
+                      _buildReviewCard(_myReviews[index]),
+                ),
     );
   }
 

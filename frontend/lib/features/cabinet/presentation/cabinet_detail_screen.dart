@@ -7,6 +7,7 @@ import 'package:simcap/providers/supplement_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:simcap/features/store/data/store_product_data.dart';
 import 'package:simcap/features/store/presentation/supplement_detail_screen.dart';
+import 'package:simcap/services/store_api_service.dart';
 
 class CabinetDetailScreen extends StatefulWidget {
   final Supplement item;
@@ -19,6 +20,55 @@ class CabinetDetailScreen extends StatefulWidget {
 
 class _CabinetDetailScreenState extends State<CabinetDetailScreen> {
   bool _isLaunching = false;
+  StoreProduct? _matchedProduct;
+  bool _isLoadingProduct = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _resolveMatchedProduct();
+  }
+
+  Future<void> _resolveMatchedProduct() async {
+    // 1. 로컬 매칭 시도
+    StoreProduct? dummyMatched;
+    for (final p in allProducts) {
+      if (p.name.contains(widget.item.name) || widget.item.name.contains(p.name)) {
+        dummyMatched = p;
+        break;
+      }
+    }
+    if (dummyMatched != null) {
+      if (mounted) {
+        setState(() {
+          _matchedProduct = dummyMatched;
+        });
+      }
+      return;
+    }
+
+    // 2. DB 매칭 시도
+    if (mounted) setState(() => _isLoadingProduct = true);
+    try {
+      final realProducts = await StoreApiService().fetchSupplements();
+      StoreProduct? matched;
+      for (final p in realProducts) {
+        if (p.name.contains(widget.item.name) || widget.item.name.contains(p.name)) {
+          matched = p;
+          break;
+        }
+      }
+      if (matched != null && mounted) {
+        setState(() {
+          _matchedProduct = matched;
+        });
+      }
+    } catch (e) {
+      debugPrint('DB 상품 매칭 실패: $e');
+    } finally {
+      if (mounted) setState(() => _isLoadingProduct = false);
+    }
+  }
 
   // 구매처 이동 — 상품명으로 네이버 쇼핑 검색
   Future<void> _launchPurchaseUrl() async {
@@ -147,18 +197,9 @@ class _CabinetDetailScreenState extends State<CabinetDetailScreen> {
     }
   }
 
-  // 리뷰 작성 — 스토어 상품 매칭 후 리뷰 화면 이동
   void _onWriteReview() {
-    final matched = allProducts
-        .where(
-          (p) =>
-              p.name.contains(item.name) ||
-              item.name.contains(p.name),
-        )
-        .toList();
-
-    if (matched.isNotEmpty) {
-      context.push('/store/review', extra: matched.first);
+    if (_matchedProduct != null) {
+      context.push('/store/review', extra: _matchedProduct);
     } else {
       _showSnackBar('스토어에 등록되지 않은 영양제는 리뷰를 작성할 수 없습니다.', isError: true);
     }
@@ -240,6 +281,9 @@ class _CabinetDetailScreenState extends State<CabinetDetailScreen> {
   }
 
   Widget _buildProductHeader() {
+    final imageSource = item.displayImage ?? _matchedProduct?.imageUrl;
+    final isNetwork = imageSource != null && (imageSource.startsWith('http') || imageSource.startsWith('https'));
+
     return Padding(
       padding: const EdgeInsets.all(24.0),
       child: Row(
@@ -251,19 +295,28 @@ class _CabinetDetailScreenState extends State<CabinetDetailScreen> {
               color: AppColors.primaryFaint,
               borderRadius: BorderRadius.circular(20),
             ),
-            child: (item.imagePath != null && item.imagePath!.isNotEmpty)
+            child: (imageSource != null && imageSource.isNotEmpty)
                 ? ClipRRect(
                     borderRadius: BorderRadius.circular(20),
-                    child: Image.file(
-                      File(item.imagePath!),
-                      fit: BoxFit.cover,
-                      // 이미지 로드 에러 시 기본 아이콘 표시
-                      errorBuilder: (context, error, stackTrace) => const Icon(
-                        Icons.medication_rounded,
-                        size: 45,
-                        color: AppColors.primary,
-                      ),
-                    ),
+                    child: isNetwork
+                        ? Image.network(
+                            imageSource,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) => const Icon(
+                              Icons.medication_rounded,
+                              size: 45,
+                              color: AppColors.primary,
+                            ),
+                          )
+                        : Image.file(
+                            File(imageSource),
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) => const Icon(
+                              Icons.medication_rounded,
+                              size: 45,
+                              color: AppColors.primary,
+                            ),
+                          ),
                   )
                 : const Icon(
                     Icons.medication_rounded,
@@ -693,15 +746,8 @@ class _CabinetDetailScreenState extends State<CabinetDetailScreen> {
           Expanded(
             child: ElevatedButton(
               onPressed: () {
-                final matched = allProducts
-                    .where(
-                      (p) =>
-                          p.name.contains(item.name) ||
-                          item.name.contains(p.name),
-                    )
-                    .toList();
-                if (matched.isNotEmpty) {
-                  context.push('/store/detail', extra: matched.first);
+                if (_matchedProduct != null) {
+                  context.push('/store/detail', extra: _matchedProduct);
                 } else {
                   context.push('/store/search');
                 }

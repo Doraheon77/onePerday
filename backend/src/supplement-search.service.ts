@@ -151,7 +151,7 @@ export class SupplementSearchService {
     });
     return {
       ...product,
-      supplements_ingredients: ingredients,
+      ingredients: ingredients,
     };
   }
 
@@ -163,7 +163,7 @@ export class SupplementSearchService {
     });
     return products.map(product => ({
       ...product,
-      supplements_ingredients: ingredients.filter(ing => ing.product_name === product.product_name),
+      ingredients: ingredients.filter(ing => ing.product_name === product.product_name),
     }));
   }
 
@@ -183,7 +183,7 @@ export class SupplementSearchService {
     candidate: {
       product_name: string;
       brand_name: string | null;
-      supplements_ingredients?: { ingredient_name: string | null }[];
+      ingredients?: { ingredient_name: string | null }[];
     },
     productName: string,
     brandName?: string,
@@ -211,7 +211,7 @@ export class SupplementSearchService {
     }
 
     const ingredientText =
-      candidate.supplements_ingredients
+      candidate.ingredients
         ?.map((ingredient) => ingredient.ingredient_name ?? '')
         .join(' ')
         .toLowerCase() ?? '';

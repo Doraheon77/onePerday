@@ -17,11 +17,32 @@ export class CabinetService {
       );
     }
 
-    const supplement = await this.prisma.supplements.findUnique({
-      where: {
-        id: BigInt(dto.supplementId),
-      },
-    });
+    let supplement: any = null;
+    try {
+      const tempSupplement = await this.prisma.supplementsTemp.findUnique({
+        where: {
+          id: BigInt(dto.supplementId),
+        },
+      });
+
+      if (tempSupplement && tempSupplement.product_name) {
+        supplement = await this.prisma.supplements.findUnique({
+          where: {
+            product_name: tempSupplement.product_name,
+          },
+        });
+      }
+    } catch (_) {}
+
+    if (!supplement) {
+      try {
+        supplement = await this.prisma.supplements.findUnique({
+          where: {
+            id: BigInt(dto.supplementId),
+          },
+        });
+      } catch (_) {}
+    }
 
     if (!supplement) {
       throw new NotFoundException('Supplement not found');
@@ -30,7 +51,7 @@ export class CabinetService {
     return this.prisma.supplementInventory.create({
       data: {
         user_uuid: dto.userUuid,
-        supplement_id: BigInt(dto.supplementId),
+        supplement_id: supplement.id,
         daily_dose: dto.dailyDose,
         daily_frequency: dto.dailyFrequency,
         stock_count: dto.stockCount ?? 0,
@@ -39,7 +60,11 @@ export class CabinetService {
         status: 'active',
       },
       include: {
-        supplements: true,
+        supplements: {
+          include: {
+            ingredients: true,
+          },
+        },
       },
     });
   }
@@ -51,7 +76,11 @@ export class CabinetService {
         status: 'active',
       },
       include: {
-        supplements: true,
+        supplements: {
+          include: {
+            ingredients: true,
+          },
+        },
       },
       orderBy: {
         created_at: 'desc',

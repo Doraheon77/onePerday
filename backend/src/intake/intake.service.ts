@@ -64,7 +64,7 @@ export class IntakeService {
 
     const supplements = supplementsTemp.map(product => ({
       ...product,
-      supplements_ingredients: ingredients.filter(ing => ing.product_name === product.product_name),
+      ingredients: ingredients.filter(ing => ing.product_name === product.product_name),
     }));
 
     const countMap = new Map<string, number>();
@@ -83,7 +83,7 @@ export class IntakeService {
         countMap.get(supplement.product_name || '') ??
         1;
 
-      for (const ingredient of supplement.supplements_ingredients) {
+      for (const ingredient of supplement.ingredients) {
         const name = ingredient.ingredient_name?.trim();
         const amount = ingredient.amount ?? 0;
         const unit = ingredient.unit?.trim() || 'mg';
@@ -288,6 +288,69 @@ export class IntakeService {
           },
         });
       }
+
+      return log;
+    });
+  }
+
+  async cancelIntake(dto: CompleteIntakeDto) {
+    const date = this.getDateOnly(new Date(dto.date));
+    const inventoryId = BigInt(dto.inventoryId);
+
+    return this.prisma.$transaction(async (tx) => {
+      const inventory = await tx.supplementInventory.findFirst({
+        where: {
+          id: inventoryId,
+          user_uuid: dto.userUuid,
+          status: 'active',
+        },
+      });
+
+      if (!inventory) {
+        throw new NotFoundException('Cabinet item not found');
+      }
+
+      const existing = await tx.dailySupplements.findFirst({
+        where: {
+          user_uuid: dto.userUuid,
+          inventory_id: inventoryId,
+          date,
+          dose_index: dto.doseIndex,
+        },
+      });
+
+      if (!existing || !existing.is_taken) {
+        return existing;
+      }
+
+      const log = await tx.dailySupplements.update({
+        where: {
+          id: existing.id,
+        },
+        data: {
+          is_taken: false,
+          taken_at: null,
+        },
+      });
+
+      const dailyDose = inventory.daily_dose ?? 1;
+      const dailyFrequency = inventory.daily_frequency ?? 1;
+      const dosePerTime = Math.max(1, Math.ceil(dailyDose / dailyFrequency));
+      const currentStock = inventory.stock_count ?? 0;
+      const totalCount = inventory.total_count ?? 0;
+      
+      const nextStock = totalCount > 0 
+          ? Math.min(totalCount, currentStock + dosePerTime)
+          : currentStock + dosePerTime;
+
+      await tx.supplementInventory.update({
+        where: {
+          id: inventoryId,
+        },
+        data: {
+          stock_count: nextStock,
+        },
+      });
 
       return log;
     });

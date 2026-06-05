@@ -170,12 +170,12 @@ export class ConflictService {
 
       const selectedSupplements = selectedSupplementsTemp.map((product) => ({
         ...product,
-        supplements_ingredients: ingredients.filter((ing) => ing.product_name === product.product_name),
+        ingredients: ingredients.filter((ing) => ing.product_name === product.product_name),
       }));
 
       const dbConflicts: Conflict[] = selectedSupplements.map((s) => ({
         name: s.product_name || '',
-        ingredients: s.supplements_ingredients
+        ingredients: s.ingredients
           .map((si) => si.ingredient_name?.trim())
           .filter(Boolean) as string[],
       }));

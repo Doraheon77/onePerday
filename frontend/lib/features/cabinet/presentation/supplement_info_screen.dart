@@ -4,6 +4,13 @@ import 'package:simcap/core/constant/app_constants.dart';
 import 'package:simcap/features/cabinet/domain/dataModels/supplement_model.dart';
 import 'package:simcap/features/cabinet/widgets/drum_roll_time_picker.dart';
 import 'package:simcap/providers/supplement_provider.dart';
+import 'package:simcap/services/conflict_api_service.dart';
+import 'package:simcap/services/store_api_service.dart';
+import 'package:simcap/services/auth_service.dart';
+import 'package:simcap/services/cabinet_api_service.dart';
+import 'package:simcap/features/store/data/store_product_data.dart';
+import 'package:simcap/features/store/presentation/supplement_detail_screen.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class SupplementInfoScreen extends StatefulWidget {
   final Supplement supplement;
@@ -17,6 +24,11 @@ class _SupplementInfoScreenState extends State<SupplementInfoScreen> {
   late TextEditingController _remainingController;
   late List<TimeOfDay> _alarmTimes;
 
+  List<Map<String, String>> _overdoseConflicts = [];
+  List<Map<String, String>> _interactionConflicts = [];
+  bool _isSafetyLoading = false;
+  StoreProduct? _matchedProduct;
+
   @override
   void initState() {
     super.initState();
@@ -28,6 +40,168 @@ class _SupplementInfoScreenState extends State<SupplementInfoScreen> {
                 : ''),
     );
     _alarmTimes = List.from(widget.supplement.alarmTimes);
+    _resolveAndCheckSafety();
+  }
+
+  Future<void> _resolveAndCheckSafety() async {
+    if (!mounted) return;
+    setState(() {
+      _isSafetyLoading = true;
+    });
+
+    try {
+      // 1. 매칭 상품 찾기 (로컬 & DB)
+      StoreProduct? matched;
+      for (final p in allProducts) {
+        if (p.name.contains(widget.supplement.name) ||
+            widget.supplement.name.contains(p.name)) {
+          matched = p;
+          break;
+        }
+      }
+      if (matched == null) {
+        try {
+          final realProducts = await StoreApiService().fetchSupplements();
+          for (final p in realProducts) {
+            if (p.name.contains(widget.supplement.name) ||
+                widget.supplement.name.contains(p.name)) {
+              matched = p;
+              break;
+            }
+          }
+        } catch (e) {
+          debugPrint('DB 제품 조회 실패: $e');
+        }
+      }
+
+      if (mounted) {
+        setState(() {
+          _matchedProduct = matched;
+          if (_remainingController.text.isEmpty && matched != null) {
+            final matchedTotal = matched.toSupplement().total;
+            if (matchedTotal > 0) {
+              _remainingController.text = matchedTotal.toString();
+            }
+          }
+        });
+      }
+
+      final cabinets = SupplementProvider.of(context).supplements;
+
+      // 2. 과다복용 여부 분석 (동일 성분 중복 및 함량 계산)
+      final List<Map<String, String>> overdoseList = [];
+      for (final n in widget.supplement.nutrients) {
+        if (n.name.trim().isEmpty) continue;
+        final List<Nutrient> matchingOtherNutrients = [];
+        for (final cab in cabinets) {
+          if (cab.id == widget.supplement.id) continue;
+          for (final cn in cab.nutrients) {
+            if (cn.name.trim().toLowerCase() == n.name.trim().toLowerCase()) {
+              matchingOtherNutrients.add(cn);
+            }
+          }
+        }
+
+        if (matchingOtherNutrients.isNotEmpty) {
+          double totalValue = n.value;
+          double totalPercent = n.percent;
+          for (final cn in matchingOtherNutrients) {
+            totalValue += cn.value;
+            totalPercent += cn.percent;
+          }
+
+          String status = '안전';
+          if (totalPercent > 1.5) {
+            status = '위험';
+          } else if (totalPercent > 1.0) {
+            status = '주의';
+          }
+
+          overdoseList.add({
+            'nutrient': n.name,
+            'current':
+                '${totalValue.toInt()}${n.unit} (${(totalPercent * 100).round()}%)',
+            'limit': '기준치 100%',
+            'status': status,
+          });
+        }
+      }
+
+      // 3. 병용금지/만성질환/알레르기 충돌 여부 분석
+      final List<Map<String, String>> interactionList = [];
+      final prefs = await SharedPreferences.getInstance();
+      final userHealth = prefs.getStringList('selectedHealth') ?? [];
+      final userAllergies = prefs.getStringList('selectedAllergies') ?? [];
+
+      final currentProductId = matched != null
+          ? int.tryParse(matched.id)
+          : null;
+      final cabinetSuppsJson = cabinets
+          .where((s) => s.id != widget.supplement.id) // 본인 제외
+          .map(
+            (s) => {
+              'name': s.name,
+              'ingredients': s.nutrients.map((n) => n.name).toList(),
+            },
+          )
+          .toList();
+
+      // 만약 신규 영양제가 DB ID가 없다면, cabinetSuppsJson에 수동 추가해서 충돌을 검사함
+      final List<int> supplementIds = [];
+      final List<Map<String, dynamic>> checkCabinetSupps = List.from(
+        cabinetSuppsJson,
+      );
+
+      if (currentProductId != null) {
+        supplementIds.add(currentProductId);
+      } else {
+        checkCabinetSupps.add({
+          'name': widget.supplement.name,
+          'ingredients': widget.supplement.nutrients
+              .map((n) => n.name)
+              .toList(),
+        });
+      }
+
+      final conflictApi = ConflictApiService();
+      final backendConflicts = await conflictApi.checkConflictsBySupplementIds(
+        supplementIds: supplementIds,
+        cabinetSupplements: checkCabinetSupps,
+        userHealth: userHealth,
+        userAllergies: userAllergies,
+      );
+
+      for (final conflict in backendConflicts) {
+        // 이 영양제와 관련된 충돌만 추출
+        if (conflict.conflicts.contains(widget.supplement.name)) {
+          final other = conflict.conflicts.firstWhere(
+            (name) => name != widget.supplement.name,
+            orElse: () => '',
+          );
+
+          interactionList.add({
+            'supplement': other.isNotEmpty ? other : '개인 건강 설정',
+            'nutrient': conflict.conflictingIngredients.join(', '),
+            'reason': conflict.reason,
+          });
+        }
+      }
+
+      if (mounted) {
+        setState(() {
+          _overdoseConflicts = overdoseList;
+          _interactionConflicts = interactionList;
+        });
+      }
+    } catch (e) {
+      debugPrint('안전성 분석 실패: $e');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSafetyLoading = false;
+        });
+      }
+    }
   }
 
   @override
@@ -75,12 +249,16 @@ class _SupplementInfoScreenState extends State<SupplementInfoScreen> {
     }
 
     final remaining = int.tryParse(_remainingController.text) ?? 0;
-    final total = widget.supplement.total;
+    final resolvedTotal = widget.supplement.total > 0
+        ? widget.supplement.total
+        : (_matchedProduct != null ? _matchedProduct!.toSupplement().total : 0);
 
-    if (total > 0 && remaining > total) {
+    final finalTotal = resolvedTotal > 0 ? resolvedTotal : remaining;
+
+    if (finalTotal > 0 && remaining > finalTotal) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('잔여 개수는 전체 용량(${total}정)을 초과할 수 없습니다.'),
+          content: Text('잔여 개수는 전체 용량(${finalTotal}정)을 초과할 수 없습니다.'),
           backgroundColor: AppColors.danger,
           behavior: SnackBarBehavior.floating,
         ),
@@ -88,26 +266,79 @@ class _SupplementInfoScreenState extends State<SupplementInfoScreen> {
       return;
     }
 
-    final newSupplement = widget.supplement.copyWith(
-      remaining: remaining,
-      alarmTimes: _alarmTimes,
-    );
+    final user = AuthService().currentUser;
+    if (user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('로그인이 필요합니다.'),
+          backgroundColor: AppColors.danger,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
 
-    final notifier = SupplementProvider.of(context);
-    await notifier.addSupplement(
-      newSupplement,
-      backendSupplementId:
-          widget.supplement.supplementId ?? widget.supplement.id,
-    );
+    final targetSupplementId = int.tryParse(widget.supplement.supplementId ?? _matchedProduct?.id ?? widget.supplement.id ?? '');
+    if (targetSupplementId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('영양제 ID를 찾을 수 없습니다. 다시 검색해주세요.'),
+          backgroundColor: AppColors.danger,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('${widget.supplement.name}을(를) 캐비닛에 추가했습니다!'),
-        backgroundColor: AppColors.primary,
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
-    context.go('/cabinet');
+    try {
+      final createdItem = await CabinetApiService().createCabinetItem(
+        userUuid: user.id,
+        supplementId: targetSupplementId,
+        dailyDose: widget.supplement.dailyDose,
+        dailyFrequency: widget.supplement.dailyFrequency,
+        stockCount: remaining,
+        totalCount: finalTotal,
+        alarmTimes: _alarmTimes.map((t) {
+          final h = t.hour.toString().padLeft(2, '0');
+          final m = t.minute.toString().padLeft(2, '0');
+          return '$h:$m';
+        }).toList(),
+      );
+
+      final newSupplement = widget.supplement.copyWith(
+        id: createdItem.id,
+        supplementId: createdItem.supplementId,
+        inventoryId: createdItem.id,
+        remaining: remaining,
+        total: finalTotal,
+        alarmTimes: _alarmTimes,
+      );
+
+      final notifier = SupplementProvider.of(context);
+      await notifier.addSupplement(
+        newSupplement,
+        backendSupplementId: createdItem.supplementId,
+      );
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('${widget.supplement.name}을(를) 캐비닛에 추가했습니다!'),
+          backgroundColor: AppColors.primary,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      context.go('/cabinet');
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('캐비닛 저장 실패: $e'),
+          backgroundColor: AppColors.danger,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
   }
 
   @override
@@ -148,7 +379,15 @@ class _SupplementInfoScreenState extends State<SupplementInfoScreen> {
           ),
           _readOnlyField('1회 복용량', '${s.dailyDose}정'),
           _readOnlyField('하루 복용 횟수', '${s.dailyFrequency}회'),
-          _readOnlyField('전체 용량', s.total > 0 ? '${s.total}정' : '정보 없음'),
+          _readOnlyField(
+            '전체 용량',
+            s.total > 0
+                ? '${s.total}정'
+                : (_matchedProduct != null &&
+                          _matchedProduct!.toSupplement().total > 0
+                      ? '${_matchedProduct!.toSupplement().total}정'
+                      : '정보 없음'),
+          ),
 
           const SizedBox(height: 20),
 
@@ -187,12 +426,15 @@ class _SupplementInfoScreenState extends State<SupplementInfoScreen> {
                               fontSize: 14,
                             ),
                           ),
-                          style: const TextStyle(fontSize: 15),
+                          style: const TextStyle(
+                            fontSize: 15,
+                            color: Colors.black87,
+                          ),
                         ),
                       ),
                       if (widget.supplement.total > 0)
                         Text(
-                          '/ \${widget.supplement.total}',
+                          '/ ${widget.supplement.total}',
                           style: TextStyle(
                             color: Colors.grey[400],
                             fontSize: 14,
@@ -255,27 +497,26 @@ class _SupplementInfoScreenState extends State<SupplementInfoScreen> {
   }
 
   Widget _buildSafetySection(List<Supplement> cabinets) {
-    // 하드코딩 충돌 데이터 (백엔드 연동 전)
-    final overdoseConflicts = [
-      {
-        'nutrient': '비타민D',
-        'current': '1,000 IU',
-        'limit': '4,000 IU',
-        'status': '안전',
-      },
-      {
-        'nutrient': '비타민C',
-        'current': '500 mg',
-        'limit': '2,000 mg',
-        'status': '안전',
-      },
-    ];
-    final interactionConflicts = [
-      {'supplement': '오메가3', 'nutrient': '비타민E', 'reason': '혈액 응고 억제 효과 중복'},
-    ];
+    if (_isSafetyLoading) {
+      return Container(
+        height: 140,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(15),
+          border: Border.all(color: AppColors.border),
+        ),
+        child: const Center(
+          child: CircularProgressIndicator(
+            valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+          ),
+        ),
+      );
+    }
 
-    final hasOverdose = false; // 백엔드 연동 후 실제 계산
-    final hasInteraction = false;
+    final hasOverdose = _overdoseConflicts.any(
+      (c) => c['status'] == '위험' || c['status'] == '주의',
+    );
+    final hasInteraction = _interactionConflicts.isNotEmpty;
 
     return Container(
       decoration: BoxDecoration(
@@ -303,7 +544,7 @@ class _SupplementInfoScreenState extends State<SupplementInfoScreen> {
             ),
           // 과다복용
           GestureDetector(
-            onTap: () => _showOverdoseDetail(overdoseConflicts),
+            onTap: () => _showOverdoseDetail(_overdoseConflicts),
             child: _safetyRow(
               Icons.monitor_heart_outlined,
               '과다복용 여부',
@@ -314,7 +555,7 @@ class _SupplementInfoScreenState extends State<SupplementInfoScreen> {
           const Divider(height: 1),
           // 병용금지
           GestureDetector(
-            onTap: () => _showInteractionDetail(interactionConflicts),
+            onTap: () => _showInteractionDetail(_interactionConflicts),
             child: _safetyRow(
               Icons.warning_amber_rounded,
               '병용금지 여부',
@@ -408,96 +649,132 @@ class _SupplementInfoScreenState extends State<SupplementInfoScreen> {
   void _showOverdoseDetail(List<Map<String, String>> conflicts) {
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (ctx) => Padding(
-        padding: const EdgeInsets.fromLTRB(24, 24, 24, 40),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                const Icon(
-                  Icons.monitor_heart_outlined,
-                  color: AppColors.primary,
-                  size: 22,
-                ),
-                const SizedBox(width: 8),
-                const Text(
-                  '과다복용 분석',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-              ],
-            ),
-            const SizedBox(height: 6),
-            Text(
-              '캐비닛 영양제와 합산한 성분별 섭취량입니다.',
-              style: TextStyle(fontSize: 12, color: Colors.grey[500]),
-            ),
-            const SizedBox(height: 16),
-            ...conflicts.map((c) {
-              final isSafe = c['status'] == '안전';
-              return Container(
-                margin: const EdgeInsets.only(bottom: 10),
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: isSafe ? AppColors.primaryLight : AppColors.dangerBg,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          c['nutrient']!,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
-                          ),
+      builder: (ctx) => Container(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(ctx).size.height * 0.75,
+        ),
+        child: SingleChildScrollView(
+          padding: EdgeInsets.only(
+            left: 24,
+            right: 24,
+            top: 24,
+            bottom: MediaQuery.of(ctx).viewInsets.bottom + 40,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Icon(
+                    Icons.monitor_heart_outlined,
+                    color: AppColors.primary,
+                    size: 22,
+                  ),
+                  const SizedBox(width: 8),
+                  const Text(
+                    '과다복용 분석',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              Text(
+                '캐비닛 영양제와 합산한 성분별 섭취량입니다.',
+                style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+              ),
+              const SizedBox(height: 16),
+              if (conflicts.isEmpty)
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: AppColors.primaryLight,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Row(
+                    children: [
+                      Icon(
+                        Icons.check_circle_outline,
+                        color: AppColors.primary,
+                        size: 20,
+                      ),
+                      SizedBox(width: 8),
+                      Text(
+                        '중복되거나 과다복용 우려가 있는 성분이 없습니다.',
+                        style: TextStyle(
+                          color: AppColors.primary,
+                          fontWeight: FontWeight.w600,
                         ),
-                        const SizedBox(height: 4),
-                        Text(
-                          '현재 ${c['current']}  /  상한 ${c['limit']}',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey[600],
+                      ),
+                    ],
+                  ),
+                )
+              else
+                ...conflicts.map((c) {
+                  final isSafe = c['status'] == '안전';
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: 10),
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: isSafe
+                          ? AppColors.primaryLight
+                          : AppColors.dangerBg,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              c['nutrient']!,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              '현재 ${c['current']}  /  상한 ${c['limit']}',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey[600],
+                              ),
+                            ),
+                          ],
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: isSafe
+                                ? AppColors.primary
+                                : AppColors.danger,
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Text(
+                            c['status']!,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ),
                       ],
                     ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: isSafe ? AppColors.primary : AppColors.danger,
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Text(
-                        c['status']!,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            }).toList(),
-            const SizedBox(height: 8),
-            Text(
-              '* 백엔드 연동 후 실제 데이터로 업데이트됩니다.',
-              style: TextStyle(fontSize: 11, color: Colors.grey[400]),
-            ),
-          ],
+                  );
+                }).toList(),
+            ],
+          ),
         ),
       ),
     );
@@ -506,119 +783,125 @@ class _SupplementInfoScreenState extends State<SupplementInfoScreen> {
   void _showInteractionDetail(List<Map<String, String>> conflicts) {
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (ctx) => Padding(
-        padding: const EdgeInsets.fromLTRB(24, 24, 24, 40),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                const Icon(
-                  Icons.warning_amber_rounded,
-                  color: Colors.orange,
-                  size: 22,
-                ),
-                const SizedBox(width: 8),
-                const Text(
-                  '병용금지 분석',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-              ],
-            ),
-            const SizedBox(height: 6),
-            Text(
-              '캐비닛 영양제와의 성분 충돌 여부입니다.',
-              style: TextStyle(fontSize: 12, color: Colors.grey[500]),
-            ),
-            const SizedBox(height: 16),
-            conflicts.isEmpty
-                ? Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: AppColors.primaryLight,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Row(
-                      children: [
-                        Icon(
-                          Icons.check_circle_outline,
-                          color: AppColors.primary,
-                          size: 20,
-                        ),
-                        SizedBox(width: 8),
-                        Text(
-                          '충돌하는 영양제가 없습니다.',
-                          style: TextStyle(
-                            color: AppColors.primary,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                    ),
-                  )
-                : Column(
-                    children: conflicts
-                        .map(
-                          (c) => Container(
-                            margin: const EdgeInsets.only(bottom: 10),
-                            padding: const EdgeInsets.all(14),
-                            decoration: BoxDecoration(
-                              color: AppColors.dangerBg,
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
-                                    const Icon(
-                                      Icons.warning_amber_rounded,
-                                      color: AppColors.danger,
-                                      size: 16,
-                                    ),
-                                    const SizedBox(width: 6),
-                                    Text(
-                                      c['supplement']!,
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        color: AppColors.danger,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 6),
-                                Text(
-                                  '충돌 성분: ${c['nutrient']}',
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    color: Colors.grey[700],
-                                  ),
-                                ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  '사유: ${c['reason']}',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: Colors.grey[600],
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        )
-                        .toList(),
+      builder: (ctx) => Container(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(ctx).size.height * 0.75,
+        ),
+        child: SingleChildScrollView(
+          padding: EdgeInsets.only(
+            left: 24,
+            right: 24,
+            top: 24,
+            bottom: MediaQuery.of(ctx).viewInsets.bottom + 40,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Icon(
+                    Icons.warning_amber_rounded,
+                    color: Colors.orange,
+                    size: 22,
                   ),
-            const SizedBox(height: 8),
-            Text(
-              '* 백엔드 연동 후 실제 데이터로 업데이트됩니다.',
-              style: TextStyle(fontSize: 11, color: Colors.grey[400]),
-            ),
-          ],
+                  const SizedBox(width: 8),
+                  const Text(
+                    '병용금지 분석',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              Text(
+                '캐비닛 영양제와의 성분 충돌 여부입니다.',
+                style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+              ),
+              const SizedBox(height: 16),
+              conflicts.isEmpty
+                  ? Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: AppColors.primaryLight,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Row(
+                        children: [
+                          Icon(
+                            Icons.check_circle_outline,
+                            color: AppColors.primary,
+                            size: 20,
+                          ),
+                          SizedBox(width: 8),
+                          Text(
+                            '충돌하는 영양제가 없습니다.',
+                            style: TextStyle(
+                              color: AppColors.primary,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  : Column(
+                      children: conflicts
+                          .map(
+                            (c) => Container(
+                              margin: const EdgeInsets.only(bottom: 10),
+                              padding: const EdgeInsets.all(14),
+                              decoration: BoxDecoration(
+                                color: AppColors.dangerBg,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      const Icon(
+                                        Icons.warning_amber_rounded,
+                                        color: AppColors.danger,
+                                        size: 16,
+                                      ),
+                                      const SizedBox(width: 6),
+                                      Text(
+                                        c['supplement']!,
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          color: AppColors.danger,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 6),
+                                  Text(
+                                    '충돌 성분: ${c['nutrient']}',
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      color: Colors.grey[700],
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    '사유: ${c['reason']}',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.grey[600],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          )
+                          .toList(),
+                    ),
+            ],
+          ),
         ),
       ),
     );
@@ -829,11 +1112,16 @@ class _SupplementInfoScreenState extends State<SupplementInfoScreen> {
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        crossAxisAlignment: CrossAxisAlignment.start, // 줄바꿈 발생 시 정렬 보정
         children: [
           Text(label, style: TextStyle(fontSize: 14, color: Colors.grey[600])),
-          Text(
-            value,
-            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Text(
+              value,
+              textAlign: TextAlign.end,
+              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+            ),
           ),
         ],
       ),
@@ -860,6 +1148,10 @@ class _SupplementInfoScreenState extends State<SupplementInfoScreen> {
           hintText: hint,
           hintStyle: const TextStyle(color: Colors.grey, fontSize: 14),
           border: InputBorder.none,
+        ),
+        style: const TextStyle(
+          fontSize: 14,
+          color: Colors.black87,
         ),
       ),
     );

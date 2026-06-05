@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:simcap/core/constant/app_constants.dart';
+import 'package:simcap/features/cabinet/domain/dataModels/supplement_model.dart';
 
 class CabinetApiService {
   Future<CabinetItem> createCabinetItem({
@@ -85,6 +86,7 @@ class CabinetItem {
   final String? productName;
   final String? brandName;
   final String? imageUrl;
+  final List<Nutrient> nutrients;
 
   CabinetItem({
     required this.id,
@@ -99,10 +101,12 @@ class CabinetItem {
     required this.productName,
     required this.brandName,
     required this.imageUrl,
+    required this.nutrients,
   });
 
   factory CabinetItem.fromJson(Map<String, dynamic> json) {
     final supplement = json['supplements'] as Map<String, dynamic>?;
+    final ingredientsList = supplement?['ingredients'] as List<dynamic>? ?? [];
 
     return CabinetItem(
       id: json['id']?.toString() ?? '',
@@ -120,6 +124,18 @@ class CabinetItem {
       productName: supplement?['product_name']?.toString(),
       brandName: supplement?['brand_name']?.toString(),
       imageUrl: supplement?['image_url']?.toString(),
+      nutrients: ingredientsList
+          .map((e) {
+            final map = e as Map<String, dynamic>;
+            return Nutrient(
+              name: map['ingredient_name']?.toString() ?? '',
+              value: double.tryParse(map['amount']?.toString() ?? '') ?? 0.0,
+              unit: map['unit']?.toString() ?? '',
+              percent: 0.0,
+            );
+          })
+          .where((n) => n.name.trim().isNotEmpty)
+          .toList(),
     );
   }
 }

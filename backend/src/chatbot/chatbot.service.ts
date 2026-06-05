@@ -8,7 +8,7 @@ interface RetrievedProduct {
   product_name: string | null;
   brand_name: string | null;
   category: string | null;
-  supplements_ingredients: {
+  ingredients: {
     ingredient_name: string | null;
     amount: number | null;
     unit: string | null;
@@ -141,7 +141,7 @@ export class ChatbotService {
 
     return products.map((product) => ({
       ...product,
-      supplements_ingredients: ingredients.filter((ing) => ing.product_name === product.product_name),
+      ingredients: ingredients.filter((ing) => ing.product_name === product.product_name),
     }));
   }
 
@@ -405,7 +405,7 @@ export class ChatbotService {
   // 제품 포맷팅
   // ────────────────────────────────────────────────────────
   private formatProduct(product: RetrievedProduct) {
-    const ingredients = product.supplements_ingredients
+    const ingredients = product.ingredients
       .map((ingredient) => {
         const amount =
           ingredient.amount != null
@@ -437,7 +437,7 @@ export class ChatbotService {
       product.product_name,
       product.brand_name,
       product.category,
-      ...product.supplements_ingredients.map(
+      ...product.ingredients.map(
         (ingredient) => ingredient.ingredient_name,
       ),
     ]

@@ -8,6 +8,8 @@ import 'package:simcap/features/profile/widgets/survey_chip_group.dart';
 import 'package:simcap/features/profile/data/survey_data.dart';
 import 'package:simcap/services/auth_service.dart';
 import 'package:simcap/core/supabase/supabase_client.dart';
+import 'package:simcap/services/review_api_service.dart';
+import 'package:simcap/features/store/presentation/review_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -28,6 +30,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String _pregnancyStatus = '해당 없음';
   String _userGender = '';
   bool _isLoading = true;
+  List<ProductReview> _myReviews = [];
 
   // 알림 및 설정 관련 상태 변수
   bool _durNotificationEnabled = true;
@@ -64,6 +67,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
       _isLoading = false;
     });
+
+    final user = AuthService().currentUser;
+    if (user != null) {
+      try {
+        final reviews = await ReviewApiService().fetchUserReviews(user.id);
+        if (mounted) {
+          setState(() {
+            _myReviews = reviews;
+          });
+        }
+      } catch (e) {
+        debugPrint('내가 쓴 리뷰 가져오기 에러: $e');
+      }
+    }
   }
 
   // 데이터 수정 및 저장 함수
@@ -849,7 +866,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   // 내가 쓴 리뷰 섹션
   Widget _buildMyReviewsSection() {
-    final recentReviews = <dynamic>[];
+    final recentReviews = _myReviews;
     final hasReviews = recentReviews.isNotEmpty;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,

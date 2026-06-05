@@ -53,29 +53,25 @@ class StoreProduct {
   factory StoreProduct.fromJson(Map<String, dynamic> json) {
     // 백엔드의 supplements_ingredients 또는 ingredients 파싱
     List<NutrientInfo> parsedNutrients = [];
-    if (json['supplements_ingredients'] != null) {
-      parsedNutrients = (json['supplements_ingredients'] as List)
-          .map(
-            (si) => NutrientInfo(
-              name: si['ingredient_name']?.toString() ?? '',
-              amount: double.tryParse(si['amount']?.toString() ?? '0') ?? 0.0,
-              unit: si['unit']?.toString() ?? '',
-              dailyPercent:
-                  double.tryParse(si['dailyPercent']?.toString() ?? '0') ?? 0.0,
-            ),
-          )
-          .toList();
-    } else if (json['ingredients'] != null) {
-      parsedNutrients = (json['ingredients'] as List)
-          .map(
-            (ing) => NutrientInfo(
-              name: ing.toString(),
-              amount: 0.0,
-              unit: '',
-              dailyPercent: 0.0,
-            ),
-          )
-          .toList();
+    final rawIngredients = json['supplements_ingredients'] ?? json['ingredients'];
+    if (rawIngredients != null && rawIngredients is List) {
+      parsedNutrients = rawIngredients.map((item) {
+        if (item is Map) {
+          return NutrientInfo(
+            name: (item['ingredient_name'] ?? item['name'] ?? '').toString(),
+            amount: double.tryParse(item['amount']?.toString() ?? item['value']?.toString() ?? '0') ?? 0.0,
+            unit: (item['unit'] ?? '').toString(),
+            dailyPercent: double.tryParse(item['dailyPercent']?.toString() ?? item['percent']?.toString() ?? '0') ?? 0.0,
+          );
+        } else {
+          return NutrientInfo(
+            name: item.toString(),
+            amount: 0.0,
+            unit: '',
+            dailyPercent: 0.0,
+          );
+        }
+      }).toList();
     }
 
     int parsedDose = 1;
