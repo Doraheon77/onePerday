@@ -39,30 +39,14 @@ class _HomeScreenState extends State<HomeScreen> {
     final notifier = SupplementProvider.of(context);
     final supplements = notifier.supplements;
 
-    final List<Map<String, dynamic>> takenCartItems = [];
-    for (final s in supplements) {
-      int takenCount = 0;
-      if (s.dailyFrequency <= 1) {
-        if (notifier.isDoneOn(s.id, _selectedDate)) {
-          takenCount = 1;
-        }
-      } else {
-        for (int i = 0; i < s.dailyFrequency; i++) {
-          if (notifier.isDoneOnIndex(s.id, _selectedDate, i)) {
-            takenCount++;
-          }
-        }
-      }
-
-      if (takenCount > 0) {
-        takenCartItems.add({
-          'productId': s.supplementId,
-          'name': s.name,
-          'brand': s.brand,
-          'count': takenCount,
-        });
-      }
-    }
+    final List<Map<String, dynamic>> takenCartItems = supplements.map((s) {
+      return {
+        'productId': s.supplementId,
+        'name': s.name,
+        'brand': s.brand,
+        'count': 1,
+      };
+    }).toList();
 
     if (takenCartItems.isEmpty) {
       setState(() {
@@ -88,15 +72,6 @@ class _HomeScreenState extends State<HomeScreen> {
       );
 
       if (!mounted) return;
-
-      debugPrint('===== HOME INTAKE RESULT =====');
-      for (final r in results) {
-        debugPrint(
-          '${r.nutrientName} current=${r.currentTotal} '
-          'recommended=${r.recommendedIntake} adequate=${r.adequateIntake} '
-          'upper=${r.upperLimit} status=${r.status}',
-        );
-      }
 
       setState(() {
         _hasNutritionDanger = results.any((r) => r.status == 'danger');
@@ -913,7 +888,11 @@ class _HomeScreenState extends State<HomeScreen> {
             ? AppColors.primary
             : AppColors.warning;
 
-  final pct = '${(apiRatio * 100).round()}%';
+  final pct = _isNutritionChecking
+    ? '계산중'
+    : standardAmount > 0
+        ? '${(apiRatio * 100).round()}%'
+        : '-';
 
   final statusNote = status == 'danger'
       ? '과다 섭취 주의'

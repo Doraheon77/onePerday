@@ -279,6 +279,7 @@ class _SupplementDetailScreenState extends State<SupplementDetailScreen> {
   bool _isReviewsLoading = true;
 
   List<IntakeResult> _intakeResults = [];
+  bool _isIntakeLoading = true;
 
   @override
   void initState() {
@@ -361,6 +362,9 @@ class _SupplementDetailScreenState extends State<SupplementDetailScreen> {
 
   Future<void> _checkDetailOverdose() async {
   try {
+    if (mounted) {
+      setState(() => _isIntakeLoading = true);
+    }
     final notifier = SupplementProvider.of(context);
 
     final cartItems = [
@@ -390,10 +394,14 @@ class _SupplementDetailScreenState extends State<SupplementDetailScreen> {
     if (mounted) {
       setState(() {
         _intakeResults = results;
+        _isIntakeLoading = false;
       });
     }
   } catch (e) {
     debugPrint('[SupplementDetailScreen] 과다복용 검사 실패: $e');
+    if (mounted) {
+    setState(() => _isIntakeLoading = false);
+    }
   }
 }
 
@@ -1264,9 +1272,11 @@ final Color badgeBg = status == 'danger'
         : AppColors.primaryLight;
 
 final clampedPercent = ratio.clamp(0.0, 1.5);
-final percentLabel = standardAmount > 0
-    ? '${(ratio * 100).toStringAsFixed(0)}%'
-    : '-';
+final percentLabel = _isIntakeLoading
+    ? '계산중'
+    : standardAmount > 0
+        ? '${(ratio * 100).toStringAsFixed(0)}%'
+        : '-';
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 14),

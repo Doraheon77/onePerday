@@ -33,23 +33,33 @@ class _ContraindicationResult {
 class _OverdoseResult {
   final String nutrient;
   final double currentAmount;
+  final double recommendedIntake;
+  final double adequateIntake;
   final double upperLimit;
   final String unit;
+  final String backendStatus;
 
   _CheckStatus get status {
-    if (upperLimit <= 0) return _CheckStatus.safe;
-
-    final ratio = currentAmount / upperLimit;
-    if (ratio >= 1.0) return _CheckStatus.danger;
-    if (ratio >= 0.8) return _CheckStatus.warning;
+    if (backendStatus == 'danger') return _CheckStatus.danger;
+    if (backendStatus == 'warning') return _CheckStatus.warning;
     return _CheckStatus.safe;
+  }
+
+  double get standardAmount {
+    if (upperLimit > 0) return upperLimit;
+    if (recommendedIntake > 0) return recommendedIntake;
+    if (adequateIntake > 0) return adequateIntake;
+    return 0;
   }
 
   const _OverdoseResult({
     required this.nutrient,
     required this.currentAmount,
+    required this.recommendedIntake,
+    required this.adequateIntake,
     required this.upperLimit,
     required this.unit,
+    required this.backendStatus,
   });
 }
 
@@ -622,10 +632,33 @@ class _BasketScreenState extends State<BasketScreen> {
       final notifier = SupplementProvider.of(context);
       final checkedItems = notifier.cartItems.where((c) => c.checked).toList();
 
+      final cabinetItems = notifier.supplements.map((s) {
+        return {
+          'productId': s.supplementId,
+          'name': s.name,
+          'brand': s.brand,
+          'count': 1,
+        };
+      }).toList();
+
+      final cartCheckItems = checkedItems.map((c) {
+        return {
+          'productId': c.productId,
+          'name': c.name,
+          'brand': c.brand,
+          'count': c.count,
+        };
+      }).toList();
+
+      final checkItems = [
+        ...cabinetItems,
+        ...cartCheckItems,
+      ];
+
       final api = IntakeApiService();
 
       final results = await api.checkOverdoseByCartItems(
-        cartItems: checkedItems,
+        cartItems: checkItems,
         age: 24,
         gender: 'female',
       );
@@ -646,12 +679,15 @@ class _BasketScreenState extends State<BasketScreen> {
         _isOverdoseLoading = false;
         _overdoseResults = results.map((r) {
           return _OverdoseResult(
-            nutrient: r.nutrientName,
-            currentAmount: r.currentTotal,
-            upperLimit: r.upperLimit,
-            unit: r.unit,
-          );
-        }).toList();
+          nutrient: r.nutrientName,
+          currentAmount: r.currentTotal,
+          recommendedIntake: r.recommendedIntake,
+          adequateIntake: r.adequateIntake,
+          upperLimit: r.upperLimit,
+          unit: r.unit,
+          backendStatus: r.status,
+        );
+      }).toList();
       });
     } catch (e) {
       setState(() {
@@ -1146,7 +1182,10 @@ class _BasketScreenState extends State<BasketScreen> {
   }
 
   Widget _buildOverdoseBar(_OverdoseResult r) {
-    final ratio = (r.currentAmount / r.upperLimit).clamp(0.0, 1.5);
+    final standardAmount = r.standardAmount;
+    final ratio = standardAmount > 0
+        ? (r.currentAmount / standardAmount).clamp(0.0, 1.5)
+        : 0.0;
     final displayRatio = ratio.clamp(0.0, 1.0);
 
     Color barColor;
