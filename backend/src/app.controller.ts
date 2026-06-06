@@ -465,24 +465,30 @@ export class AppController {
   }
 
   // 영양제 추가
-@Post('admin/supplements')
-async addSupplement(@Body() body: { product_name: string; brand_name: string }) {
-  const lastSupp = await this.prisma.supplementsTemp.findFirst({
-    orderBy: { id: 'desc' }
-  });
-  const newId = lastSupp ? lastSupp.id + BigInt(1) : BigInt(1);
-  
-  return JSON.parse(JSON.stringify(
-    await this.prisma.supplementsTemp.create({
-      data: {
-        id: newId,
-        product_name: body.product_name,
-        brand_name: body.brand_name,
-      }
-    }),
-    (key, value) => typeof value === 'bigint' ? value.toString() : value
-  ));
-}
+  @Post('admin/supplements')
+  async addSupplement(@Body() body: any) {
+    return JSON.parse(JSON.stringify(
+      await this.prisma.supplementsTemp.create({
+        data: {
+          product_name: body.product_name,
+          category: body.category,
+          brand_name: body.brand_name,
+          reference_amount: body.reference_amount,
+          serving_size: body.serving_size ? parseFloat(body.serving_size) : null,
+          serving_unit: body.serving_unit,
+          serving_weight: body.serving_weight,
+          daily_servings: body.daily_servings,
+          total_weight: body.total_weight,
+          manufacturer: body.manufacturer,
+          origin: body.origin,
+          image_url: body.image_url,
+          shop_url: body.shop_url,
+          price: body.price ? BigInt(body.price) : null,
+        }
+      }),
+      (key, value) => typeof value === 'bigint' ? value.toString() : value
+    ));
+  }
 
   // 영양제 삭제
   @Delete('admin/supplements/:id')

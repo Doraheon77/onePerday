@@ -12,12 +12,12 @@ export const api = {
 getSupplements: (keyword?: string, page?: number) =>
     fetch(`${BASE_URL}/admin/supplements?keyword=${keyword ?? ''}&page=${page ?? 1}`).then(r => r.json()),
 
-addSupplement: (data: { product_name: string; brand_name: string }) =>
-    fetch(`${BASE_URL}/admin/supplements`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
-    }).then(r => r.json()),
+addSupplement: (data: any) =>
+  fetch(`${BASE_URL}/admin/supplements`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  }).then(r => r.json()),
 
   deleteSupplement: (id: string) =>
     fetch(`${BASE_URL}/admin/supplements/${id}`, { method: 'DELETE' }).then(r => r.json()),
