@@ -9,16 +9,19 @@ export const api = {
     fetch(`${BASE_URL}/admin/users/${id}`, { method: 'DELETE' }).then(r => r.json()),
 
   // 영양제
-getSupplements: (keyword?: string, page?: number) =>
-    fetch(`${BASE_URL}/admin/supplements?keyword=${keyword ?? ''}&page=${page ?? 1}`).then(r => r.json()),
+  getSupplements: (keyword?: string, page?: number) =>
+      fetch(`${BASE_URL}/admin/supplements?keyword=${keyword ?? ''}&page=${page ?? 1}`).then(r => r.json()),
 
-addSupplement: (data: any) =>
-  fetch(`${BASE_URL}/admin/supplements`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data),
-  }).then(r => r.json()),
+  addSupplement: (data: any) =>
+    fetch(`${BASE_URL}/admin/supplements`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    }).then(r => r.json()),
 
   deleteSupplement: (id: string) =>
     fetch(`${BASE_URL}/admin/supplements/${id}`, { method: 'DELETE' }).then(r => r.json()),
+
+  getDashboard: () =>
+    fetch(`${BASE_URL}/admin/dashboard`).then(r => r.json()),
 };

@@ -110,8 +110,6 @@ export default function SupplementsPage() {
         </button>
       </div>
 
-      <p style={{ fontSize: '13px', color: '#666', marginBottom: '12px' }}>총 {total}개</p>
-
       {loading ? (
         <p style={{ color: '#2d8a5e', textAlign: 'center', padding: '2rem' }}>로딩 중...</p>
       ) : (

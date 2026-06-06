@@ -536,4 +536,22 @@ export class AppController {
       ),
     );
   }
+
+  // 대시보드
+  @Get('admin/dashboard')
+  async getDashboard() {
+    const [totalUsers, totalSupplements, todayUsers] = await Promise.all([
+      this.prisma.usersInfo.count(),
+      this.prisma.supplements.count(),
+      this.prisma.usersInfo.count({
+        where: {
+          created_at: {
+            gte: new Date(new Date().setHours(0, 0, 0, 0)),
+          }
+        }
+      }),
+    ]);
+
+    return { totalUsers, totalSupplements, todayUsers };
+  }  
 }

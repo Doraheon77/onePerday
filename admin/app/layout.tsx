@@ -20,10 +20,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           height: '60px',
           boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
         }}>
-          <span style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'white', fontWeight: 700, fontSize: '18px' }}>
-            <Image src="/logo.png" alt="logo" width={32} height={32} style={{ borderRadius: '6px' }} />
-            One Per Day 관리자
-          </span>
+          <Link href="/">
+            <Image src="/logo.png" alt="logo" width={48} height={48} style={{ borderRadius: '6px', cursor: 'pointer' }} />
+          </Link>          
           <Link href="/users" style={{
             color: 'rgba(255,255,255,0.85)',
             textDecoration: 'none',
