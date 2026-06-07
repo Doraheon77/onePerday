@@ -48,7 +48,7 @@ export class CabinetService {
       throw new NotFoundException('Supplement not found');
     }
 
-    return this.prisma.supplementInventory.create({
+    const created = await this.prisma.supplementInventory.create({
       data: {
         user_uuid: dto.userUuid,
         supplement_id: supplement.id,
@@ -67,10 +67,80 @@ export class CabinetService {
         },
       },
     });
+
+    const userInfo = await this.prisma.usersInfo.findUnique({
+      where: { id: dto.userUuid },
+    });
+
+    const userAge = userInfo?.birth_year
+      ? new Date().getFullYear() - userInfo.birth_year
+      : 30;
+    let userGender = userInfo?.gender || '남자';
+    if (userGender === '남성' || userGender === 'female' || userGender === 'male') {
+      if (userGender === '남성' || userGender === 'male') userGender = '남자';
+      else userGender = '여자';
+    }
+
+    const standards = await this.prisma.nutrientStandards.findMany({
+      where: {
+        gender: userGender,
+        age_min: { lte: userAge },
+        age_max: { gte: userAge },
+      },
+    });
+
+    if (created.supplements && created.supplements.ingredients) {
+      const enrichedIngredients = created.supplements.ingredients.map((ing) => {
+        const std = standards.find((s) => s.nutrient_name === ing.ingredient_name);
+        const dri = std?.recommended_intake || std?.adequate_intake || std?.avg_requirement || null;
+        const amount = ing.amount || 0;
+
+        let dailyPercent = 0;
+        if (dri && dri > 0) {
+          dailyPercent = Number((amount / dri).toFixed(4));
+        }
+
+        return {
+          ...ing,
+          dailyPercent,
+        };
+      });
+
+      return {
+        ...created,
+        supplements: {
+          ...created.supplements,
+          ingredients: enrichedIngredients,
+        },
+      };
+    }
+
+    return created;
   }
 
   async findByUser(userUuid: string) {
-    return this.prisma.supplementInventory.findMany({
+    const userInfo = await this.prisma.usersInfo.findUnique({
+      where: { id: userUuid },
+    });
+
+    const userAge = userInfo?.birth_year
+      ? new Date().getFullYear() - userInfo.birth_year
+      : 30;
+    let userGender = userInfo?.gender || '남자';
+    if (userGender === '남성' || userGender === 'female' || userGender === 'male') {
+      if (userGender === '남성' || userGender === 'male') userGender = '남자';
+      else userGender = '여자';
+    }
+
+    const standards = await this.prisma.nutrientStandards.findMany({
+      where: {
+        gender: userGender,
+        age_min: { lte: userAge },
+        age_max: { gte: userAge },
+      },
+    });
+
+    const items = await this.prisma.supplementInventory.findMany({
       where: {
         user_uuid: userUuid,
         status: 'active',
@@ -86,6 +156,37 @@ export class CabinetService {
         created_at: 'desc',
       },
     });
+
+    const enrichedItems = items.map((item) => {
+      if (item.supplements && item.supplements.ingredients) {
+        const enrichedIngredients = item.supplements.ingredients.map((ing) => {
+          const std = standards.find((s) => s.nutrient_name === ing.ingredient_name);
+          const dri = std?.recommended_intake || std?.adequate_intake || std?.avg_requirement || null;
+          const amount = ing.amount || 0;
+
+          let dailyPercent = 0;
+          if (dri && dri > 0) {
+            dailyPercent = Number((amount / dri).toFixed(4));
+          }
+
+          return {
+            ...ing,
+            dailyPercent,
+          };
+        });
+
+        return {
+          ...item,
+          supplements: {
+            ...item.supplements,
+            ingredients: enrichedIngredients,
+          },
+        };
+      }
+      return item;
+    });
+
+    return enrichedItems;
   }
 
   async remove(id: string) {

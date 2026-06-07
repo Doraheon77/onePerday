@@ -131,7 +131,7 @@ class CabinetItem {
               name: map['ingredient_name']?.toString() ?? '',
               value: double.tryParse(map['amount']?.toString() ?? '') ?? 0.0,
               unit: map['unit']?.toString() ?? '',
-              percent: 0.0,
+              percent: double.tryParse(map['dailyPercent']?.toString() ?? '') ?? 0.0,
             );
           })
           .where((n) => n.name.trim().isNotEmpty)

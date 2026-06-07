@@ -622,12 +622,18 @@ class _BasketScreenState extends State<BasketScreen> {
       final notifier = SupplementProvider.of(context);
       final checkedItems = notifier.cartItems.where((c) => c.checked).toList();
 
+      final prefs = await SharedPreferences.getInstance();
+      final String rawGender = prefs.getString('gender') ?? prefs.getString('userGender') ?? 'female';
+      final String gender = (rawGender == '남성' || rawGender == 'male' || rawGender == '남자') ? 'male' : 'female';
+      final String rawAge = prefs.getString('userAge') ?? '24';
+      final int age = int.tryParse(rawAge) ?? 24;
+
       final api = IntakeApiService();
 
       final results = await api.checkOverdoseByCartItems(
         cartItems: checkedItems,
-        age: 24,
-        gender: 'female',
+        age: age,
+        gender: gender,
       );
       
       print('===== API RESULT =====');

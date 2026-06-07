@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
 import 'package:go_router/go_router.dart';
 import 'package:simcap/core/constant/app_constants.dart';
@@ -79,12 +80,18 @@ class _HomeScreenState extends State<HomeScreen> {
     });
 
     try {
+      final prefs = await SharedPreferences.getInstance();
+      final String rawGender = prefs.getString('gender') ?? prefs.getString('userGender') ?? 'female';
+      final String gender = (rawGender == '남성' || rawGender == 'male' || rawGender == '남자') ? 'male' : 'female';
+      final String rawAge = prefs.getString('userAge') ?? '24';
+      final int age = int.tryParse(rawAge) ?? 24;
+
       final api = IntakeApiService();
 
       final results = await api.checkOverdoseByCartItems(
         cartItems: takenCartItems,
-        age: 24,
-        gender: 'female',
+        age: age,
+        gender: gender,
       );
 
       if (!mounted) return;
@@ -895,11 +902,11 @@ class _HomeScreenState extends State<HomeScreen> {
 
   final standardAmount = result == null
       ? 0.0
-      : result.upperLimit > 0
-          ? result.upperLimit
-          : result.recommendedIntake > 0
-              ? result.recommendedIntake
-              : result.adequateIntake;
+      : result.recommendedIntake > 0
+          ? result.recommendedIntake
+          : result.adequateIntake > 0
+              ? result.adequateIntake
+              : result.upperLimit;
 
   final apiRatio = standardAmount > 0
       ? result!.currentTotal / standardAmount
