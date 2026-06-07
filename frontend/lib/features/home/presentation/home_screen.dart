@@ -39,23 +39,27 @@ class _HomeScreenState extends State<HomeScreen> {
     final notifier = SupplementProvider.of(context);
     final supplements = notifier.supplements;
 
-    final List<Map<String, dynamic>> takenCartItems = supplements.map((s) {
-      return {
+    final List<Map<String, dynamic>> takenCartItems = [];
+    for (final s in supplements) {
+      int takenCount = 0;
+      if (s.dailyFrequency <= 1) {
+        if (notifier.isDoneOn(s.id, _selectedDate)) {
+          takenCount = 1;
+        }
+      } else {
+        for (int i = 0; i < s.dailyFrequency; i++) {
+          if (notifier.isDoneOnIndex(s.id, _selectedDate, i)) {
+            takenCount++;
+          }
+        }
+      }
+
+      takenCartItems.add({
         'productId': s.supplementId,
         'name': s.name,
         'brand': s.brand,
-        'count': 1,
-      };
-    }).toList();
-
-    if (takenCartItems.isEmpty) {
-      setState(() {
-        _hasNutritionDanger = false;
-        _hasNutritionWarning = false;
-        _homeIntakeResults = [];
-        _isNutritionChecking = false;
+        'count': takenCount > 0 ? takenCount : 1,
       });
-      return;
     }
 
     setState(() {
@@ -72,6 +76,15 @@ class _HomeScreenState extends State<HomeScreen> {
       );
 
       if (!mounted) return;
+
+      debugPrint('===== HOME INTAKE RESULT =====');
+      for (final r in results) {
+        debugPrint(
+          '${r.nutrientName} current=${r.currentTotal} '
+          'recommended=${r.recommendedIntake} adequate=${r.adequateIntake} '
+          'upper=${r.upperLimit} status=${r.status}',
+        );
+      }
 
       setState(() {
         _hasNutritionDanger = results.any((r) => r.status == 'danger');
@@ -744,8 +757,28 @@ class _HomeScreenState extends State<HomeScreen> {
 
   // ── 영양 성분 카드 ────────────────────────────────────────────────────────
   Widget _buildNutritionCard() {
-    final nutrients = [..._homeIntakeResults]
-      ..sort((a, b) => b.currentTotal.compareTo(a.currentTotal));
+    final supplements = SupplementProvider.of(context).supplements;
+    final Map<String, double> totals = {};
+    for (final s in supplements) {
+      for (final n in s.nutrients) {
+        totals[n.name.trim()] = (totals[n.name.trim()] ?? 0) + n.percent;
+      }
+    }
+    // 이렇게
+final sorted = _homeIntakeResults.isNotEmpty
+    ? (_homeIntakeResults.map((r) {
+        final standard = r.upperLimit > 0
+            ? r.upperLimit
+            : r.recommendedIntake > 0
+                ? r.recommendedIntake
+                : r.adequateIntake;
+        final ratio = standard > 0 ? r.currentTotal / standard : 0.0;
+        return MapEntry(r.nutrientName, ratio);
+      }).toList()
+        ..sort((a, b) => b.value.compareTo(a.value)))
+    : (totals.entries.toList()
+        ..sort((a, b) => b.value.compareTo(a.value)));
+final top = sorted.toList();
 
     final boxDeco = BoxDecoration(
       color: Colors.white,
@@ -759,7 +792,7 @@ class _HomeScreenState extends State<HomeScreen> {
       ],
     );
 
-    if (nutrients.isEmpty) {
+    if (top.isEmpty) {
       return Container(
         padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 24),
         decoration: boxDeco,
@@ -818,7 +851,7 @@ class _HomeScreenState extends State<HomeScreen> {
       decoration: boxDeco,
       child: Column(
         children: [
-          ...nutrients.map((r) => _buildBarGraph(r.nutrientName, 0)),
+          ...top.map((e) => _buildBarGraph(e.key, e.value)),
           const SizedBox(height: 12),
           Container(
             padding: const EdgeInsets.all(12),
@@ -880,11 +913,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ? AppColors.primary
             : AppColors.warning;
 
-  final pct = _isNutritionChecking
-    ? '계산중'
-    : standardAmount > 0
-        ? '${(apiRatio * 100).round()}%'
-        : '-';
+  final pct = '${(apiRatio * 100).round()}%';
 
   final statusNote = status == 'danger'
       ? '과다 섭취 주의'
