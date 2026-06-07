@@ -54,23 +54,11 @@ class _HomeScreenState extends State<HomeScreen> {
         }
       }
 
-      if (takenCount > 0) {
-        takenCartItems.add({
-          'productId': s.supplementId,
-          'name': s.name,
-          'brand': s.brand,
-          'count': takenCount,
-        });
-      }
-    }
-
-    for (final s in supplements){
-      int takenCount = 0;
       takenCartItems.add({
         'productId': s.supplementId,
         'name': s.name,
         'brand': s.brand,
-        'count': takenCount > 0 ? takenCount : 1, // 0이면 1로 처리
+        'count': takenCount > 0 ? takenCount : 1,
       });
     }
 
