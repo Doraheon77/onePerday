@@ -650,10 +650,7 @@ class _BasketScreenState extends State<BasketScreen> {
         };
       }).toList();
 
-      final checkItems = [
-        ...cabinetItems,
-        ...cartCheckItems,
-      ];
+      final checkItems = [...cabinetItems, ...cartCheckItems];
 
       final api = IntakeApiService();
 
@@ -662,7 +659,7 @@ class _BasketScreenState extends State<BasketScreen> {
         age: 24,
         gender: 'female',
       );
-      
+
       print('===== API RESULT =====');
       for (final r in results) {
         print(
@@ -679,15 +676,15 @@ class _BasketScreenState extends State<BasketScreen> {
         _isOverdoseLoading = false;
         _overdoseResults = results.map((r) {
           return _OverdoseResult(
-          nutrient: r.nutrientName,
-          currentAmount: r.currentTotal,
-          recommendedIntake: r.recommendedIntake,
-          adequateIntake: r.adequateIntake,
-          upperLimit: r.upperLimit,
-          unit: r.unit,
-          backendStatus: r.status,
-        );
-      }).toList();
+            nutrient: r.nutrientName,
+            currentAmount: r.currentTotal,
+            recommendedIntake: r.recommendedIntake,
+            adequateIntake: r.adequateIntake,
+            upperLimit: r.upperLimit,
+            unit: r.unit,
+            backendStatus: r.status,
+          );
+        }).toList();
       });
     } catch (e) {
       setState(() {
@@ -1540,20 +1537,26 @@ class _LoadingIndicator extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 28),
-      child: Column(
-        children: [
-          const CircularProgressIndicator(
-            color: AppColors.primary,
-            strokeWidth: 2.5,
-          ),
-          const SizedBox(height: 14),
-          Text(
-            message,
-            style: const TextStyle(fontSize: 13, color: Colors.black54),
-          ),
-        ],
+    return SizedBox(
+      width: double.infinity,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 28),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            const CircularProgressIndicator(
+              color: AppColors.primary,
+              strokeWidth: 2.5,
+            ),
+            const SizedBox(height: 14),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 13, color: Colors.black54),
+            ),
+          ],
+        ),
       ),
     );
   }
