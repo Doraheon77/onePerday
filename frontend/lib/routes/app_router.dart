@@ -23,6 +23,7 @@ import 'package:simcap/features/store/presentation/store_screen.dart';
 import 'package:simcap/features/store/presentation/search_screen.dart';
 import 'package:simcap/features/store/presentation/basket_screen.dart';
 import 'package:simcap/features/store/presentation/supplement_detail_screen.dart';
+import 'package:simcap/providers/supplement_provider.dart';
 import 'package:simcap/main.dart';
 import 'package:simcap/features/profile/presentation/splash_screen.dart';
 
@@ -147,7 +148,30 @@ class AppRouter {
               GoRoute(
                 path: 'purchase',
                 pageBuilder: (context, state) {
-                  final product = state.extra as StoreProduct;
+                  final extra = state.extra;
+                  if (extra is StoreProduct) {
+                    return _slideUp(
+                      context,
+                      state,
+                      PurchaseScreen(product: extra),
+                    );
+                  } else if (extra is List<CartItem>) {
+                    return _slideUp(
+                      context,
+                      state,
+                      PurchaseScreen(cartItems: extra),
+                    );
+                  } else if (extra is List) {
+                    final cartItems = extra.whereType<CartItem>().toList();
+                    if (cartItems.isNotEmpty) {
+                      return _slideUp(
+                        context,
+                        state,
+                        PurchaseScreen(cartItems: cartItems),
+                      );
+                    }
+                  }
+                  final product = dummyProduct;
                   return _slideUp(
                     context,
                     state,
@@ -190,7 +214,30 @@ class AppRouter {
               GoRoute(
                 path: 'purchase',
                 pageBuilder: (context, state) {
-                  final product = state.extra as StoreProduct;
+                  final extra = state.extra;
+                  if (extra is StoreProduct) {
+                    return _slideUp(
+                      context,
+                      state,
+                      PurchaseScreen(product: extra),
+                    );
+                  } else if (extra is List<CartItem>) {
+                    return _slideUp(
+                      context,
+                      state,
+                      PurchaseScreen(cartItems: extra),
+                    );
+                  } else if (extra is List) {
+                    final cartItems = extra.whereType<CartItem>().toList();
+                    if (cartItems.isNotEmpty) {
+                      return _slideUp(
+                        context,
+                        state,
+                        PurchaseScreen(cartItems: cartItems),
+                      );
+                    }
+                  }
+                  final product = dummyProduct;
                   return _slideUp(
                     context,
                     state,

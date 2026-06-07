@@ -14,7 +14,7 @@ export interface IntakeResult {
 }
 @Injectable()
 export class IntakeService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) { }
 
   async checkOverdose(dto: CheckIntakeDto): Promise<IntakeResult[]> {
     const { cartItems, age, gender } = dto;
@@ -23,39 +23,85 @@ export class IntakeService {
       return [];
     }
 
-    const productIds = cartItems
-      .map((item) => this.toBigIntOrNull(item.productId))
-      .filter((id): id is bigint => id !== null && id <= BigInt(2147483647));
-    const nameItems = cartItems.filter(
-      (item) => this.toBigIntOrNull(item.productId) === null && item.name,
-    );
-    const searchConditions = [
-      ...(productIds.length > 0
-        ? [
-            {
-              id: {
-                in: productIds,
+    const supplementsTemp: any[] = [];
+    const countMap = new Map<string, number>();
+
+    for (const item of cartItems) {
+      let matchedProduct: any = null;
+
+      // 1. Try matching by exact product_name in SupplementsTemp
+      if (item.name) {
+        matchedProduct = await this.prisma.supplementsTemp.findFirst({
+          where: {
+            product_name: {
+              equals: item.name.trim(),
+              mode: 'insensitive',
+            },
+          },
+        });
+      }
+
+      const parsedId = this.toBigIntOrNull(item.productId);
+
+      // 2. If not matched, and we have a valid ID, search in SupplementsTemp by ID
+      if (!matchedProduct && parsedId !== null && parsedId <= BigInt(2147483647)) {
+        matchedProduct = await this.prisma.supplementsTemp.findUnique({
+          where: {
+            id: parsedId,
+          },
+        });
+      }
+
+      // 3. If still not matched, search in Supplements table by ID
+      if (!matchedProduct && parsedId !== null && parsedId <= BigInt(2147483647)) {
+        const supplementInMaster = await this.prisma.supplements.findUnique({
+          where: {
+            id: parsedId,
+          },
+        });
+
+        // Map it back to SupplementsTemp by product_name
+        if (supplementInMaster && supplementInMaster.product_name) {
+          matchedProduct = await this.prisma.supplementsTemp.findFirst({
+            where: {
+              product_name: {
+                equals: supplementInMaster.product_name.trim(),
+                mode: 'insensitive',
               },
             },
-          ]
-        : []),
-      ...nameItems.map((item) => ({
-        product_name: {
-          contains: item.name!,
-          mode: 'insensitive' as const,
-        },
-      })),
-    ];
+          });
+        }
+      }
 
-    if (searchConditions.length === 0) {
-      return [];
+      // 4. Fallback: search by partial name in SupplementsTemp
+      if (!matchedProduct && item.name) {
+        matchedProduct = await this.prisma.supplementsTemp.findFirst({
+          where: {
+            product_name: {
+              contains: item.name.trim(),
+              mode: 'insensitive',
+            },
+          },
+        });
+      }
+
+      if (matchedProduct) {
+        // Prevent duplicate products in the list
+        if (!supplementsTemp.some((s) => s.id === matchedProduct.id)) {
+          supplementsTemp.push(matchedProduct);
+        }
+
+        const count = item.count ?? 1;
+        countMap.set(String(matchedProduct.id), count);
+        if (matchedProduct.product_name) {
+          countMap.set(matchedProduct.product_name, count);
+        }
+      }
     }
 
-    const supplementsTemp = await this.prisma.supplementsTemp.findMany({
-      where: {
-        OR: searchConditions,
-      },
-    });
+    if (supplementsTemp.length === 0) {
+      return [];
+    }
 
     const productNames = supplementsTemp.map(s => s.product_name).filter(Boolean) as string[];
     const ingredients = await this.prisma.supplementsIngredients.findMany({
@@ -67,13 +113,7 @@ export class IntakeService {
       ingredients: ingredients.filter(ing => ing.product_name === product.product_name),
     }));
 
-    const countMap = new Map<string, number>();
-    for (const item of cartItems) {
-      countMap.set(String(item.productId ?? item.name ?? ''), item.count ?? 1);
-      if (item.name) {
-        countMap.set(item.name, item.count ?? 1);
-      }
-    }
+
 
     const aggregated: Record<string, { total: number; unit: string }> = {};
 
@@ -251,26 +291,26 @@ export class IntakeService {
 
       const log = existing
         ? await tx.dailySupplements.update({
-            where: {
-              id: existing.id,
-            },
-            data: {
-              is_taken: true,
-              taken_at: existing.taken_at ?? new Date(),
-              supplement_time: dto.supplementTime ?? existing.supplement_time,
-            },
-          })
+          where: {
+            id: existing.id,
+          },
+          data: {
+            is_taken: true,
+            taken_at: existing.taken_at ?? new Date(),
+            supplement_time: dto.supplementTime ?? existing.supplement_time,
+          },
+        })
         : await tx.dailySupplements.create({
-            data: {
-              user_uuid: dto.userUuid,
-              inventory_id: inventoryId,
-              date,
-              dose_index: dto.doseIndex,
-              supplement_time: dto.supplementTime,
-              is_taken: true,
-              taken_at: new Date(),
-            },
-          });
+          data: {
+            user_uuid: dto.userUuid,
+            inventory_id: inventoryId,
+            date,
+            dose_index: dto.doseIndex,
+            supplement_time: dto.supplementTime,
+            is_taken: true,
+            taken_at: new Date(),
+          },
+        });
 
       if (!wasAlreadyTaken) {
         const dailyDose = inventory.daily_dose ?? 1;
@@ -338,10 +378,10 @@ export class IntakeService {
       const dosePerTime = Math.max(1, Math.ceil(dailyDose / dailyFrequency));
       const currentStock = inventory.stock_count ?? 0;
       const totalCount = inventory.total_count ?? 0;
-      
-      const nextStock = totalCount > 0 
-          ? Math.min(totalCount, currentStock + dosePerTime)
-          : currentStock + dosePerTime;
+
+      const nextStock = totalCount > 0
+        ? Math.min(totalCount, currentStock + dosePerTime)
+        : currentStock + dosePerTime;
 
       await tx.supplementInventory.update({
         where: {

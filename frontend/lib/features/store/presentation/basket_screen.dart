@@ -1299,26 +1299,17 @@ class _BasketScreenState extends State<BasketScreen> {
                     ? null
                     : () {
                         final items = SupplementProvider.of(context).cartItems;
-                        if (items.isEmpty) return;
-                        final first = items.first;
-                        final matched = allProducts
-                            .where(
-                              (p) =>
-                                  p.id == first.productId ||
-                                  p.name == first.name,
-                            )
-                            .toList();
-                        final product = matched.isNotEmpty
-                            ? matched.first
-                            : StoreProduct(
-                                id: first.productId,
-                                name: first.name,
-                                brand: first.brand,
-                                price: first.price,
-                                description: '',
-                                nutrients: const [],
-                              );
-                        context.push('/store/purchase', extra: product);
+                        final checkedItems = items.where((i) => i.checked).toList();
+                        if (checkedItems.isEmpty) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('주문할 상품을 선택해주세요.'),
+                              behavior: SnackBarBehavior.floating,
+                            ),
+                          );
+                          return;
+                        }
+                        context.push('/store/purchase', extra: checkedItems);
                       },
                 child: _isOrdering
                     ? const SizedBox(

@@ -8,11 +8,13 @@ import 'package:simcap/core/constant/app_constants.dart';
 import 'package:simcap/providers/supplement_provider.dart';
 import 'package:simcap/routes/app_router.dart';
 import 'package:simcap/features/store/presentation/supplement_detail_screen.dart';
+import 'package:simcap/features/store/data/store_product_data.dart';
 
 class PurchaseScreen extends StatefulWidget {
-  final StoreProduct product;
+  final StoreProduct? product;
+  final List<CartItem>? cartItems;
 
-  const PurchaseScreen({super.key, required this.product});
+  const PurchaseScreen({super.key, this.product, this.cartItems});
 
   @override
   State<PurchaseScreen> createState() => _PurchaseScreenState();
@@ -58,6 +60,139 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
     _addressDetailController.dispose();
     _customRequestController.dispose();
     super.dispose();
+  }
+
+  int get _totalPrice {
+    if (widget.product != null) {
+      return widget.product!.price;
+    }
+    if (widget.cartItems != null) {
+      return widget.cartItems!.fold(0, (sum, i) => sum + i.totalPrice);
+    }
+    return 0;
+  }
+
+  String get _displayProductName {
+    if (widget.product != null) {
+      return widget.product!.name;
+    }
+    if (widget.cartItems != null && widget.cartItems!.isNotEmpty) {
+      return widget.cartItems!.length == 1
+          ? widget.cartItems!.first.name
+          : '${widget.cartItems!.first.name} 외 ${widget.cartItems!.length - 1}건';
+    }
+    return '';
+  }
+
+  String get _firstProductId {
+    if (widget.product != null) {
+      return widget.product!.id;
+    }
+    if (widget.cartItems != null && widget.cartItems!.isNotEmpty) {
+      return widget.cartItems!.first.productId;
+    }
+    return '';
+  }
+
+  List<PurchaseItem> get _purchaseItems {
+    if (widget.product != null) {
+      return [
+        PurchaseItem(
+          name: widget.product!.name,
+          brand: widget.product!.brand,
+          price: widget.product!.price,
+          count: 1,
+        )
+      ];
+    }
+    if (widget.cartItems != null) {
+      return widget.cartItems!.map((i) => i.toPurchaseItem()).toList();
+    }
+    return [];
+  }
+
+  String? _getItemImageUrl(String name) {
+    final matched = allProducts.where((p) => p.name == name).toList();
+    if (matched.isNotEmpty) {
+      return matched.first.imageUrl;
+    }
+    return null;
+  }
+
+  Widget _buildOrderItemRow(PurchaseItem item) {
+    final imageUrl = _getItemImageUrl(item.name);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        children: [
+          Container(
+            width: 60,
+            height: 60,
+            decoration: BoxDecoration(
+              color: AppColors.primaryLight,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            clipBehavior: Clip.hardEdge,
+            child: imageUrl != null && imageUrl.isNotEmpty
+                ? Image.network(
+                    imageUrl,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) => const Icon(
+                      Icons.medication_rounded,
+                      color: AppColors.primary,
+                      size: 30,
+                    ),
+                  )
+                : const Icon(
+                    Icons.medication_rounded,
+                    color: AppColors.primary,
+                    size: 30,
+                  ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  item.name,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '${item.brand} · ${item.count}개',
+                  style: TextStyle(
+                    color: Colors.grey[500],
+                    fontSize: 12,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  '${_formatPrice(item.price * item.count)}원',
+                  style: const TextStyle(
+                    color: AppColors.primary,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 15,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _formatPrice(int price) {
+    return price.toString().replaceAllMapped(
+      RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+      (m) => '${m[1]},',
+    );
   }
 
   Future<bool> _verifyPayment({
@@ -137,8 +272,8 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
           data: PaymentData(
             pg: pg,
             payMethod: payMethod,
-            name: widget.product.name,
-            amount: widget.product.price,
+            name: _displayProductName,
+            amount: _totalPrice,
             merchantUid: merchantUid,
             buyerName: buyerName,
             buyerTel: buyerTel,
@@ -164,22 +299,18 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
                 verified = await _verifyPayment(
                   impUid: impUid,
                   merchantUid: merchantUid,
-                  amount: widget.product.price,
-                  productId: widget.product.id,
+                  amount: _totalPrice,
+                  productId: _firstProductId,
                 );
               } catch (e) {
                 verified = true;
               }
 
               if (verified) {
-                notifier.addPurchase([
-                  PurchaseItem(
-                    name: widget.product.name,
-                    brand: widget.product.brand,
-                    price: widget.product.price,
-                    count: 1,
-                  ),
-                ]);
+                notifier.addPurchase(_purchaseItems);
+                if (widget.cartItems != null) {
+                  notifier.clearCheckedCartItems();
+                }
                 Navigator.pop(context);
                 await Future.delayed(const Duration(milliseconds: 300));
                 if (mounted) _showCompleteDialog();
@@ -240,7 +371,7 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
             ),
             const SizedBox(height: 8),
             Text(
-              widget.product.name,
+              _displayProductName,
               textAlign: TextAlign.center,
               style: TextStyle(fontSize: 13, color: Colors.grey[600]),
             ),
@@ -305,7 +436,6 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final p = widget.product;
     final bottomPad = MediaQuery.of(context).padding.bottom;
 
     return Scaffold(
@@ -333,68 +463,8 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
             // ── 주문 상품 ──────────────────────────────────────────────
             _buildSection(
               title: '주문 상품',
-              child: Row(
-                children: [
-                  Container(
-                    width: 60,
-                    height: 60,
-                    decoration: BoxDecoration(
-                      color: AppColors.primaryLight,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    clipBehavior: Clip.hardEdge,
-                    child: p.imageUrl != null && p.imageUrl!.isNotEmpty
-                        ? Image.network(
-                            p.imageUrl!,
-                            fit: BoxFit.cover,
-                            errorBuilder: (context, error, stackTrace) =>
-                                const Icon(
-                                  Icons.medication_rounded,
-                                  color: AppColors.primary,
-                                  size: 30,
-                                ),
-                          )
-                        : const Icon(
-                            Icons.medication_rounded,
-                            color: AppColors.primary,
-                            size: 30,
-                          ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          p.name,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w600,
-                            fontSize: 14,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          p.brand,
-                          style: TextStyle(
-                            color: Colors.grey[500],
-                            fontSize: 12,
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          '${p.price.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]},')}원',
-                          style: const TextStyle(
-                            color: AppColors.primary,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 15,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
+              child: Column(
+                children: _purchaseItems.map((item) => _buildOrderItemRow(item)).toList(),
               ),
             ),
 
@@ -595,14 +665,14 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
                 children: [
                   _priceRow(
                     '상품 금액',
-                    '${p.price.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]},')}원',
+                    '${_formatPrice(_totalPrice)}원',
                   ),
                   const SizedBox(height: 8),
                   _priceRow('배송비', '무료', valueColor: AppColors.primary),
                   const Divider(height: 20),
                   _priceRow(
                     '총 결제금액',
-                    '${p.price.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]},')}원',
+                    '${_formatPrice(_totalPrice)}원',
                     isBold: true,
                     valueColor: AppColors.primary,
                   ),
@@ -643,7 +713,7 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
                       ),
                     )
                   : Text(
-                      '${p.price.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]},')}원 결제하기',
+                      '${_formatPrice(_totalPrice)}원 결제하기',
                       style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
