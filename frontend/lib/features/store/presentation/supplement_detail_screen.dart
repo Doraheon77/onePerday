@@ -53,15 +53,28 @@ class StoreProduct {
   factory StoreProduct.fromJson(Map<String, dynamic> json) {
     // 백엔드의 supplements_ingredients 또는 ingredients 파싱
     List<NutrientInfo> parsedNutrients = [];
-    final rawIngredients = json['supplements_ingredients'] ?? json['ingredients'];
+    final rawIngredients =
+        json['supplements_ingredients'] ?? json['ingredients'];
     if (rawIngredients != null && rawIngredients is List) {
       parsedNutrients = rawIngredients.map((item) {
         if (item is Map) {
           return NutrientInfo(
             name: (item['ingredient_name'] ?? item['name'] ?? '').toString(),
-            amount: double.tryParse(item['amount']?.toString() ?? item['value']?.toString() ?? '0') ?? 0.0,
+            amount:
+                double.tryParse(
+                  item['amount']?.toString() ??
+                      item['value']?.toString() ??
+                      '0',
+                ) ??
+                0.0,
             unit: (item['unit'] ?? '').toString(),
-            dailyPercent: double.tryParse(item['dailyPercent']?.toString() ?? item['percent']?.toString() ?? '0') ?? 0.0,
+            dailyPercent:
+                double.tryParse(
+                  item['dailyPercent']?.toString() ??
+                      item['percent']?.toString() ??
+                      '0',
+                ) ??
+                0.0,
           );
         } else {
           return NutrientInfo(
@@ -361,49 +374,48 @@ class _SupplementDetailScreenState extends State<SupplementDetailScreen> {
   }
 
   Future<void> _checkDetailOverdose() async {
-  try {
-    if (mounted) {
-      setState(() => _isIntakeLoading = true);
-    }
-    final notifier = SupplementProvider.of(context);
+    try {
+      if (mounted) {
+        setState(() => _isIntakeLoading = true);
+      }
+      final notifier = SupplementProvider.of(context);
 
-    final cartItems = [
-      ...notifier.supplements.map((s) {
-        return {
-          'productId': s.supplementId,
-          'name': s.name,
-          'brand': s.brand,
+      final cartItems = [
+        ...notifier.supplements.map((s) {
+          return {
+            'productId': s.supplementId,
+            'name': s.name,
+            'brand': s.brand,
+            'count': 1,
+          };
+        }),
+        {
+          'productId': widget.product.id,
+          'name': widget.product.name,
+          'brand': widget.product.brand,
           'count': 1,
-        };
-      }),
-      {
-        'productId': widget.product.id,
-        'name': widget.product.name,
-        'brand': widget.product.brand,
-        'count': 1,
-      },
-    ];
-    
+        },
+      ];
 
-    final results = await IntakeApiService().checkOverdoseByCartItems(
-      cartItems: cartItems,
-      age: 24,
-      gender: 'female',
-    );
+      final results = await IntakeApiService().checkOverdoseByCartItems(
+        cartItems: cartItems,
+        age: 24,
+        gender: 'female',
+      );
 
-    if (mounted) {
-      setState(() {
-        _intakeResults = results;
-        _isIntakeLoading = false;
-      });
-    }
-  } catch (e) {
-    debugPrint('[SupplementDetailScreen] 과다복용 검사 실패: $e');
-    if (mounted) {
-    setState(() => _isIntakeLoading = false);
+      if (mounted) {
+        setState(() {
+          _intakeResults = results;
+          _isIntakeLoading = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('[SupplementDetailScreen] 과다복용 검사 실패: $e');
+      if (mounted) {
+        setState(() => _isIntakeLoading = false);
+      }
     }
   }
-}
 
   /// 이미 캐비닛에 등록된 영양제인지 여부 (이름 기준 비교)
   bool _isAlreadyInCabinet(BuildContext context) {
@@ -1005,7 +1017,7 @@ class _SupplementDetailScreenState extends State<SupplementDetailScreen> {
       final response = await http
           .post(
             url,
-            headers: {'Content-Type': 'application/json'},
+            headers: AppConstants.headers,
             body: jsonEncode({
               'imp_uid': impUid,
               'merchant_uid': merchantUid,
@@ -1241,40 +1253,46 @@ class _SupplementDetailScreenState extends State<SupplementDetailScreen> {
   }
 
   Widget _buildNutrientRow(NutrientInfo n) {
-    final matched = _intakeResults.where(
-      (r) => r.nutrientName.trim().toLowerCase() == n.name.trim().toLowerCase(),
-    ).toList();
+    final matched = _intakeResults
+        .where(
+          (r) =>
+              r.nutrientName.trim().toLowerCase() ==
+              n.name.trim().toLowerCase(),
+        )
+        .toList();
 
     final result = matched.isNotEmpty ? matched.first : null;
     final status = result?.status ?? 'safe';
 
     // 0~100%: 초록, 100~150%: 주황(권장량 초과), 150%+: 빨강(상한 섭취량)
     final standardAmount = result == null
-    ? 0.0
-    : result.upperLimit > 0
+        ? 0.0
+        : result.upperLimit > 0
         ? result.upperLimit
         : result.recommendedIntake > 0
-            ? result.recommendedIntake
-            : result.adequateIntake;
+        ? result.recommendedIntake
+        : result.adequateIntake;
 
-final ratio = standardAmount > 0 ? result!.currentTotal / standardAmount : 0.0;
+    final ratio = standardAmount > 0
+        ? result!.currentTotal / standardAmount
+        : 0.0;
 
-final Color barColor = status == 'danger'
-    ? AppColors.danger
-    : status == 'warning'
+    final Color barColor = status == 'danger'
+        ? AppColors.danger
+        : status == 'warning'
         ? AppColors.warning
         : AppColors.primary;
 
-final Color badgeBg = status == 'danger'
-    ? AppColors.dangerBg
-    : status == 'warning'
+    final Color badgeBg = status == 'danger'
+        ? AppColors.dangerBg
+        : status == 'warning'
         ? const Color(0xFFFFF3E0)
         : AppColors.primaryLight;
 
-final clampedPercent = ratio.clamp(0.0, 1.5);
-final percentLabel = _isIntakeLoading
-    ? '계산중'
-    : standardAmount > 0
+    final clampedPercent = ratio.clamp(0.0, 1.5);
+    final percentLabel = _isIntakeLoading
+        ? '계산중'
+        : standardAmount > 0
         ? '${(ratio * 100).toStringAsFixed(0)}%'
         : '-';
 

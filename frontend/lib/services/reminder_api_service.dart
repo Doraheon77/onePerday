@@ -3,11 +3,10 @@ import 'package:http/http.dart' as http;
 import 'package:simcap/core/constant/app_constants.dart';
 
 class ReminderApiService {
-  Future<ReminderData> fetchTodayReminders({
-    required String userUuid,
-  }) async {
+  Future<ReminderData> fetchTodayReminders({required String userUuid}) async {
     final response = await http.get(
       Uri.parse('${AppConstants.apiBaseUrl}/reminders/today/$userUuid'),
+      headers: AppConstants.headers,
     );
 
     if (response.statusCode < 200 || response.statusCode >= 300) {
@@ -29,10 +28,7 @@ class ReminderData {
   final List<DoseReminder> doseReminders;
   final List<StockReminder> stockReminders;
 
-  ReminderData({
-    required this.doseReminders,
-    required this.stockReminders,
-  });
+  ReminderData({required this.doseReminders, required this.stockReminders});
 
   int get totalCount => doseReminders.length + stockReminders.length;
 
@@ -131,7 +127,8 @@ class StockReminder {
       stockCount: int.tryParse(json['stockCount']?.toString() ?? '') ?? 0,
       totalCount: int.tryParse(json['totalCount']?.toString() ?? '') ?? 0,
       dailyDose: int.tryParse(json['dailyDose']?.toString() ?? '') ?? 1,
-      dailyFrequency: int.tryParse(json['dailyFrequency']?.toString() ?? '') ?? 1,
+      dailyFrequency:
+          int.tryParse(json['dailyFrequency']?.toString() ?? '') ?? 1,
       daysLeft: json['daysLeft'] == null
           ? null
           : int.tryParse(json['daysLeft'].toString()),

@@ -12,7 +12,7 @@ class IntakeApiService {
   }) async {
     final response = await http.post(
       Uri.parse('$baseUrl/intake/check-safety'),
-      headers: {'Content-Type': 'application/json'},
+      headers: AppConstants.headers,
       body: jsonEncode({
         'age': age,
         'gender': gender,
@@ -52,7 +52,7 @@ class IntakeApiService {
   }) async {
     final response = await http.post(
       Uri.parse('$baseUrl/intake/complete'),
-      headers: {'Content-Type': 'application/json'},
+      headers: AppConstants.headers,
       body: jsonEncode({
         'userUuid': userUuid,
         'inventoryId': int.parse(inventoryId),
@@ -76,7 +76,7 @@ class IntakeApiService {
   }) async {
     final response = await http.post(
       Uri.parse('$baseUrl/intake/cancel'),
-      headers: {'Content-Type': 'application/json'},
+      headers: AppConstants.headers,
       body: jsonEncode({
         'userUuid': userUuid,
         'inventoryId': int.parse(inventoryId),

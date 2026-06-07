@@ -1,9 +1,10 @@
+import 'package:simcap/core/constant/app_constants.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:simcap/services/api_config.dart';
 
 class ConflictApiService {
-  static const String baseUrl = ApiConfig.baseUrl;
+  static String get baseUrl => ApiConfig.baseUrl;
 
   Future<List<ConflictCheckResult>> checkConflictsBySupplementIds({
     required List<int> supplementIds,
@@ -13,12 +14,11 @@ class ConflictApiService {
   }) async {
     final response = await http.post(
       Uri.parse('$baseUrl/conflict/check-safety'),
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: AppConstants.headers,
       body: jsonEncode({
         'supplementIds': supplementIds,
-        if (cabinetSupplements != null) 'cabinetSupplements': cabinetSupplements,
+        if (cabinetSupplements != null)
+          'cabinetSupplements': cabinetSupplements,
         if (userHealth != null) 'userHealth': userHealth,
         if (userAllergies != null) 'userAllergies': userAllergies,
       }),
@@ -57,8 +57,9 @@ class ConflictCheckResult {
     return ConflictCheckResult(
       conflicts: List<String>.from(json['conflicts'] ?? []),
       reason: json['reason'] ?? '',
-      conflictingIngredients:
-          List<String>.from(json['conflictingIngredients'] ?? []),
+      conflictingIngredients: List<String>.from(
+        json['conflictingIngredients'] ?? [],
+      ),
     );
   }
 }

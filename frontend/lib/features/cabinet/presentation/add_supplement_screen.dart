@@ -104,6 +104,7 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
     try {
       final uri = Uri.parse('${AppConstants.apiBaseUrl}/supplements/ocr');
       final request = http.MultipartRequest('POST', uri);
+      request.headers.addAll(AppConstants.headers);
 
       request.files.add(
         await http.MultipartFile.fromPath('image', imageFile.path),
@@ -275,7 +276,8 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
 
     final newSupplement = Supplement(
       id: widget.initialItem?.id,
-      supplementId: _supplementId?.toString() ?? widget.initialItem?.supplementId,
+      supplementId:
+          _supplementId?.toString() ?? widget.initialItem?.supplementId,
       inventoryId: widget.initialItem?.inventoryId,
       name: name,
       brand: _brandController.text.trim(),
@@ -289,12 +291,17 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
       nutrients: widget.initialItem != null
           ? widget.initialItem!.nutrients
           : _nutrientController.text
-              .split(',')
-              .where((e) => e.trim().isNotEmpty)
-              .map(
-                (e) => Nutrient(name: e.trim(), value: 0, unit: '', percent: 0.7),
-              )
-              .toList(),
+                .split(',')
+                .where((e) => e.trim().isNotEmpty)
+                .map(
+                  (e) => Nutrient(
+                    name: e.trim(),
+                    value: 0,
+                    unit: '',
+                    percent: 0.7,
+                  ),
+                )
+                .toList(),
       analysisGuide: widget.initialItem?.analysisGuide ?? '방금 등록된 영양제입니다.',
       aiSummary: widget.initialItem?.aiSummary ?? '분석 데이터 준비 중',
     );
@@ -1087,10 +1094,7 @@ class _AddSupplementScreenState extends State<AddSupplementScreen>
           errorText: hasError ? '제품명을 입력해 주세요' : null,
           errorStyle: const TextStyle(height: 0),
         ),
-        style: const TextStyle(
-          fontSize: 15,
-          color: Colors.black87,
-        ),
+        style: const TextStyle(fontSize: 15, color: Colors.black87),
       ),
     );
   }

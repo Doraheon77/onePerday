@@ -1,10 +1,11 @@
+import 'package:simcap/core/constant/app_constants.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:simcap/features/store/presentation/supplement_detail_screen.dart';
 import 'package:simcap/services/api_config.dart';
 
 class StoreApiService {
-  static const String baseUrl = ApiConfig.baseUrl;
+  static String get baseUrl => ApiConfig.baseUrl;
 
   // Static cache for fetched supplements to prevent redundant API queries
   static List<StoreProduct>? _cachedSupplements;
@@ -16,7 +17,8 @@ class StoreApiService {
     List<String> ingredients = const [],
     String? priceRange,
   }) async {
-    final isGeneralFetch = keyword == null &&
+    final isGeneralFetch =
+        keyword == null &&
         categories.isEmpty &&
         ingredients.isEmpty &&
         priceRange == null;
@@ -41,8 +43,10 @@ class StoreApiService {
       queryParams['priceRange'] = priceRange;
     }
 
-    final uri = Uri.parse('$baseUrl/supplements').replace(queryParameters: queryParams.isEmpty ? null : queryParams);
-    final response = await http.get(uri);
+    final uri = Uri.parse(
+      '$baseUrl/supplements',
+    ).replace(queryParameters: queryParams.isEmpty ? null : queryParams);
+    final response = await http.get(uri, headers: AppConstants.headers);
 
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw Exception('영양제 목록 조회 실패: ${response.body}');
@@ -83,9 +87,7 @@ class StoreApiService {
 
   // [개선된 코드] 실시간 인기 검색어 목록을 가져오는 함수 추가
   Future<List<String>> fetchPopularSearches() async {
-    final response = await http.get(
-      Uri.parse('$baseUrl/supplements/popular'),
-    );
+    final response = await http.get(Uri.parse('$baseUrl/supplements/popular'));
 
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw Exception('인기 검색어 조회 실패: ${response.body}');
