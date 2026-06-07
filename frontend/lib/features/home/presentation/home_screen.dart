@@ -87,8 +87,12 @@ class _HomeScreenState extends State<HomeScreen> {
       }
 
       setState(() {
-        _hasNutritionDanger = results.any((r) => r.status == 'danger');
-        _hasNutritionWarning = results.any((r) => r.status == 'warning');
+        _hasNutritionDanger = results.any(
+          (r) => r.status == 'danger' || r.status == 'very_low',
+        );
+        _hasNutritionWarning = results.any(
+          (r) => r.status == 'low',
+        );
         _homeIntakeResults = results;
         _isNutritionChecking = false;
       });
@@ -756,127 +760,62 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   // ── 영양 성분 카드 ────────────────────────────────────────────────────────
-  Widget _buildNutritionCard() {
-    final supplements = SupplementProvider.of(context).supplements;
-    final Map<String, double> totals = {};
-    for (final s in supplements) {
-      for (final n in s.nutrients) {
-        totals[n.name.trim()] = (totals[n.name.trim()] ?? 0) + n.percent;
-      }
-    }
-    // 이렇게
-final sorted = _homeIntakeResults.isNotEmpty
-    ? (_homeIntakeResults.map((r) {
-        final standard = r.upperLimit > 0
-            ? r.upperLimit
-            : r.recommendedIntake > 0
-                ? r.recommendedIntake
-                : r.adequateIntake;
-        final ratio = standard > 0 ? r.currentTotal / standard : 0.0;
-        return MapEntry(r.nutrientName, ratio);
-      }).toList()
-        ..sort((a, b) => b.value.compareTo(a.value)))
-    : (totals.entries.toList()
-        ..sort((a, b) => b.value.compareTo(a.value)));
-final top = sorted.toList();
+Widget _buildNutritionCard() {
+  final nutrients = [..._homeIntakeResults]
+    ..sort((a, b) => b.ratio.compareTo(a.ratio));
 
-    final boxDeco = BoxDecoration(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(24),
-      boxShadow: [
-        BoxShadow(
-          color: Colors.black.withOpacity(0.04),
-          blurRadius: 15,
-          offset: const Offset(0, 4),
-        ),
-      ],
-    );
+  final boxDeco = BoxDecoration(
+    color: Colors.white,
+    borderRadius: BorderRadius.circular(24),
+    boxShadow: [
+      BoxShadow(
+        color: Colors.black.withOpacity(0.04),
+        blurRadius: 15,
+        offset: const Offset(0, 4),
+      ),
+    ],
+  );
 
-    if (top.isEmpty) {
-      return Container(
-        padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 24),
-        decoration: boxDeco,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.bar_chart_outlined, size: 64, color: Colors.grey[200]),
-            const SizedBox(height: 16),
-            Text(
-              '등록된 영양제가 없습니다',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: Colors.grey[400],
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              '캐비닛에 영양제를 추가하면\n성분별 섭취량을 분석해 드려요',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 13,
-                color: Colors.grey[400],
-                height: 1.6,
-              ),
-            ),
-            const SizedBox(height: 20),
-            OutlinedButton.icon(
-              onPressed: () => context.go('/cabinet'),
-              style: OutlinedButton.styleFrom(
-                side: const BorderSide(color: AppColors.primary),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 10,
-                ),
-              ),
-              icon: const Icon(Icons.add, size: 16, color: AppColors.primary),
-              label: const Text(
-                '영양제 추가하기',
-                style: TextStyle(
-                  color: AppColors.primary,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
+  if (nutrients.isEmpty) {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 24),
       decoration: boxDeco,
       child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          ...top.map((e) => _buildBarGraph(e.key, e.value)),
-          const SizedBox(height: 12),
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: AppColors.primaryFaint,
-              borderRadius: BorderRadius.circular(12),
+          Icon(Icons.bar_chart_outlined, size: 64, color: Colors.grey[200]),
+          const SizedBox(height: 16),
+          Text(
+            '등록된 영양제가 없습니다',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: Colors.grey[400],
             ),
-            child: const Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  Icons.lightbulb_outline,
-                  size: 16,
-                  color: AppColors.primary,
-                ),
-                SizedBox(width: 8),
-                Text(
-                  '적정 섭취량은 권장량의 70%~100% 사이입니다.',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: AppColors.primaryDark,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            '캐비닛에 영양제를 추가하면\n성분별 섭취량을 분석해 드려요',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 13, color: Colors.grey[400], height: 1.6),
+          ),
+          const SizedBox(height: 20),
+          OutlinedButton.icon(
+            onPressed: () => context.go('/cabinet'),
+            style: OutlinedButton.styleFrom(
+              side: const BorderSide(color: AppColors.primary),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+            ),
+            icon: const Icon(Icons.add, size: 16, color: AppColors.primary),
+            label: const Text(
+              '영양제 추가하기',
+              style: TextStyle(
+                color: AppColors.primary,
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ),
         ],
@@ -884,44 +823,49 @@ final top = sorted.toList();
     );
   }
 
+  return Container(
+    padding: const EdgeInsets.all(20),
+    decoration: boxDeco,
+    child: Column(
+      children: [
+        ...nutrients.map((r) => _buildBarGraph(r)),
+        const SizedBox(height: 12),
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: AppColors.primaryFaint,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: const Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.lightbulb_outline, size: 16, color: AppColors.primary),
+              SizedBox(width: 8),
+              Text(
+                '권장/충분 섭취량과 상한 섭취량 기준으로 분석합니다.',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: AppColors.primaryDark,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
   // ── 바 그래프 ─────────────────────────────────────────────────────────────
-  Widget _buildBarGraph(String label, double ratio) {
-  final matched = _homeIntakeResults.where(
-    (r) => r.nutrientName.trim() == label.trim(),
-  ).toList();
+Widget _buildBarGraph(IntakeResult result) {
+  final ratio = result.ratio;
+  final status = result.status;
+  final targetType = result.targetType;
 
-  final result = matched.isNotEmpty ? matched.first : null;
-  final status = result?.status ?? 'safe';
-
-  final standardAmount = result == null
-      ? 0.0
-      : result.upperLimit > 0
-          ? result.upperLimit
-          : result.recommendedIntake > 0
-              ? result.recommendedIntake
-              : result.adequateIntake;
-
-  final apiRatio = standardAmount > 0
-      ? result!.currentTotal / standardAmount
-      : ratio;
-
-  final Color barColor = status == 'danger'
-    ? AppColors.danger
-    : status == 'warning'
-        ? AppColors.warning
-        : apiRatio >= 0.7
-            ? AppColors.primary
-            : AppColors.warning;
-
-  final pct = '${(apiRatio * 100).round()}%';
-
-  final statusNote = status == 'danger'
-      ? '과다 섭취 주의'
-      : status == 'warning'
-          ? '권장량 초과'
-          : apiRatio >= 0.7
-              ? '적정 섭취'
-              : '섭취 부족';
+  final barColor = _statusColor(status);
+  final pct = '${(ratio * 100).round()}%';
+  final statusNote = _statusText(status, targetType);
 
   return Padding(
     padding: const EdgeInsets.only(bottom: 18),
@@ -933,7 +877,7 @@ final top = sorted.toList();
           children: [
             Expanded(
               child: Text(
-                label,
+                result.nutrientName,
                 style: const TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.bold,
@@ -956,7 +900,7 @@ final top = sorted.toList();
         ClipRRect(
           borderRadius: BorderRadius.circular(10),
           child: LinearProgressIndicator(
-            value: apiRatio.clamp(0.0, 1.0),
+            value: ratio.clamp(0.0, 1.0),
             backgroundColor: Colors.grey[100],
             color: barColor,
             minHeight: 10,
@@ -1715,5 +1659,42 @@ class _MonthlyCalendarSheetState extends State<_MonthlyCalendarSheet> {
         Text(label, style: TextStyle(fontSize: 11, color: Colors.grey[500])),
       ],
     );
+  }
+}
+
+Color _statusColor(String status) {
+  switch (status) {
+    case 'very_low':
+      return AppColors.danger;
+    case 'low':
+      return AppColors.warning;
+    case 'normal':
+    case 'enough':
+      return AppColors.primary;
+    case 'danger':
+      return AppColors.danger;
+    default:
+      return Colors.grey;
+  }
+}
+
+String _statusText(String status, String targetType) {
+  if (targetType == 'upper') {
+    return status == 'danger' ? '위험' : '정상';
+  }
+
+  switch (status) {
+    case 'very_low':
+      return '매우 부족';
+    case 'low':
+      return '부족';
+    case 'normal':
+      return '적정';
+    case 'enough':
+      return '충분';
+    case 'danger':
+      return '위험';
+    default:
+      return '-';
   }
 }

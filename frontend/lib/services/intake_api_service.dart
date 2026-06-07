@@ -95,9 +95,12 @@ class IntakeApiService {
 class IntakeResult {
   final String nutrientName;
   final double currentTotal;
+  final double avgRequirement;
   final double recommendedIntake;
   final double adequateIntake;
   final double upperLimit;
+  final double ratio;
+  final String targetType;
   final bool isExceeded;
   final String unit;
   final String status;
@@ -111,17 +114,23 @@ class IntakeResult {
     required this.isExceeded,
     required this.unit,
     required this.status,
+    required this.avgRequirement,
+    required this.ratio,
+    required this.targetType,
   });
 
   factory IntakeResult.fromJson(Map<String, dynamic> json) {
-    final status = json['status']?.toString() ?? 'safe';
+    final status = json['status']?.toString() ?? 'none';
 
     return IntakeResult(
       nutrientName: json['nutrientName']?.toString() ?? '',
       currentTotal: _toDouble(json['currentTotal']),
+      avgRequirement: _toDouble(json['avgRequirement']),
       recommendedIntake: _toDouble(json['recommendedIntake']),
       adequateIntake: _toDouble(json['adequateIntake']),
       upperLimit: _toDouble(json['upperLimit']),
+      ratio: _toDouble(json['ratio']),
+      targetType: json['targetType']?.toString() ?? 'none',
       isExceeded: json['isExceeded'] == true || status == 'danger',
       unit: json['unit']?.toString() ?? '',
       status: status,

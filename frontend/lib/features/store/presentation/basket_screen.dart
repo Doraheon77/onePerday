@@ -32,34 +32,32 @@ class _ContraindicationResult {
 
 class _OverdoseResult {
   final String nutrient;
+
   final double currentAmount;
+
+  final double avgRequirement;
   final double recommendedIntake;
   final double adequateIntake;
   final double upperLimit;
+
+  final double ratio;
+
+  final String targetType;
+  final String status;
+
   final String unit;
-  final String backendStatus;
-
-  _CheckStatus get status {
-    if (backendStatus == 'danger') return _CheckStatus.danger;
-    if (backendStatus == 'warning') return _CheckStatus.warning;
-    return _CheckStatus.safe;
-  }
-
-  double get standardAmount {
-    if (upperLimit > 0) return upperLimit;
-    if (recommendedIntake > 0) return recommendedIntake;
-    if (adequateIntake > 0) return adequateIntake;
-    return 0;
-  }
 
   const _OverdoseResult({
     required this.nutrient,
     required this.currentAmount,
+    required this.avgRequirement,
     required this.recommendedIntake,
     required this.adequateIntake,
     required this.upperLimit,
+    required this.ratio,
+    required this.targetType,
+    required this.status,
     required this.unit,
-    required this.backendStatus,
   });
 }
 
@@ -677,12 +675,20 @@ class _BasketScreenState extends State<BasketScreen> {
         _overdoseResults = results.map((r) {
           return _OverdoseResult(
             nutrient: r.nutrientName,
+
             currentAmount: r.currentTotal,
+
+            avgRequirement: r.avgRequirement,
             recommendedIntake: r.recommendedIntake,
             adequateIntake: r.adequateIntake,
             upperLimit: r.upperLimit,
+
+            ratio: r.ratio,
+
+            targetType: r.targetType,
+            status: r.status,
+
             unit: r.unit,
-            backendStatus: r.status,
           );
         }).toList();
       });
@@ -1161,11 +1167,11 @@ class _BasketScreenState extends State<BasketScreen> {
                   // 범례
                   Row(
                     children: [
-                      _legend(AppColors.primary, '안전'),
+                      _legend(AppColors.primary, '정상/충분'),
                       const SizedBox(width: 12),
-                      _legend(AppColors.warning, '주의 (80% 이상)'),
+                      _legend(AppColors.warning, '부족'),
                       const SizedBox(width: 12),
-                      _legend(AppColors.danger, '초과'),
+                      _legend(AppColors.danger, '매우 부족/위험'),
                     ],
                   ),
                   const SizedBox(height: 14),
@@ -1179,33 +1185,30 @@ class _BasketScreenState extends State<BasketScreen> {
   }
 
   Widget _buildOverdoseBar(_OverdoseResult r) {
-    final standardAmount = r.standardAmount;
-    final ratio = standardAmount > 0
-        ? (r.currentAmount / standardAmount).clamp(0.0, 1.5)
-        : 0.0;
+    final ratio = r.ratio.clamp(0.0, 1.5);
     final displayRatio = ratio.clamp(0.0, 1.0);
 
-    Color barColor;
-    Color textColor;
-    String statusLabel;
-    switch (r.status) {
-      case _CheckStatus.danger:
-        barColor = AppColors.danger;
-        textColor = AppColors.danger;
-        statusLabel = '초과';
-        break;
-      case _CheckStatus.warning:
-        barColor = AppColors.warning;
-        textColor = AppColors.warning;
-        statusLabel = '주의';
-        break;
-      case _CheckStatus.safe:
-        barColor = AppColors.primary;
-        textColor = AppColors.primary;
-        statusLabel = '안전';
-    }
+    final barColor = _statusColor(r.status);
+    final textColor = barColor;
+    final statusLabel = _statusText(r.status, r.targetType);
 
     final percentText = '${(ratio * 100).toStringAsFixed(0)}%';
+
+    final standardLabel = r.targetType == 'upper'
+        ? '상한'
+        : r.targetType == 'recommended'
+        ? '권장'
+        : r.targetType == 'adequate'
+        ? '충분'
+        : '기준';
+
+    final standardValue = r.targetType == 'upper'
+        ? r.upperLimit
+        : r.targetType == 'recommended'
+        ? r.recommendedIntake
+        : r.targetType == 'adequate'
+        ? r.adequateIntake
+        : 0.0;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 14),
@@ -1224,7 +1227,7 @@ class _BasketScreenState extends State<BasketScreen> {
               Row(
                 children: [
                   Text(
-                    '${r.currentAmount.toStringAsFixed(0)}${r.unit} / 상한 ${r.upperLimit.toStringAsFixed(0)}${r.unit}',
+                    '${r.currentAmount.toStringAsFixed(0)}${r.unit} / $standardLabel ${standardValue.toStringAsFixed(0)}${r.unit}',
                     style: TextStyle(fontSize: 11, color: Colors.grey[500]),
                   ),
                   const SizedBox(width: 6),
@@ -1254,7 +1257,6 @@ class _BasketScreenState extends State<BasketScreen> {
           LayoutBuilder(
             builder: (context, constraints) => Stack(
               children: [
-                // 배경 바
                 Container(
                   height: 8,
                   decoration: BoxDecoration(
@@ -1262,7 +1264,6 @@ class _BasketScreenState extends State<BasketScreen> {
                     borderRadius: BorderRadius.circular(4),
                   ),
                 ),
-                // 채워진 바
                 AnimatedContainer(
                   duration: const Duration(milliseconds: 600),
                   curve: Curves.easeOut,
@@ -1273,7 +1274,6 @@ class _BasketScreenState extends State<BasketScreen> {
                     borderRadius: BorderRadius.circular(4),
                   ),
                 ),
-                // 100% 기준선
                 Positioned(
                   left: constraints.maxWidth * (1.0 / 1.5),
                   child: Container(
@@ -1585,5 +1585,51 @@ class _EmptyResult extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+Color _statusColor(String status) {
+  switch (status) {
+    case 'very_low':
+      return AppColors.danger;
+
+    case 'low':
+      return AppColors.warning;
+
+    case 'normal':
+    case 'enough':
+      return AppColors.primary;
+
+    case 'danger':
+      return AppColors.danger;
+
+    default:
+      return Colors.grey;
+  }
+}
+
+String _statusText(String status, String targetType) {
+  if (targetType == 'upper') {
+    return status == 'danger' ? '위험' : '정상';
+  }
+
+  switch (status) {
+    case 'very_low':
+      return '매우 부족';
+
+    case 'low':
+      return '부족';
+
+    case 'normal':
+      return '적정';
+
+    case 'enough':
+      return '충분';
+
+    case 'danger':
+      return '위험';
+
+    default:
+      return '-';
   }
 }

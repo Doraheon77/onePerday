@@ -5,11 +5,30 @@ import { CompleteIntakeDto } from './dto/complete-intake.dto';
 
 export interface IntakeResult {
   nutrientName: string;
+
   currentTotal: number;
+
+  avgRequirement: number;
   recommendedIntake: number;
   adequateIntake: number;
   upperLimit: number;
-  status: 'safe' | 'warning' | 'danger';
+
+  ratio: number;
+
+  targetType:
+    | 'recommended'
+    | 'adequate'
+    | 'upper'
+    | 'none';
+
+  status:
+    | 'very_low'
+    | 'low'
+    | 'normal'
+    | 'enough'
+    | 'danger'
+    | 'none';
+
   unit: string;
 }
 @Injectable()
@@ -131,27 +150,74 @@ export class IntakeService {
       //console.log('조회 gender:', this.mapGender(gender));
       //console.log('조회 결과:', standard);
 
+      const avgRequirement = standard?.avg_requirement ?? 0;
       const recommendedIntake = standard?.recommended_intake ?? 0;
       const adequateIntake = standard?.adequate_intake ?? 0;
       const upperLimit = standard?.upper_limit ?? 0;
+
       const targetIntake =
-        recommendedIntake > 0 ? recommendedIntake : adequateIntake;
+        recommendedIntake > 0
+          ? recommendedIntake
+          : adequateIntake;
 
-      let status: 'safe' | 'warning' | 'danger' = 'safe';
+      let ratio = 0;
 
-      if (upperLimit > 0 && value.total >= upperLimit) {
-        status = 'danger';
-      } else if (targetIntake > 0 && value.total >= targetIntake) {
-        status = 'warning';
+      let targetType:
+        | 'recommended'
+        | 'adequate'
+        | 'upper'
+        | 'none' = 'none';
+
+      let status:
+        | 'very_low'
+        | 'low'
+        | 'normal'
+        | 'enough'
+        | 'danger'
+        | 'none' = 'none';
+
+      if (targetIntake > 0) {
+        ratio = value.total / targetIntake;
+
+        targetType =
+          recommendedIntake > 0
+            ? 'recommended'
+            : 'adequate';
+
+        if (ratio < 0.3) {
+          status = 'very_low';
+        } else if (ratio < 0.7) {
+          status = 'low';
+        } else if (ratio <= 1.0) {
+          status = 'normal';
+        } else {
+          status = 'enough';
+        }
+      }
+
+      if (upperLimit > 0) {
+        const upperRatio = value.total / upperLimit;
+
+        if (upperRatio >= 1.0) {
+          ratio = upperRatio;
+          targetType = 'upper';
+          status = 'danger';
+        }
       }
 
       results.push({
         nutrientName,
         currentTotal: value.total,
+
+        avgRequirement,
         recommendedIntake,
         adequateIntake,
         upperLimit,
+
+        ratio,
+        targetType,
         status,
+
         unit: value.unit,
       });
     }
@@ -338,7 +404,6 @@ export class IntakeService {
       const dosePerTime = Math.max(1, Math.ceil(dailyDose / dailyFrequency));
       const currentStock = inventory.stock_count ?? 0;
       const totalCount = inventory.total_count ?? 0;
-      
       const nextStock = totalCount > 0 
           ? Math.min(totalCount, currentStock + dosePerTime)
           : currentStock + dosePerTime;
