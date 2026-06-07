@@ -744,16 +744,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
   // ── 영양 성분 카드 ────────────────────────────────────────────────────────
   Widget _buildNutritionCard() {
-    final supplements = SupplementProvider.of(context).supplements;
-    final Map<String, double> totals = {};
-    for (final s in supplements) {
-      for (final n in s.nutrients) {
-        totals[n.name.trim()] = (totals[n.name.trim()] ?? 0) + n.percent;
-      }
-    }
-    final sorted = totals.entries.toList()
-      ..sort((a, b) => b.value.compareTo(a.value));
-    final top = sorted.take(5).toList();
+    final nutrients = [..._homeIntakeResults]
+      ..sort((a, b) => b.currentTotal.compareTo(a.currentTotal));
 
     final boxDeco = BoxDecoration(
       color: Colors.white,
@@ -767,7 +759,7 @@ class _HomeScreenState extends State<HomeScreen> {
       ],
     );
 
-    if (top.isEmpty) {
+    if (nutrients.isEmpty) {
       return Container(
         padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 24),
         decoration: boxDeco,
@@ -826,7 +818,7 @@ class _HomeScreenState extends State<HomeScreen> {
       decoration: boxDeco,
       child: Column(
         children: [
-          ...top.map((e) => _buildBarGraph(e.key, e.value)),
+          ...nutrients.map((r) => _buildBarGraph(r.nutrientName, 0)),
           const SizedBox(height: 12),
           Container(
             padding: const EdgeInsets.all(12),
