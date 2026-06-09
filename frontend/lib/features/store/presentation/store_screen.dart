@@ -71,21 +71,25 @@ class _StoreScreenState extends State<StoreScreen> {
           user?.id ?? 'bc49b355-8ea3-4e6e-9331-52d1d4c46d99';
 
       // [개선된 코드] 전체 리스트와 맞춤 추천 리스트를 동시에 조회
-      // 사용자 성별/나이 조회
+      // 사용자 성별/나이 조회 후 전달
       final userInfo = await authService.getUserInfo();
       final int userAge = userInfo?['birth_year'] != null
           ? DateTime.now().year - (userInfo!['birth_year'] as int)
           : 30;
+      final rawGender = (userInfo?['gender'] as String?)?.toLowerCase() ?? '';
       final String userGender =
-          (userInfo?['gender'] as String?)?.toLowerCase() == 'female' ||
-              (userInfo?['gender'] as String?) == '여성' ||
-              (userInfo?['gender'] as String?) == '여자'
-          ? '여자'
-          : '남자';
+          (rawGender == 'male' ||
+              rawGender == '남성' ||
+              rawGender == '남자' ||
+              rawGender == 'm')
+          ? 'male'
+          : 'female';
 
       final results = await Future.wait([
         service.fetchSupplements(gender: userGender, age: userAge),
-        service.fetchRecommendedSupplements(currentUserId),
+        service.fetchRecommendedSupplements(
+          currentUserId,
+        ), // 인덱스 1: 나를 위한 추천 리스트
       ]);
 
       setState(() {

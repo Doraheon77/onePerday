@@ -1,4 +1,3 @@
-import 'package:simcap/core/constant/app_constants.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:simcap/features/store/presentation/supplement_detail_screen.dart';
@@ -7,7 +6,6 @@ import 'package:simcap/services/api_config.dart';
 class StoreApiService {
   static String get baseUrl => ApiConfig.baseUrl;
 
-  // Static cache for fetched supplements to prevent redundant API queries
   static List<StoreProduct>? _cachedSupplements;
   static String _cacheKey = '';
 
@@ -17,7 +15,7 @@ class StoreApiService {
     List<String> categories = const [],
     List<String> ingredients = const [],
     String? priceRange,
-    String gender = '남자',
+    String gender = 'male',
     int age = 30,
   }) async {
     final isGeneralFetch =
@@ -25,13 +23,10 @@ class StoreApiService {
         categories.isEmpty &&
         ingredients.isEmpty &&
         priceRange == null;
-
-    // gender/age 포함한 캐시 키로 관리
-    final cacheKey = '\${gender}_\${age}';
+    final cacheKey = gender + '_' + age.toString();
     if (isGeneralFetch && _cachedSupplements != null && _cacheKey == cacheKey) {
       return _cachedSupplements!;
     }
-
     // 쿼리 파라미터 동적 생성
     final queryParams = <String, String>{
       'gender': gender,
@@ -54,7 +49,7 @@ class StoreApiService {
     final uri = Uri.parse(
       '$baseUrl/supplements',
     ).replace(queryParameters: queryParams.isEmpty ? null : queryParams);
-    final response = await http.get(uri, headers: AppConstants.headers);
+    final response = await http.get(uri);
 
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw Exception('영양제 목록 조회 실패: ${response.body}');
@@ -64,16 +59,9 @@ class StoreApiService {
     // NestJS 백엔드에서 배열로 응답이 올 것이라 가정
     final results = decoded as List<dynamic>? ?? [];
 
-    final list = results
+    return results
         .map((e) => StoreProduct.fromJson(e as Map<String, dynamic>))
         .toList();
-
-    if (isGeneralFetch) {
-      _cachedSupplements = list;
-      _cacheKey = cacheKey;
-    }
-
-    return list;
   }
 
   // [개선된 코드] 유저 ID를 받아 맞춤 추천 영양제를 반환하는 함수 추가

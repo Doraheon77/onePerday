@@ -91,8 +91,8 @@ class _HomeScreenState extends State<HomeScreen> {
       debugPrint('===== HOME INTAKE RESULT =====');
       for (final r in results) {
         debugPrint(
-          '\${r.nutrientName} current=\${r.currentTotal} '
-          'recommended=\${r.recommendedIntake} upper=\${r.upperLimit} status=\${r.status}',
+          '${r.nutrientName} current=${r.currentTotal} '
+          'recommended=${r.recommendedIntake} upper=${r.upperLimit} status=${r.status}',
         );
       }
 

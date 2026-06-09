@@ -56,14 +56,10 @@ export class IntakeService {
 
     const aggregated: Record<string, { total: number; unit: string }> = {};
 
-    // ── Step 1: 두 테이블 동시 조회 후 name으로 올바른 테이블 선택 ─────────
+    // ── Step 1: name으로 supplementsTemp 먼저 검색 (스토어와 동일 데이터 사용) ─
     const productNameCountMap = new Map<string, number>();
 
-    // 공백·특수문자 제거 정규화 (regex 없이 처리)
-    const norm = (s: string) =>
-      s.split('').filter(ch => ch.trim() !== '').join('').toLowerCase();
-
-    // cartItem name 맵 (productId → name)
+    // cartItem name 맵
     const cartNameMap = new Map<string, string>();
     for (const item of cartItems) {
       if (item.productId != null && item.name) {
@@ -71,83 +67,120 @@ export class IntakeService {
       }
     }
 
-    // 이름 기반 검색 항목 (nameItems → supplementsTemp)
-    if (nameItems.length > 0) {
+    // 모든 아이템의 이름을 수집
+    const allNames = [
+      ...productIds.map(pid => cartNameMap.get(String(pid)) ?? '').filter(Boolean),
+      ...nameItems.map(item => item.name!),
+    ];
+
+    // ── 1-1: 이름으로 supplementsTemp 검색 (스토어와 동일한 데이터 소스) ──
+    const foundByName = new Set<string>(); // productId → found
+
+    if (allNames.length > 0) {
       const tempByName = await this.prisma.supplementsTemp.findMany({
         where: {
-          OR: nameItems.map((item) => ({
-            product_name: { contains: item.name!, mode: 'insensitive' as const },
+          OR: allNames.map(name => ({
+            product_name: { contains: name.substring(0, 8), mode: 'insensitive' as const },
           })),
         },
       });
-      for (const s of tempByName) {
-        if (!s.product_name) continue;
-        const count = countMap.get(String(s.id)) ??
-          countMap.get(s.product_name) ?? 1;
-        productNameCountMap.set(s.product_name, count);
+
+      // 각 이름과 가장 유사한 supplementsTemp 항목 매핑
+      const norm = (s: string) =>
+        s.split('').filter(ch => ch.trim() !== '').join('').toLowerCase();
+
+      for (const item of cartItems) {
+        const itemName = item.name ?? '';
+        if (!itemName) continue;
+        const normItem = norm(itemName);
+        const count = countMap.get(String(item.productId ?? item.name ?? '')) ?? 1;
+
+        // 이름 유사도로 최적 매칭 찾기
+        let bestMatch: typeof tempByName[0] | null = null;
+        let bestScore = 0;
+
+        for (const t of tempByName) {
+          if (!t.product_name) continue;
+          const normTemp = norm(t.product_name);
+          const score = normTemp === normItem ? 2
+            : (normTemp.includes(normItem) || normItem.includes(normTemp)) ? 1
+            : 0;
+          if (score > bestScore) {
+            bestScore = score;
+            bestMatch = t;
+          }
+        }
+
+        if (bestMatch?.product_name && bestScore > 0) {
+          foundByName.add(String(item.productId ?? item.name ?? ''));
+          if (!productNameCountMap.has(bestMatch.product_name)) {
+            productNameCountMap.set(bestMatch.product_name, count);
+          }
+        }
       }
     }
 
-    // ID 기반: 두 테이블 동시 조회
-    if (productIds.length > 0) {
-      const [tempResults, mainResults] = await Promise.all([
-        this.prisma.supplementsTemp.findMany({
-          where: { id: { in: productIds } },
-        }),
-        this.prisma.supplements.findMany({
-          where: { id: { in: productIds } },
-        }),
-      ]);
+    // ── 1-2: 이름으로 못 찾은 항목 → ID로 폴백 ──────────────────────────
+    const missingItems = cartItems.filter(item =>
+      !foundByName.has(String(item.productId ?? item.name ?? ''))
+    );
 
-      for (const pid of productIds) {
-        const count = countMap.get(String(pid)) ?? 1;
-        const itemName = cartNameMap.get(String(pid)) ?? '';
-        const normItem = norm(itemName);
+    if (missingItems.length > 0) {
+      const missingIds = missingItems
+        .map(item => this.toBigIntOrNull(item.productId))
+        .filter((id): id is bigint => id !== null);
 
-        const tempMatch = tempResults.find(
-          (s) => s.id.toString() === pid.toString(),
-        );
-        const mainMatch = mainResults.find(
-          (s) => s.id.toString() === pid.toString(),
-        );
+      if (missingIds.length > 0) {
+        const [tempById, mainById] = await Promise.all([
+          this.prisma.supplementsTemp.findMany({ where: { id: { in: missingIds } } }),
+          this.prisma.supplements.findMany({ where: { id: { in: missingIds } } }),
+        ]);
 
-        let chosenProductName: string | null = null;
+        const norm = (s: string) =>
+          s.split('').filter(ch => ch.trim() !== '').join('').toLowerCase();
 
-        if (tempMatch?.product_name && mainMatch?.product_name) {
-          const normTemp = norm(tempMatch.product_name);
-          const normMain = norm(mainMatch.product_name);
+        for (const pid of missingIds) {
+          const itemName = cartNameMap.get(String(pid)) ?? '';
+          const normItem = norm(itemName);
+          const count = countMap.get(String(pid)) ?? 1;
 
-          // name 일치 점수 (포함 여부로 비교)
-          const tempScore = normItem && (
-            normTemp === normItem ||
-            normTemp.includes(normItem) ||
-            normItem.includes(normTemp)
-          ) ? 1 : 0;
-          const mainScore = normItem && (
-            normMain === normItem ||
-            normMain.includes(normItem) ||
-            normItem.includes(normMain)
-          ) ? 1 : 0;
+          const tempMatch = tempById.find(s => s.id.toString() === pid.toString());
+          const mainMatch = mainById.find(s => s.id.toString() === pid.toString());
 
-          if (mainScore > tempScore) {
-            // supplements 쪽 이름이 더 일치 → 캐비닛 아이템
-            chosenProductName = mainMatch.product_name;
-          } else if (tempScore > mainScore) {
-            // supplementsTemp 쪽 이름이 더 일치 → 스토어 아이템
-            chosenProductName = tempMatch.product_name;
+          let chosenProductName: string | null = null;
+
+          if (tempMatch?.product_name && mainMatch?.product_name) {
+            const normTemp = norm(tempMatch.product_name);
+            const normMain = norm(mainMatch.product_name);
+            const tempScore = (normTemp === normItem || normTemp.includes(normItem) || normItem.includes(normTemp)) ? 1 : 0;
+            const mainScore = (normMain === normItem || normMain.includes(normItem) || normItem.includes(normMain)) ? 1 : 0;
+            chosenProductName = mainScore > tempScore ? mainMatch.product_name : tempMatch.product_name;
           } else {
-            // 둘 다 일치하거나 둘 다 불일치 → supplements 우선
-            // (캐비닛 아이템은 supplements.id를 사용하므로)
-            chosenProductName = mainMatch.product_name;
+            chosenProductName = mainMatch?.product_name ?? tempMatch?.product_name ?? null;
           }
-        } else if (mainMatch?.product_name) {
-          chosenProductName = mainMatch.product_name;
-        } else if (tempMatch?.product_name) {
-          chosenProductName = tempMatch.product_name;
-        }
 
-        if (chosenProductName && !productNameCountMap.has(chosenProductName)) {
-          productNameCountMap.set(chosenProductName, count);
+          if (chosenProductName && !productNameCountMap.has(chosenProductName)) {
+            productNameCountMap.set(chosenProductName, count);
+          }
+        }
+      }
+
+      // nameItems 처리
+      const nameOnlyItems = missingItems.filter(item => !item.productId && item.name);
+      if (nameOnlyItems.length > 0) {
+        const tempByName2 = await this.prisma.supplementsTemp.findMany({
+          where: {
+            OR: nameOnlyItems.map(item => ({
+              product_name: { contains: item.name!, mode: 'insensitive' as const },
+            })),
+          },
+        });
+        for (const t of tempByName2) {
+          if (!t.product_name) continue;
+          const count = countMap.get(t.product_name) ?? 1;
+          if (!productNameCountMap.has(t.product_name)) {
+            productNameCountMap.set(t.product_name, count);
+          }
         }
       }
     }
@@ -159,14 +192,44 @@ export class IntakeService {
         where: { product_name: { in: productNamesArr } },
       });
 
+      // product_name별 성분 수 확인 (이름 직접 검색 필요 여부 판단용)
+      const ingByProductName = new Map<string, typeof allIngredients>();
       for (const ing of allIngredients) {
-        const name = ing.ingredient_name?.trim();
-        const amount = Number(ing.amount ?? 0);
-        const unit = ing.unit?.trim() || 'mg';
-        if (!name || !ing.product_name) continue;
-        const count = productNameCountMap.get(ing.product_name) ?? 1;
-        if (!aggregated[name]) aggregated[name] = { total: 0, unit };
-        aggregated[name].total += amount * count;
+        if (!ing.product_name) continue;
+        if (!ingByProductName.has(ing.product_name)) {
+          ingByProductName.set(ing.product_name, []);
+        }
+        ingByProductName.get(ing.product_name)!.push(ing);
+      }
+
+      for (const [productName, count] of productNameCountMap) {
+        const ings = ingByProductName.get(productName) ?? [];
+
+        // ── Fallback: 성분이 없으면 cartItem.name으로 직접 검색 ──────────
+        let finalIngs = ings;
+        if (ings.length === 0) {
+          const itemName = cartNameMap.get(
+            [...productNameCountMap.entries()]
+              .find(([k]) => k === productName)?.[0] ?? ''
+          ) ?? productName;
+
+          // 이름으로 supplementsIngredients 직접 검색
+          const nameIngs = await this.prisma.supplementsIngredients.findMany({
+            where: {
+              product_name: { contains: itemName.substring(0, 10), mode: 'insensitive' },
+            },
+          });
+          finalIngs = nameIngs;
+        }
+
+        for (const ing of finalIngs) {
+          const name = ing.ingredient_name?.trim();
+          const amount = Number(ing.amount ?? 0);
+          const unit = ing.unit?.trim() || 'mg';
+          if (!name) continue;
+          if (!aggregated[name]) aggregated[name] = { total: 0, unit };
+          aggregated[name].total += amount * count;
+        }
       }
     }
 
@@ -193,7 +256,11 @@ export class IntakeService {
       const upperLimit = Number(standardMap.get(nutrientName)?.upper_limit ?? 0);
 
       const targetIntake =
-        recommendedIntake > 0 ? recommendedIntake : adequateIntake;
+        recommendedIntake > 0
+          ? recommendedIntake
+          : adequateIntake > 0
+          ? adequateIntake
+          : avgRequirement;
 
       let ratio = 0;
       let targetType: IntakeResult['targetType'] = 'none';
