@@ -32,13 +32,19 @@ class DoseRecord {
   factory DoseRecord.fromJson(Map<String, dynamic> json) {
     final rawId = json['supplementId']?.toString();
     final rawName = json['supplementName']?.toString() ?? '알 수 없는 영양제';
-    final parsedDate = json['date'] != null 
+    final parsedDate = json['date'] != null
         ? (DateTime.tryParse(json['date'].toString()) ?? DateTime.now())
         : DateTime.now();
     final index = int.tryParse(json['doseIndex']?.toString() ?? '') ?? 0;
-    
+
+    // id가 null이거나 'null' 문자열이면 빈 문자열 — 이름 폴백 제거
+    // 이름이 같은 영양제 간 기록 혼용 방지
+    final safeId = (rawId != null && rawId != 'null' && rawId.isNotEmpty)
+        ? rawId
+        : '';
+
     return DoseRecord(
-      supplementId: rawId ?? rawName,
+      supplementId: safeId,
       supplementName: rawName,
       date: parsedDate,
       doseIndex: index,
@@ -322,40 +328,40 @@ class SupplementNotifier extends ChangeNotifier {
     if (user == null) {
       debugPrint('[SupplementNotifier] 로그인 사용자 없음: 캐비넷 서버 조회 생략');
       return;
-      }
-      try {
-        final cabinetItems = await CabinetApiService().fetchCabinetItems(
-          userUuid: user.id,
-          );
-
-    _supplements = cabinetItems.map((item) {
-      return Supplement(
-        id: item.id,
-        supplementId: item.supplementId,
-        inventoryId: item.id,
-        name: item.productName ?? '알 수 없는 영양제',
-        brand: item.brandName ?? '',
-        imagePath: item.imageUrl,
-        remaining: item.stockCount,
-        total: item.totalCount,
-        dailyDose: item.dailyDose,
-        dailyFrequency: item.dailyFrequency,
-        alarmTimes: item.alarmTimes.map(_parseTimeString).toList(),
-        nutrients: item.nutrients,
-        analysisGuide: '서버에서 불러온 영양제입니다.',
-        aiSummary: '분석 데이터 준비 중',
+    }
+    try {
+      final cabinetItems = await CabinetApiService().fetchCabinetItems(
+        userUuid: user.id,
       );
-    }).toList();
 
-    NotificationService.instance.scheduleAllDoseAlarms(_supplements);
-    NotificationService.instance.checkAndNotifyLowStock(_supplements);
+      _supplements = cabinetItems.map((item) {
+        return Supplement(
+          id: item.id,
+          supplementId: item.supplementId,
+          inventoryId: item.id,
+          name: item.productName ?? '알 수 없는 영양제',
+          brand: item.brandName ?? '',
+          imagePath: item.imageUrl,
+          remaining: item.stockCount,
+          total: item.totalCount,
+          dailyDose: item.dailyDose,
+          dailyFrequency: item.dailyFrequency,
+          alarmTimes: item.alarmTimes.map(_parseTimeString).toList(),
+          nutrients: item.nutrients,
+          analysisGuide: '서버에서 불러온 영양제입니다.',
+          aiSummary: '분석 데이터 준비 중',
+        );
+      }).toList();
 
-    notifyListeners();
-    await _saveSupplements();
-  } catch (e) {
-    debugPrint('[SupplementNotifier] 서버 캐비넷 조회 실패: $e');
+      NotificationService.instance.scheduleAllDoseAlarms(_supplements);
+      NotificationService.instance.checkAndNotifyLowStock(_supplements);
+
+      notifyListeners();
+      await _saveSupplements();
+    } catch (e) {
+      debugPrint('[SupplementNotifier] 서버 캐비넷 조회 실패: $e');
+    }
   }
-}
 
   /// 오늘 복용해야 할 영양제 목록 (전체)
   List<Supplement> get todaySupplements => List.unmodifiable(_supplements);
@@ -470,25 +476,35 @@ class SupplementNotifier extends ChangeNotifier {
   bool isDoneOnIndex(String? supplementId, DateTime date, int doseIndex) {
     if (supplementId == null || supplementId == 'null') return false;
     final day = _dateOnly(date);
-    return _doseHistory.any(
-      (r) {
-        if (r.supplementId == 'null') return false;
-        return r.supplementId == supplementId &&
-            _dateOnly(r.date) == day &&
-            r.doseIndex == doseIndex;
-      },
-    );
+    return _doseHistory.any((r) {
+      if (r.supplementId == 'null') return false;
+      return r.supplementId == supplementId &&
+          _dateOnly(r.date) == day &&
+          r.doseIndex == doseIndex;
+    });
   }
 
+  /// 단일 복용(dailyFrequency <= 1) 전용 체크
+  /// 다회 복용은 isDoneOnIndex 사용
   bool isDoneOn(String? supplementId, DateTime date) {
     if (supplementId == null || supplementId == 'null') return false;
     final day = _dateOnly(date);
-    return _doseHistory.any(
-      (r) {
-        if (r.supplementId == 'null') return false;
-        return r.supplementId == supplementId && _dateOnly(r.date) == day;
-      },
+    final supplement = _supplements.firstWhere(
+      (s) => s.id == supplementId,
+      orElse: () =>
+          _supplements.isNotEmpty ? _supplements.first : _supplements.first,
     );
+    // 다회 복용인 경우 모든 회차 완료 여부 반환
+    if (supplement.dailyFrequency > 1) {
+      for (int i = 0; i < supplement.dailyFrequency; i++) {
+        if (!isDoneOnIndex(supplementId, date, i)) return false;
+      }
+      return true;
+    }
+    return _doseHistory.any((r) {
+      if (r.supplementId == 'null') return false;
+      return r.supplementId == supplementId && _dateOnly(r.date) == day;
+    });
   }
 
   /// 오늘 해당 영양제를 복용했는지 여부
@@ -529,8 +545,10 @@ class SupplementNotifier extends ChangeNotifier {
             r.doseIndex == doseIndex,
       );
       // 오늘 체크해서 0이 된 경우도 복구 (잘못 체크한 경우 대비 방지)
-      final dosePerTime = (supplement.dailyDose / supplement.dailyFrequency)
-          .ceil();
+      final freq = supplement.dailyFrequency > 0
+          ? supplement.dailyFrequency
+          : 1;
+      final dosePerTime = (supplement.dailyDose / freq).ceil();
       _supplements[idx] = supplement.copyWith(
         remaining: (supplement.remaining + dosePerTime).clamp(
           0,
@@ -546,8 +564,10 @@ class SupplementNotifier extends ChangeNotifier {
           doseIndex: doseIndex,
         ),
       );
-      final dosePerTime = (supplement.dailyDose / supplement.dailyFrequency)
-          .ceil();
+      final freq = supplement.dailyFrequency > 0
+          ? supplement.dailyFrequency
+          : 1;
+      final dosePerTime = (supplement.dailyDose / freq).ceil();
       final newRemaining = (supplement.remaining - dosePerTime).clamp(
         0,
         supplement.total,
@@ -610,21 +630,20 @@ class SupplementNotifier extends ChangeNotifier {
 
   // 캐비닛 CRUD
 
-    Future<Supplement> addSupplement(
-      Supplement supplement, {
-      String? backendSupplementId,
-    }) async {
-      _supplements.add(supplement);
+  Future<Supplement> addSupplement(
+    Supplement supplement, {
+    String? backendSupplementId,
+  }) async {
+    _supplements.add(supplement);
 
-      NotificationService.instance.scheduleAllDoseAlarms(_supplements);
-      NotificationService.instance.checkAndNotifyLowStock(_supplements);
+    NotificationService.instance.scheduleAllDoseAlarms(_supplements);
+    NotificationService.instance.checkAndNotifyLowStock(_supplements);
 
-      notifyListeners();
-      await _saveSupplements();
+    notifyListeners();
+    await _saveSupplements();
 
-      return supplement;
-    }
-
+    return supplement;
+  }
 
   void updateSupplement(int index, Supplement updated) {
     if (index < 0 || index >= _supplements.length) return;
@@ -761,16 +780,16 @@ class SupplementNotifier extends ChangeNotifier {
 
   TimeOfDay _parseTimeString(String value) {
     final parts = value.split(':');
-    
+
     if (parts.length < 2) {
       return const TimeOfDay(hour: 9, minute: 0);
-      }
+    }
 
-  final hour = int.tryParse(parts[0]) ?? 9;
-  final minute = int.tryParse(parts[1]) ?? 0;
+    final hour = int.tryParse(parts[0]) ?? 9;
+    final minute = int.tryParse(parts[1]) ?? 0;
 
-  return TimeOfDay(hour: hour, minute: minute);
-}
+    return TimeOfDay(hour: hour, minute: minute);
+  }
 
   /// 시간을 제거하고 날짜만 반환 (날짜 비교용)
   DateTime _dateOnly(DateTime dt) => DateTime(dt.year, dt.month, dt.day);

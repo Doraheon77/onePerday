@@ -32,31 +32,23 @@ class _ContraindicationResult {
 
 class _OverdoseResult {
   final String nutrient;
-
   final double currentAmount;
-
-  final double avgRequirement;
-  final double recommendedIntake;
-  final double adequateIntake;
   final double upperLimit;
-
-  final double ratio;
-
-  final String targetType;
-  final String status;
-
   final String unit;
+
+  _CheckStatus get status {
+    if (upperLimit <= 0) return _CheckStatus.safe;
+
+    final ratio = currentAmount / upperLimit;
+    if (ratio >= 1.0) return _CheckStatus.danger;
+    if (ratio >= 0.8) return _CheckStatus.warning;
+    return _CheckStatus.safe;
+  }
 
   const _OverdoseResult({
     required this.nutrient,
     required this.currentAmount,
-    required this.avgRequirement,
-    required this.recommendedIntake,
-    required this.adequateIntake,
     required this.upperLimit,
-    required this.ratio,
-    required this.targetType,
-    required this.status,
     required this.unit,
   });
 }
@@ -630,64 +622,21 @@ class _BasketScreenState extends State<BasketScreen> {
       final notifier = SupplementProvider.of(context);
       final checkedItems = notifier.cartItems.where((c) => c.checked).toList();
 
-      final cabinetItems = notifier.supplements.map((s) {
-        return {
-          'productId': s.supplementId,
-          'name': s.name,
-          'brand': s.brand,
-          'count': 1,
-        };
-      }).toList();
-
-      final cartCheckItems = checkedItems.map((c) {
-        return {
-          'productId': c.productId,
-          'name': c.name,
-          'brand': c.brand,
-          'count': c.count,
-        };
-      }).toList();
-
-      final checkItems = [...cabinetItems, ...cartCheckItems];
-
       final api = IntakeApiService();
 
       final results = await api.checkOverdoseByCartItems(
-        cartItems: checkItems,
+        cartItems: checkedItems,
         age: 24,
         gender: 'female',
       );
-
-      print('===== API RESULT =====');
-      for (final r in results) {
-        print(
-          '${r.nutrientName}'
-          ' current=${r.currentTotal}'
-          ' recommended=${r.recommendedIntake}'
-          ' adequate=${r.adequateIntake}'
-          ' upper=${r.upperLimit}'
-          ' status=${r.status}',
-        );
-      }
 
       setState(() {
         _isOverdoseLoading = false;
         _overdoseResults = results.map((r) {
           return _OverdoseResult(
             nutrient: r.nutrientName,
-
             currentAmount: r.currentTotal,
-
-            avgRequirement: r.avgRequirement,
-            recommendedIntake: r.recommendedIntake,
-            adequateIntake: r.adequateIntake,
             upperLimit: r.upperLimit,
-
-            ratio: r.ratio,
-
-            targetType: r.targetType,
-            status: r.status,
-
             unit: r.unit,
           );
         }).toList();
@@ -785,48 +734,64 @@ class _BasketScreenState extends State<BasketScreen> {
   // 장바구니 상품 카드
   Widget _buildEmptyCart() {
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.shopping_cart_outlined, size: 64, color: Colors.grey[300]),
-          const SizedBox(height: 16),
-          Text(
-            '장바구니가 비어있습니다',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-              color: Colors.grey[400],
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 48),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.shopping_cart_outlined,
+              size: 48,
+              color: Colors.grey[300],
             ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            '스토어에서 영양제를 담아보세요',
-            style: TextStyle(fontSize: 13, color: Colors.grey[400]),
-          ),
-          const SizedBox(height: 24),
-          OutlinedButton.icon(
-            onPressed: () => context.go('/store'),
-            style: OutlinedButton.styleFrom(
-              side: const BorderSide(color: AppColors.primary),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20),
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-            ),
-            icon: const Icon(
-              Icons.storefront_outlined,
-              size: 16,
-              color: AppColors.primary,
-            ),
-            label: const Text(
-              '스토어 보러가기',
+            const SizedBox(height: 12),
+            Text(
+              '장바구니가 비어있습니다',
+              textAlign: TextAlign.center,
               style: TextStyle(
-                color: AppColors.primary,
-                fontWeight: FontWeight.bold,
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+                color: Colors.grey[400],
               ),
             ),
-          ),
-        ],
+            const SizedBox(height: 6),
+            Text(
+              '스토어에서 영양제를 담아보세요',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 12, color: Colors.grey[400]),
+            ),
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () => context.go('/store'),
+                style: OutlinedButton.styleFrom(
+                  side: const BorderSide(color: AppColors.primary),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
+                ),
+                icon: const Icon(
+                  Icons.storefront_outlined,
+                  size: 14,
+                  color: AppColors.primary,
+                ),
+                label: const Text(
+                  '스토어 보러가기',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: AppColors.primary,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -902,12 +867,12 @@ class _BasketScreenState extends State<BasketScreen> {
               // 수량 1에서 - 누르면 삭제 확인 다이얼로그
               showDialog(
                 context: context,
-                builder: (_) => AlertDialog(
+                builder: (dialogContext) => AlertDialog(
                   title: const Text('상품 삭제'),
                   content: Text('${item.name}을(를) 장바구니에서 삭제할까요?'),
                   actions: [
                     TextButton(
-                      onPressed: () => Navigator.pop(context),
+                      onPressed: () => Navigator.pop(dialogContext),
                       child: const Text(
                         '취소',
                         style: TextStyle(color: Colors.grey),
@@ -915,7 +880,7 @@ class _BasketScreenState extends State<BasketScreen> {
                     ),
                     TextButton(
                       onPressed: () {
-                        Navigator.pop(context);
+                        Navigator.pop(dialogContext);
                         notifier.updateCartCount(item.productId, -1);
                       },
                       child: const Text(
@@ -1167,11 +1132,11 @@ class _BasketScreenState extends State<BasketScreen> {
                   // 범례
                   Row(
                     children: [
-                      _legend(AppColors.primary, '정상/충분'),
+                      _legend(AppColors.primary, '안전'),
                       const SizedBox(width: 12),
-                      _legend(AppColors.warning, '부족'),
+                      _legend(AppColors.warning, '주의 (80% 이상)'),
                       const SizedBox(width: 12),
-                      _legend(AppColors.danger, '매우 부족/위험'),
+                      _legend(AppColors.danger, '초과'),
                     ],
                   ),
                   const SizedBox(height: 14),
@@ -1185,30 +1150,30 @@ class _BasketScreenState extends State<BasketScreen> {
   }
 
   Widget _buildOverdoseBar(_OverdoseResult r) {
-    final ratio = r.ratio.clamp(0.0, 1.5);
+    final ratio = (r.currentAmount / r.upperLimit).clamp(0.0, 1.5);
     final displayRatio = ratio.clamp(0.0, 1.0);
 
-    final barColor = _statusColor(r.status);
-    final textColor = barColor;
-    final statusLabel = _statusText(r.status, r.targetType);
+    Color barColor;
+    Color textColor;
+    String statusLabel;
+    switch (r.status) {
+      case _CheckStatus.danger:
+        barColor = AppColors.danger;
+        textColor = AppColors.danger;
+        statusLabel = '초과';
+        break;
+      case _CheckStatus.warning:
+        barColor = AppColors.warning;
+        textColor = AppColors.warning;
+        statusLabel = '주의';
+        break;
+      case _CheckStatus.safe:
+        barColor = AppColors.primary;
+        textColor = AppColors.primary;
+        statusLabel = '안전';
+    }
 
     final percentText = '${(ratio * 100).toStringAsFixed(0)}%';
-
-    final standardLabel = r.targetType == 'upper'
-        ? '상한'
-        : r.targetType == 'recommended'
-        ? '권장'
-        : r.targetType == 'adequate'
-        ? '충분'
-        : '기준';
-
-    final standardValue = r.targetType == 'upper'
-        ? r.upperLimit
-        : r.targetType == 'recommended'
-        ? r.recommendedIntake
-        : r.targetType == 'adequate'
-        ? r.adequateIntake
-        : 0.0;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 14),
@@ -1227,7 +1192,7 @@ class _BasketScreenState extends State<BasketScreen> {
               Row(
                 children: [
                   Text(
-                    '${r.currentAmount.toStringAsFixed(0)}${r.unit} / $standardLabel ${standardValue.toStringAsFixed(0)}${r.unit}',
+                    '${r.currentAmount.toStringAsFixed(0)}${r.unit} / 상한 ${r.upperLimit.toStringAsFixed(0)}${r.unit}',
                     style: TextStyle(fontSize: 11, color: Colors.grey[500]),
                   ),
                   const SizedBox(width: 6),
@@ -1257,6 +1222,7 @@ class _BasketScreenState extends State<BasketScreen> {
           LayoutBuilder(
             builder: (context, constraints) => Stack(
               children: [
+                // 배경 바
                 Container(
                   height: 8,
                   decoration: BoxDecoration(
@@ -1264,6 +1230,7 @@ class _BasketScreenState extends State<BasketScreen> {
                     borderRadius: BorderRadius.circular(4),
                   ),
                 ),
+                // 채워진 바
                 AnimatedContainer(
                   duration: const Duration(milliseconds: 600),
                   curve: Curves.easeOut,
@@ -1274,6 +1241,7 @@ class _BasketScreenState extends State<BasketScreen> {
                     borderRadius: BorderRadius.circular(4),
                   ),
                 ),
+                // 100% 기준선
                 Positioned(
                   left: constraints.maxWidth * (1.0 / 1.5),
                   child: Container(
@@ -1585,51 +1553,5 @@ class _EmptyResult extends StatelessWidget {
         ],
       ),
     );
-  }
-}
-
-Color _statusColor(String status) {
-  switch (status) {
-    case 'very_low':
-      return AppColors.danger;
-
-    case 'low':
-      return AppColors.warning;
-
-    case 'normal':
-    case 'enough':
-      return AppColors.primary;
-
-    case 'danger':
-      return AppColors.danger;
-
-    default:
-      return Colors.grey;
-  }
-}
-
-String _statusText(String status, String targetType) {
-  if (targetType == 'upper') {
-    return status == 'danger' ? '위험' : '정상';
-  }
-
-  switch (status) {
-    case 'very_low':
-      return '매우 부족';
-
-    case 'low':
-      return '부족';
-
-    case 'normal':
-      return '적정';
-
-    case 'enough':
-      return '충분';
-
-    case 'danger':
-      return '위험';
-
-    default:
-      return '-';
   }
 }

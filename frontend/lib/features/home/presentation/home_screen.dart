@@ -39,21 +39,34 @@ class _HomeScreenState extends State<HomeScreen> {
     final notifier = SupplementProvider.of(context);
     final supplements = notifier.supplements;
 
+    // 실제 사용자 정보 조회
+    final userInfo = await AuthService().getUserInfo();
+    if (!mounted) return;
+
+    final int userAge = userInfo?['birth_year'] != null
+        ? DateTime.now().year - (userInfo!['birth_year'] as int)
+        : 24;
+    // DB: 'male'/'female' 또는 '남성'/'여성'/'남자'/'여자' 모두 처리
+    final rawGender = (userInfo?['gender'] as String?)?.toLowerCase() ?? '';
+    final String userGender =
+        (rawGender == 'male' ||
+            rawGender == '남성' ||
+            rawGender == '남자' ||
+            rawGender == 'm')
+        ? 'male'
+        : 'female';
+
     final List<Map<String, dynamic>> takenCartItems = [];
     for (final s in supplements) {
+      if (s.supplementId == null) continue;
       int takenCount = 0;
       if (s.dailyFrequency <= 1) {
-        if (notifier.isDoneOn(s.id, _selectedDate)) {
-          takenCount = 1;
-        }
+        if (notifier.isDoneOn(s.id, _selectedDate)) takenCount = 1;
       } else {
         for (int i = 0; i < s.dailyFrequency; i++) {
-          if (notifier.isDoneOnIndex(s.id, _selectedDate, i)) {
-            takenCount++;
-          }
+          if (notifier.isDoneOnIndex(s.id, _selectedDate, i)) takenCount++;
         }
       }
-
       takenCartItems.add({
         'productId': s.supplementId,
         'name': s.name,
@@ -62,17 +75,15 @@ class _HomeScreenState extends State<HomeScreen> {
       });
     }
 
-    setState(() {
-      _isNutritionChecking = true;
-    });
+    if (takenCartItems.isEmpty) return;
+
+    setState(() => _isNutritionChecking = true);
 
     try {
-      final api = IntakeApiService();
-
-      final results = await api.checkOverdoseByCartItems(
+      final results = await IntakeApiService().checkOverdoseByCartItems(
         cartItems: takenCartItems,
-        age: 24,
-        gender: 'female',
+        age: userAge,
+        gender: userGender,
       );
 
       if (!mounted) return;
@@ -80,9 +91,8 @@ class _HomeScreenState extends State<HomeScreen> {
       debugPrint('===== HOME INTAKE RESULT =====');
       for (final r in results) {
         debugPrint(
-          '${r.nutrientName} current=${r.currentTotal} '
-          'recommended=${r.recommendedIntake} adequate=${r.adequateIntake} '
-          'upper=${r.upperLimit} status=${r.status}',
+          '\${r.nutrientName} current=\${r.currentTotal} '
+          'recommended=\${r.recommendedIntake} upper=\${r.upperLimit} status=\${r.status}',
         );
       }
 
@@ -91,18 +101,23 @@ class _HomeScreenState extends State<HomeScreen> {
           (r) => r.status == 'danger' || r.status == 'very_low',
         );
         _hasNutritionWarning = results.any(
-          (r) => r.status == 'low',
+          (r) => r.status == 'low' || r.status == 'enough',
         );
         _homeIntakeResults = results;
         _isNutritionChecking = false;
       });
-    } catch (_) {
+    } catch (e) {
+      debugPrint('[HomeScreen] 영양 검사 실패: \$e');
       if (!mounted) return;
       setState(() {
         _isNutritionChecking = false;
+        _hasNutritionWarning = false;
+        _hasNutritionDanger = false;
+        _homeIntakeResults = [];
       });
     }
   }
+
   String _formatDateForApi(DateTime date) {
     return DateFormat('yyyy-MM-dd').format(date);
   }
@@ -144,11 +159,10 @@ class _HomeScreenState extends State<HomeScreen> {
       );
 
       onLocalComplete();
-      await _checkHomeNutritionSafety();
-
-      if (mounted) {
-        setState(() {});
-      }
+      // setState 완료 후 검사 실행 (레이스 컨디션 방지)
+      if (mounted) setState(() {});
+      await Future.microtask(() {});
+      if (mounted) await _checkHomeNutritionSafety();
     } catch (e) {
       if (!mounted) return;
 
@@ -191,11 +205,10 @@ class _HomeScreenState extends State<HomeScreen> {
       );
 
       onLocalCancel();
-      await _checkHomeNutritionSafety();
-
-      if (mounted) {
-        setState(() {});
-      }
+      // setState 완료 후 검사 실행 (레이스 컨디션 방지)
+      if (mounted) setState(() {});
+      await Future.microtask(() {});
+      if (mounted) await _checkHomeNutritionSafety();
     } catch (e) {
       if (!mounted) return;
 
@@ -207,7 +220,6 @@ class _HomeScreenState extends State<HomeScreen> {
       );
     }
   }
-
 
   @override
   void initState() {
@@ -760,62 +772,107 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   // ── 영양 성분 카드 ────────────────────────────────────────────────────────
-Widget _buildNutritionCard() {
-  final nutrients = [..._homeIntakeResults]
-    ..sort((a, b) => b.ratio.compareTo(a.ratio));
+  Widget _buildNutritionCard() {
+    final nutrients = [..._homeIntakeResults]
+      ..sort((a, b) => b.ratio.compareTo(a.ratio));
 
-  final boxDeco = BoxDecoration(
-    color: Colors.white,
-    borderRadius: BorderRadius.circular(24),
-    boxShadow: [
-      BoxShadow(
-        color: Colors.black.withOpacity(0.04),
-        blurRadius: 15,
-        offset: const Offset(0, 4),
-      ),
-    ],
-  );
+    final boxDeco = BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(24),
+      boxShadow: [
+        BoxShadow(
+          color: Colors.black.withOpacity(0.04),
+          blurRadius: 15,
+          offset: const Offset(0, 4),
+        ),
+      ],
+    );
 
-  if (nutrients.isEmpty) {
+    if (nutrients.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 24),
+        decoration: boxDeco,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.bar_chart_outlined, size: 64, color: Colors.grey[200]),
+            const SizedBox(height: 16),
+            Text(
+              '등록된 영양제가 없습니다',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: Colors.grey[400],
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              '캐비닛에 영양제를 추가하면\n성분별 섭취량을 분석해 드려요',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 13,
+                color: Colors.grey[400],
+                height: 1.6,
+              ),
+            ),
+            const SizedBox(height: 20),
+            OutlinedButton.icon(
+              onPressed: () => context.go('/cabinet'),
+              style: OutlinedButton.styleFrom(
+                side: const BorderSide(color: AppColors.primary),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 10,
+                ),
+              ),
+              icon: const Icon(Icons.add, size: 16, color: AppColors.primary),
+              label: const Text(
+                '영양제 추가하기',
+                style: TextStyle(
+                  color: AppColors.primary,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 24),
+      padding: const EdgeInsets.all(20),
       decoration: boxDeco,
       child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.bar_chart_outlined, size: 64, color: Colors.grey[200]),
-          const SizedBox(height: 16),
-          Text(
-            '등록된 영양제가 없습니다',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: Colors.grey[400],
+          ...nutrients.map((r) => _buildBarGraph(r)),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: AppColors.primaryFaint,
+              borderRadius: BorderRadius.circular(12),
             ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            '캐비닛에 영양제를 추가하면\n성분별 섭취량을 분석해 드려요',
-            textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 13, color: Colors.grey[400], height: 1.6),
-          ),
-          const SizedBox(height: 20),
-          OutlinedButton.icon(
-            onPressed: () => context.go('/cabinet'),
-            style: OutlinedButton.styleFrom(
-              side: const BorderSide(color: AppColors.primary),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-            ),
-            icon: const Icon(Icons.add, size: 16, color: AppColors.primary),
-            label: const Text(
-              '영양제 추가하기',
-              style: TextStyle(
-                color: AppColors.primary,
-                fontWeight: FontWeight.bold,
-              ),
+            child: const Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.lightbulb_outline,
+                  size: 16,
+                  color: AppColors.primary,
+                ),
+                SizedBox(width: 8),
+                Text(
+                  '권장/충분 섭취량과 상한 섭취량 기준으로 분석합니다.',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: AppColors.primaryDark,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -823,95 +880,61 @@ Widget _buildNutritionCard() {
     );
   }
 
-  return Container(
-    padding: const EdgeInsets.all(20),
-    decoration: boxDeco,
-    child: Column(
-      children: [
-        ...nutrients.map((r) => _buildBarGraph(r)),
-        const SizedBox(height: 12),
-        Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: AppColors.primaryFaint,
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: const Row(
-            mainAxisAlignment: MainAxisAlignment.center,
+  // ── 바 그래프 ─────────────────────────────────────────────────────────────
+  Widget _buildBarGraph(IntakeResult result) {
+    final ratio = result.ratio;
+    final status = result.status;
+    final targetType = result.targetType;
+
+    final barColor = _statusColor(status);
+    final pct = '${(ratio * 100).round()}%';
+    final statusNote = _statusText(status, targetType);
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 18),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Icon(Icons.lightbulb_outline, size: 16, color: AppColors.primary),
-              SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  result.nutrientName,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const SizedBox(width: 8),
               Text(
-                '권장/충분 섭취량과 상한 섭취량 기준으로 분석합니다.',
+                pct,
                 style: TextStyle(
-                  fontSize: 12,
-                  color: AppColors.primaryDark,
-                  fontWeight: FontWeight.w500,
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                  color: barColor,
                 ),
               ),
             ],
           ),
-        ),
-      ],
-    ),
-  );
-}
-
-  // ── 바 그래프 ─────────────────────────────────────────────────────────────
-Widget _buildBarGraph(IntakeResult result) {
-  final ratio = result.ratio;
-  final status = result.status;
-  final targetType = result.targetType;
-
-  final barColor = _statusColor(status);
-  final pct = '${(ratio * 100).round()}%';
-  final statusNote = _statusText(status, targetType);
-
-  return Padding(
-    padding: const EdgeInsets.only(bottom: 18),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Expanded(
-              child: Text(
-                result.nutrientName,
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                ),
-                overflow: TextOverflow.ellipsis,
-              ),
+          const SizedBox(height: 6),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(10),
+            child: LinearProgressIndicator(
+              value: ratio.clamp(0.0, 1.0),
+              backgroundColor: Colors.grey[100],
+              color: barColor,
+              minHeight: 10,
             ),
-            const SizedBox(width: 8),
-            Text(
-              pct,
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.bold,
-                color: barColor,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 6),
-        ClipRRect(
-          borderRadius: BorderRadius.circular(10),
-          child: LinearProgressIndicator(
-            value: ratio.clamp(0.0, 1.0),
-            backgroundColor: Colors.grey[100],
-            color: barColor,
-            minHeight: 10,
           ),
-        ),
-        const SizedBox(height: 4),
-        Text(statusNote, style: TextStyle(fontSize: 10, color: barColor)),
-      ],
-    ),
-  );
-}
+          const SizedBox(height: 4),
+          Text(statusNote, style: TextStyle(fontSize: 10, color: barColor)),
+        ],
+      ),
+    );
+  }
 
   // ── 복용 목록 ─────────────────────────────────────────────────────────────
   Widget _buildMedicationList() {
@@ -1184,7 +1207,7 @@ Widget _buildBarGraph(IntakeResult result) {
                           }
                         }
                       : null,
-                  
+
                   child: _buildMedicationCard(
                     supplement,
                     isDone,

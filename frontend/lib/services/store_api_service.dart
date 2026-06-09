@@ -9,6 +9,7 @@ class StoreApiService {
 
   // Static cache for fetched supplements to prevent redundant API queries
   static List<StoreProduct>? _cachedSupplements;
+  static String _cacheKey = '';
 
   Future<List<StoreProduct>> fetchSupplements({
     String? keyword,
@@ -16,6 +17,8 @@ class StoreApiService {
     List<String> categories = const [],
     List<String> ingredients = const [],
     String? priceRange,
+    String gender = '남자',
+    int age = 30,
   }) async {
     final isGeneralFetch =
         keyword == null &&
@@ -23,12 +26,17 @@ class StoreApiService {
         ingredients.isEmpty &&
         priceRange == null;
 
-    if (isGeneralFetch && _cachedSupplements != null) {
+    // gender/age 포함한 캐시 키로 관리
+    final cacheKey = '\${gender}_\${age}';
+    if (isGeneralFetch && _cachedSupplements != null && _cacheKey == cacheKey) {
       return _cachedSupplements!;
     }
 
     // 쿼리 파라미터 동적 생성
-    final queryParams = <String, String>{};
+    final queryParams = <String, String>{
+      'gender': gender,
+      'age': age.toString(),
+    };
     if (keyword != null && keyword.trim().isNotEmpty) {
       queryParams['keyword'] = keyword.trim();
       queryParams['record'] = record.toString();
@@ -62,6 +70,7 @@ class StoreApiService {
 
     if (isGeneralFetch) {
       _cachedSupplements = list;
+      _cacheKey = cacheKey;
     }
 
     return list;
