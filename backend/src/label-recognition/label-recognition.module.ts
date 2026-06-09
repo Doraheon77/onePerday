@@ -9,5 +9,6 @@ import { SupplementSearchService } from '../supplement-search.service';
   imports: [PrismaModule, AiModule],
   controllers: [LabelRecognitionController],
   providers: [LabelRecognitionService, SupplementSearchService],
+  exports: [LabelRecognitionService],
 })
 export class LabelRecognitionModule {}

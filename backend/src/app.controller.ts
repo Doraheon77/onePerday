@@ -8,6 +8,7 @@ import * as path from 'path';
 import * as fs from 'fs';
 import { spawn } from 'child_process';
 import { SupabaseService } from './supabase/supabase.service';
+import { LabelRecognitionService } from './label-recognition/label-recognition.service';
 
 @Controller()
 export class AppController {
@@ -16,6 +17,7 @@ export class AppController {
     private readonly prisma: PrismaService,
     private readonly searchService: SupplementSearchService,
     private readonly supabaseService: SupabaseService,
+    private readonly labelRecognitionService: LabelRecognitionService,
   ) { }
 
   @Get()
@@ -229,184 +231,37 @@ export class AppController {
       throw new BadRequestException('이미지 파일이 전송되지 않았습니다.');
     }
 
-    // 1. uploads 폴더가 없으면 생성
-    const uploadDir = 'c:\\capstone\\onePerday\\backend\\uploads';
-    if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir, { recursive: true });
-    }
-
-    // 2. 임시 파일 저장
-    const filePath = path.join(uploadDir, `${Date.now()}-${file.originalname || 'photo.jpg'}`);
-    fs.writeFileSync(filePath, file.buffer);
-
-    // 3. 파이썬 OCR 스크립트 실행
-    const pythonScript = path.resolve(process.cwd(), '..', 'ai', 'ocr.py');
-    
-    return new Promise((resolve) => {
-      const pyProcess = spawn('python', [pythonScript, filePath], {
-        env: { ...process.env, PYTHONIOENCODING: 'utf-8' }
-      });
-      let stdoutData = '';
-      let stderrData = '';
-
-      pyProcess.stdout.on('data', (data) => {
-        stdoutData += data.toString();
-      });
-
-      pyProcess.stderr.on('data', (data) => {
-        stderrData += data.toString();
-      });
-
-      pyProcess.on('close', async (code) => {
-        // 임시 파일 삭제
-        try {
-          fs.unlinkSync(filePath);
-        } catch (e) {
-          console.error('임시 파일 삭제 실패:', e);
-        }
-
-        if (code !== 0) {
-          console.error('파이썬 OCR 실행 실패:', stderrData);
-          // 발표/데모 중 CUDA 에러 등으로 실패 시 크래시 방지용 극강의 우아한 폴백(Fallback) 제공
-          resolve({
-            productName: '멀티비타민 골드',
-            brandName: '시뮬레이션 브랜드',
-            nutrients: '비타민C, 비타민D, 아연',
-            error: stderrData
-          });
-          return;
-        }
-
-        // 4. OCR 텍스트 파싱
-        const rawText = stdoutData.trim();
-        const parsed = this.parseOcrText(rawText);
-
-        // 5. DB 기반 스마트 매칭 및 보정 로직
-        if (parsed.productName !== '알 수 없는 영양제' && parsed.productName.trim() !== '') {
-          try {
-            const allSupplementsTemp = await this.prisma.supplementsTemp.findMany();
-            const productNames = allSupplementsTemp.map(s => s.product_name).filter(Boolean) as string[];
-            const ingredients = await this.prisma.supplementsIngredients.findMany({
-              where: { product_name: { in: productNames } },
-            });
-            const allSupplements = allSupplementsTemp.map(product => ({
-              ...product,
-              ingredients: ingredients.filter(ing => ing.product_name === product.product_name),
-            }));
-
-            const targetName = parsed.productName.replace(/\s+/g, '').toLowerCase();
-            let bestMatch: any = null;
-            let highestSimilarity = 0;
-
-            for (const supp of allSupplements) {
-              if (!supp.product_name) continue;
-              const dbName = supp.product_name.replace(/\s+/g, '').toLowerCase();
-              
-              // 1단계: 완전 일치 또는 부분 포함 검사 (공백 제거 후)
-              if (dbName === targetName || dbName.includes(targetName) || targetName.includes(dbName)) {
-                bestMatch = supp;
-                highestSimilarity = 1.0;
-                break;
-              }
-
-              // 2단계: 레벤슈타인 거리 기반 유사도 검사
-              const longer = dbName.length > targetName.length ? dbName : targetName;
-              const shorter = dbName.length > targetName.length ? targetName : dbName;
-              
-              if (longer.length === 0) continue;
-
-              const matrix: number[][] = [];
-              for (let i = 0; i <= shorter.length; i++) matrix[i] = [i];
-              for (let j = 0; j <= longer.length; j++) matrix[0][j] = j;
-              
-              for (let i = 1; i <= shorter.length; i++) {
-                for (let j = 1; j <= longer.length; j++) {
-                  if (shorter.charAt(i - 1) === longer.charAt(j - 1)) {
-                    matrix[i][j] = matrix[i - 1][j - 1];
-                  } else {
-                    matrix[i][j] = Math.min(
-                      matrix[i - 1][j - 1] + 1,
-                      Math.min(matrix[i][j - 1] + 1, matrix[i - 1][j] + 1)
-                    );
-                  }
-                }
-              }
-              const distance = matrix[shorter.length][longer.length];
-              const sim = (longer.length - distance) / longer.length;
-
-              if (sim > highestSimilarity) {
-                highestSimilarity = sim;
-                bestMatch = supp;
-              }
-            }
-
-            // 유사도가 70% 이상이면 해당 제품으로 정보 덮어쓰기
-            if (bestMatch && highestSimilarity >= 0.7) {
-              parsed.productName = bestMatch.product_name;
-              parsed.brandName = bestMatch.brand_name || parsed.brandName;
-              parsed.imageUrl = bestMatch.image_url || undefined;
-              parsed.id = bestMatch.id.toString();
-              
-              if (bestMatch.ingredients && bestMatch.ingredients.length > 0) {
-                parsed.nutrients = bestMatch.ingredients.map(ing => ing.ingredient_name).join(', ');
-              }
-            }
-          } catch (e) {
-            console.error('DB 매칭 실패:', e);
-            // 에러 발생 시 원래 OCR 파싱값(Fallback) 유지
-          }
-        }
-
-        resolve(parsed);
-      });
-    });
-  }
-
-  private parseOcrText(text: string): { productName: string; brandName: string; nutrients: string; imageUrl?: string; id?: string } {
-    let productName = '알 수 없는 영양제';
-    let brandName = '알 수 없는 브랜드';
-    let nutrients = '영양제 성분을 찾을 수 없습니다.';
-
-    const brandMatch = text.match(/Brand:\s*([^\n]+)/i);
-    if (brandMatch) {
-      const parsedBrand = brandMatch[1].trim();
-      const lowerBrand = parsedBrand.toLowerCase();
-      if (lowerBrand !== 'unknown' && parsedBrand !== '[Brand name in Korean]' && parsedBrand !== '알 수 없음') {
-        brandName = parsedBrand;
+    try {
+      const ocrResult = await this.labelRecognitionService.analyze(file);
+      
+      const productName = ocrResult.match?.data?.product_name || ocrResult.structured.productName || '알 수 없는 영양제';
+      const brandName = ocrResult.match?.data?.brand_name || ocrResult.structured.brandName || '알 수 없는 브랜드';
+      
+      let nutrients = '영양제 성분을 찾을 수 없습니다.';
+      if (ocrResult.match?.data?.ingredients && ocrResult.match.data.ingredients.length > 0) {
+        nutrients = ocrResult.match.data.ingredients.map((ing: any) => ing.ingredient_name).join(', ');
+      } else if (ocrResult.structured.nutrients && ocrResult.structured.nutrients.length > 0) {
+        nutrients = ocrResult.structured.nutrients.map((n: any) => n.name).join(', ');
       }
+
+      return {
+        productName,
+        brandName,
+        nutrients,
+        imageUrl: ocrResult.match?.data?.image_url || undefined,
+        id: ocrResult.match?.data?.id?.toString() || undefined,
+        supplementId: ocrResult.match?.data?.id?.toString() || undefined,
+      };
+    } catch (error) {
+      console.error('CLOVA/YOLO OCR 파이프라인 실패:', error);
+      // 발표/데모 중 에러 발생 시 크래시 방지용 폴백(Fallback) 제공
+      return {
+        productName: '멀티비타민 골드',
+        brandName: '시뮬레이션 브랜드',
+        nutrients: '비타민C, 비타민D, 아연',
+        error: error instanceof Error ? error.message : String(error)
+      };
     }
-
-    const productMatch = text.match(/Product:\s*([^\n]+)/i);
-    if (productMatch) {
-      const parsedProduct = productMatch[1].trim();
-      const lowerProduct = parsedProduct.toLowerCase();
-      if (lowerProduct !== 'unknown' && parsedProduct !== '[Product name in Korean]' && parsedProduct !== '알 수 없음') {
-        productName = parsedProduct;
-      }
-    }
-
-    const nutrientList: string[] = [];
-    const knownNutrients = [
-      '비타민A', '비타민B', '비타민C', '비타민D', '비타민E', '비타민K',
-      '아연', '마그네슘', '칼슘', '철분', '유산균', '프로바이오틱스',
-      '루테인', '밀크씨슬', '오메가3', '엽산', '비오틴', '셀레늄', '크롬'
-    ];
-
-    for (const nut of knownNutrients) {
-      if (text.includes(nut)) {
-        nutrientList.push(nut);
-      }
-    }
-
-    if (nutrientList.length > 0) {
-      nutrients = nutrientList.join(', ');
-    }
-
-    return {
-      productName,
-      brandName,
-      nutrients
-    };
   }
 
   @Post('supplements/search') // 추가
