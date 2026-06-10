@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Delete, Body, Param, Query, UseInterceptors, UploadedFile, BadRequestException } from '@nestjs/common';
+import { Controller, Get, Post, Delete, Body, Param, Query, Patch, UseInterceptors, UploadedFile, BadRequestException } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { AppService } from './app.service';
 import { PrismaService } from './prisma/prisma.service';
@@ -553,5 +553,43 @@ export class AppController {
     ]);
 
     return { totalUsers, totalSupplements, todayUsers };
+  }  
+
+  @Patch('admin/users/:id')
+  async updateUser(@Param('id') id: string, @Body() body: any) {
+    return this.prisma.usersInfo.update({
+      where: { id },
+      data: {
+        name: body.name,
+        gender: body.gender,
+        birth_year: body.birth_year ? parseInt(body.birth_year) : null,
+      }
+    });
+  }
+
+  @Patch('admin/supplements/:id')
+  async updateSupplement(@Param('id') id: string, @Body() body: any) {
+    return JSON.parse(JSON.stringify(
+      await this.prisma.supplementsTemp.update({
+        where: { id: BigInt(id) },
+        data: {
+          product_name: body.product_name,
+          category: body.category,
+          brand_name: body.brand_name,
+          reference_amount: body.reference_amount,
+          serving_size: body.serving_size ? parseFloat(body.serving_size) : null,
+          serving_unit: body.serving_unit,
+          serving_weight: body.serving_weight,
+          daily_servings: body.daily_servings,
+          total_weight: body.total_weight,
+          manufacturer: body.manufacturer,
+          origin: body.origin,
+          image_url: body.image_url,
+          shop_url: body.shop_url,
+          price: body.price ? BigInt(body.price) : null,
+        }
+      }),
+      (key, value) => typeof value === 'bigint' ? value.toString() : value
+    ));
   }  
 }
