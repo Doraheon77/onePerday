@@ -1,3 +1,4 @@
+import 'package:simcap/core/constant/app_constants.dart';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
@@ -10,7 +11,7 @@ class ReviewApiService {
     try {
       final response = await http.get(
         Uri.parse('${ApiConfig.baseUrl}/review/$productId'),
-        headers: {'Content-Type': 'application/json'},
+        headers: AppConstants.headers,
       );
 
       if (response.statusCode == 200) {
@@ -47,7 +48,7 @@ class ReviewApiService {
     try {
       final response = await http.post(
         Uri.parse('${ApiConfig.baseUrl}/review'),
-        headers: {'Content-Type': 'application/json'},
+        headers: AppConstants.headers,
         body: jsonEncode({
           'productId': productId,
           'userId': userId,
@@ -68,7 +69,7 @@ class ReviewApiService {
     try {
       final response = await http.get(
         Uri.parse('${ApiConfig.baseUrl}/review/user/$userId'),
-        headers: {'Content-Type': 'application/json'},
+        headers: AppConstants.headers,
       );
 
       if (response.statusCode == 200) {

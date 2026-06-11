@@ -193,6 +193,7 @@ class _BarcodeScanScreenState extends State<BarcodeScanScreen> {
     try {
       final uri = Uri.parse('${AppConstants.apiBaseUrl}/supplements/ocr');
       final request = http.MultipartRequest('POST', uri);
+      request.headers.addAll(AppConstants.headers);
 
       request.files.add(
         await http.MultipartFile.fromPath('image', imageFile.path),
@@ -212,15 +213,18 @@ class _BarcodeScanScreenState extends State<BarcodeScanScreen> {
         final String brand = result['brandName'] ?? '알 수 없는 브랜드';
         final String nutrientsStr = result['nutrients'] ?? '비타민C, 비타민D';
         final String? imageUrl = result['imageUrl'];
-        
+
         final List<Nutrient> nutrientsList = nutrientsStr
             .split(',')
             .where((e) => e.trim().isNotEmpty)
-            .map((e) => Nutrient(name: e.trim(), value: 0, unit: '', percent: 0.0))
+            .map(
+              (e) => Nutrient(name: e.trim(), value: 0, unit: '', percent: 0.0),
+            )
             .toList();
 
         final supplement = Supplement(
-          supplementId: result['id']?.toString() ?? result['supplementId']?.toString(),
+          supplementId:
+              result['id']?.toString() ?? result['supplementId']?.toString(),
           name: name,
           brand: brand,
           imagePath: imageFile.path,
@@ -234,10 +238,7 @@ class _BarcodeScanScreenState extends State<BarcodeScanScreen> {
           aiSummary: '',
         );
 
-        await context.push(
-          '/cabinet/info',
-          extra: supplement,
-        );
+        await context.push('/cabinet/info', extra: supplement);
 
         if (mounted) {
           setState(() {
@@ -483,21 +484,24 @@ class _BarcodeScanScreenState extends State<BarcodeScanScreen> {
           if (!isInit) {
             isInit = true;
             sheetLoading = true;
-            StoreApiService().fetchSupplements().then((apiResults) {
-              if (ctx.mounted) {
-                setSheetState(() {
-                  results = apiResults;
-                  sheetLoading = false;
+            StoreApiService()
+                .fetchSupplements()
+                .then((apiResults) {
+                  if (ctx.mounted) {
+                    setSheetState(() {
+                      results = apiResults;
+                      sheetLoading = false;
+                    });
+                  }
+                })
+                .catchError((e) {
+                  if (ctx.mounted) {
+                    setSheetState(() {
+                      results = List.from(allProducts);
+                      sheetLoading = false;
+                    });
+                  }
                 });
-              }
-            }).catchError((e) {
-              if (ctx.mounted) {
-                setSheetState(() {
-                  results = List.from(allProducts);
-                  sheetLoading = false;
-                });
-              }
-            });
           }
 
           return DraggableScrollableSheet(
@@ -550,37 +554,49 @@ class _BarcodeScanScreenState extends State<BarcodeScanScreen> {
                         ),
                         onChanged: (val) {
                           if (debounce?.isActive ?? false) debounce?.cancel();
-                          debounce = Timer(const Duration(milliseconds: 300), () async {
-                            if (!ctx.mounted) return;
-                            setSheetState(() {
-                              sheetLoading = true;
-                            });
-                            try {
-                              final apiResults = await StoreApiService().fetchSupplements(keyword: val);
-                              if (ctx.mounted) {
-                                setSheetState(() {
-                                  results = apiResults;
-                                  sheetLoading = false;
-                                });
+                          debounce = Timer(
+                            const Duration(milliseconds: 300),
+                            () async {
+                              if (!ctx.mounted) return;
+                              setSheetState(() {
+                                sheetLoading = true;
+                              });
+                              try {
+                                final apiResults = await StoreApiService()
+                                    .fetchSupplements(keyword: val);
+                                if (ctx.mounted) {
+                                  setSheetState(() {
+                                    results = apiResults;
+                                    sheetLoading = false;
+                                  });
+                                }
+                              } catch (e) {
+                                if (ctx.mounted) {
+                                  setSheetState(() {
+                                    // 에러 발생 시 로컬 하드코딩 리스트로 Fallback
+                                    results = val.isEmpty
+                                        ? List.from(allProducts)
+                                        : allProducts
+                                              .where(
+                                                (p) =>
+                                                    p.name
+                                                        .toLowerCase()
+                                                        .contains(
+                                                          val.toLowerCase(),
+                                                        ) ||
+                                                    p.brand
+                                                        .toLowerCase()
+                                                        .contains(
+                                                          val.toLowerCase(),
+                                                        ),
+                                              )
+                                              .toList();
+                                    sheetLoading = false;
+                                  });
+                                }
                               }
-                            } catch (e) {
-                              if (ctx.mounted) {
-                                setSheetState(() {
-                                  // 에러 발생 시 로컬 하드코딩 리스트로 Fallback
-                                  results = val.isEmpty
-                                      ? List.from(allProducts)
-                                      : allProducts
-                                            .where(
-                                              (p) =>
-                                                  p.name.toLowerCase().contains(val.toLowerCase()) ||
-                                                  p.brand.toLowerCase().contains(val.toLowerCase()),
-                                            )
-                                            .toList();
-                                  sheetLoading = false;
-                                });
-                              }
-                            }
-                          });
+                            },
+                          );
                         },
                       ),
                     ],
@@ -590,70 +606,75 @@ class _BarcodeScanScreenState extends State<BarcodeScanScreen> {
                 Expanded(
                   child: sheetLoading
                       ? const Center(
-                          child: CircularProgressIndicator(color: AppColors.primary),
+                          child: CircularProgressIndicator(
+                            color: AppColors.primary,
+                          ),
                         )
                       : results.isEmpty
-                          ? const Center(
-                              child: Text(
-                                '검색 결과가 없습니다',
-                                style: TextStyle(color: Colors.grey),
+                      ? const Center(
+                          child: Text(
+                            '검색 결과가 없습니다',
+                            style: TextStyle(color: Colors.grey),
+                          ),
+                        )
+                      : ListView.separated(
+                          controller: scrollController,
+                          itemCount: results.length,
+                          separatorBuilder: (_, __) => const Divider(height: 1),
+                          itemBuilder: (_, i) {
+                            final p = results[i];
+                            return ListTile(
+                              leading: Container(
+                                width: 44,
+                                height: 44,
+                                decoration: const BoxDecoration(
+                                  color: AppColors.primaryLight,
+                                  shape: BoxShape.circle,
+                                ),
+                                child:
+                                    p.imageUrl != null && p.imageUrl!.isNotEmpty
+                                    ? ClipOval(
+                                        child: Image.network(
+                                          p.imageUrl!,
+                                          fit: BoxFit.cover,
+                                          errorBuilder:
+                                              (context, error, stackTrace) =>
+                                                  const Icon(
+                                                    Icons.medication_rounded,
+                                                    color: AppColors.primary,
+                                                    size: 22,
+                                                  ),
+                                        ),
+                                      )
+                                    : const Icon(
+                                        Icons.medication_rounded,
+                                        color: AppColors.primary,
+                                        size: 22,
+                                      ),
                               ),
-                            )
-                          : ListView.separated(
-                              controller: scrollController,
-                              itemCount: results.length,
-                              separatorBuilder: (_, __) => const Divider(height: 1),
-                              itemBuilder: (_, i) {
-                                final p = results[i];
-                                return ListTile(
-                                  leading: Container(
-                                    width: 44,
-                                    height: 44,
-                                    decoration: const BoxDecoration(
-                                      color: AppColors.primaryLight,
-                                      shape: BoxShape.circle,
-                                    ),
-                                    child: p.imageUrl != null && p.imageUrl!.isNotEmpty
-                                        ? ClipOval(
-                                            child: Image.network(
-                                              p.imageUrl!,
-                                              fit: BoxFit.cover,
-                                              errorBuilder: (context, error, stackTrace) => const Icon(
-                                                Icons.medication_rounded,
-                                                color: AppColors.primary,
-                                                size: 22,
-                                              ),
-                                            ),
-                                          )
-                                        : const Icon(
-                                            Icons.medication_rounded,
-                                            color: AppColors.primary,
-                                            size: 22,
-                                          ),
-                                  ),
-                                  title: Text(
-                                    p.name,
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                  subtitle: Text(
-                                    p.brand,
-                                    style: TextStyle(
-                                      color: Colors.grey[500],
-                                      fontSize: 12,
-                                    ),
-                                  ),
-                                  onTap: () {
-                                    Navigator.pop(sheetCtx);
-                                    context.push(
-                                      '/cabinet/info',
-                                      extra: p.toSupplement(),
-                                    );
-                                  },
+                              title: Text(
+                                p.name,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              subtitle: Text(
+                                p.brand,
+                                style: TextStyle(
+                                  color: Colors.grey[500],
+                                  fontSize: 12,
+                                ),
+                              ),
+                              onTap: () {
+                                Navigator.pop(sheetCtx);
+                                context.push(
+                                  '/cabinet/info',
+                                  extra: p.toSupplement(),
                                 );
                               },
-                            ),
+                            );
+                          },
+                        ),
                 ),
               ],
             ),

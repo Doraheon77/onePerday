@@ -202,11 +202,11 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
     required String productId,
   }) async {
     try {
-      final url = Uri.parse('http://10.0.2.2:3000/api/payment/verify');
+      final url = Uri.parse('${AppConstants.apiBaseUrl}/api/payment/verify');
       final response = await http
           .post(
             url,
-            headers: {'Content-Type': 'application/json'},
+            headers: AppConstants.headers,
             body: jsonEncode({
               'imp_uid': impUid,
               'merchant_uid': merchantUid,

@@ -30,6 +30,22 @@ class AuthService {
 
   User? get currentUser => supabase.auth.currentUser;
 
+  Future<Map<String, dynamic>?> getUserInfo() async {
+    final user = supabase.auth.currentUser;
+    if (user == null) return null;
+    try {
+      final data = await supabase
+          .from('users_info')
+          .select('name, gender, birth_year')
+          .eq('id', user.id)
+          .maybeSingle();
+      return data;
+    } catch (e) {
+      debugPrint('[AuthService] getUserInfo 실패: \$e');
+      return null;
+    }
+  }
+
   Future<bool> hasUserInfo() async {
     final user = supabase.auth.currentUser;
 
@@ -99,7 +115,7 @@ class AuthService {
   }) async {
     var user = supabase.auth.currentUser;
 
-    if (user == null){
+    if (user == null) {
       await supabase.auth.refreshSession();
       user = supabase.auth.currentUser;
     }
@@ -133,7 +149,6 @@ class AuthService {
       'health_goals': goalIds,
       'special_notes': <int>[],
     });
-
   }
 
   Future<void> signOut() async {
