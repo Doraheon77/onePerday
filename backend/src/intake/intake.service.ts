@@ -18,7 +18,7 @@ export interface IntakeResult {
 
 @Injectable()
 export class IntakeService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) { }
 
   async checkOverdose(dto: CheckIntakeDto): Promise<IntakeResult[]> {
     const { cartItems, age, gender } = dto;
@@ -408,24 +408,26 @@ export class IntakeService {
 
       const log = existing
         ? await tx.dailySupplements.update({
-            where: { id: existing.id },
-            data: {
-              is_taken: true,
-              taken_at: existing.taken_at ?? new Date(),
-              supplement_time: dto.supplementTime ?? existing.supplement_time,
-            },
-          })
+          where: {
+            id: existing.id,
+          },
+          data: {
+            is_taken: true,
+            taken_at: existing.taken_at ?? new Date(),
+            supplement_time: dto.supplementTime ?? existing.supplement_time,
+          },
+        })
         : await tx.dailySupplements.create({
-            data: {
-              user_uuid: dto.userUuid,
-              inventory_id: inventoryId,
-              date,
-              dose_index: dto.doseIndex,
-              supplement_time: dto.supplementTime,
-              is_taken: true,
-              taken_at: new Date(),
-            },
-          });
+          data: {
+            user_uuid: dto.userUuid,
+            inventory_id: inventoryId,
+            date,
+            dose_index: dto.doseIndex,
+            supplement_time: dto.supplementTime,
+            is_taken: true,
+            taken_at: new Date(),
+          },
+        });
 
       if (!wasAlreadyTaken) {
         const dailyFrequency = Math.max(1, inventory.daily_frequency ?? 1);

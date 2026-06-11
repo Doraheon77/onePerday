@@ -622,12 +622,18 @@ class _BasketScreenState extends State<BasketScreen> {
       final notifier = SupplementProvider.of(context);
       final checkedItems = notifier.cartItems.where((c) => c.checked).toList();
 
+      final prefs = await SharedPreferences.getInstance();
+      final String rawGender = prefs.getString('gender') ?? prefs.getString('userGender') ?? 'female';
+      final String gender = (rawGender == '남성' || rawGender == 'male' || rawGender == '남자') ? 'male' : 'female';
+      final String rawAge = prefs.getString('userAge') ?? '24';
+      final int age = int.tryParse(rawAge) ?? 24;
+
       final api = IntakeApiService();
 
       final results = await api.checkOverdoseByCartItems(
         cartItems: checkedItems,
-        age: 24,
-        gender: 'female',
+        age: age,
+        gender: gender,
       );
 
       setState(() {
@@ -1303,26 +1309,17 @@ class _BasketScreenState extends State<BasketScreen> {
                     ? null
                     : () {
                         final items = SupplementProvider.of(context).cartItems;
-                        if (items.isEmpty) return;
-                        final first = items.first;
-                        final matched = allProducts
-                            .where(
-                              (p) =>
-                                  p.id == first.productId ||
-                                  p.name == first.name,
-                            )
-                            .toList();
-                        final product = matched.isNotEmpty
-                            ? matched.first
-                            : StoreProduct(
-                                id: first.productId,
-                                name: first.name,
-                                brand: first.brand,
-                                price: first.price,
-                                description: '',
-                                nutrients: const [],
-                              );
-                        context.push('/store/purchase', extra: product);
+                        final checkedItems = items.where((i) => i.checked).toList();
+                        if (checkedItems.isEmpty) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('주문할 상품을 선택해주세요.'),
+                              behavior: SnackBarBehavior.floating,
+                            ),
+                          );
+                          return;
+                        }
+                        context.push('/store/purchase', extra: checkedItems);
                       },
                 child: _isOrdering
                     ? const SizedBox(

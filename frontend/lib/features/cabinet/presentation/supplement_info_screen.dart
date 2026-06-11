@@ -278,7 +278,7 @@ class _SupplementInfoScreenState extends State<SupplementInfoScreen> {
       return;
     }
 
-    final targetSupplementId = int.tryParse(widget.supplement.supplementId ?? _matchedProduct?.id ?? widget.supplement.id ?? '');
+    final targetSupplementId = int.tryParse(widget.supplement.supplementId ?? _matchedProduct?.id ?? widget.supplement.id);
     if (targetSupplementId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(

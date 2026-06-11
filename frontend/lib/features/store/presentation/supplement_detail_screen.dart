@@ -351,7 +351,7 @@ class _SupplementDetailScreenState extends State<SupplementDetailScreen> {
           if (conflict.conflicts.length > 1) {
             final cabinetItemName = conflict.conflicts[1];
             formattedResults.add(
-              '내 캐비닛 [$cabinetItemName] 제품과 충돌 유의\n${conflict.reason}',
+              '내 캐비닛 $cabinetItemName 제품과 충돌 유의\n${conflict.reason}',
             );
           } else {
             formattedResults.add(conflict.reason);
@@ -1548,66 +1548,6 @@ Widget _buildNutrientRow(NutrientInfo n) {
             ],
           ),
           const SizedBox(height: 8),
-
-          // 캐비닛 충돌 항목
-          if (conflictItems.isNotEmpty) ...[
-            Container(
-              margin: const EdgeInsets.only(bottom: 8),
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: AppColors.dangerBg,
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Row(
-                    children: [
-                      Icon(
-                        Icons.warning_rounded,
-                        size: 16,
-                        color: AppColors.danger,
-                      ),
-                      SizedBox(width: 6),
-                      Text(
-                        '캐비닛 충돌 감지',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.danger,
-                          fontSize: 13,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 6),
-                  ...conflictItems
-                      .map(
-                        (item) => Padding(
-                          padding: const EdgeInsets.only(top: 4),
-                          child: Row(
-                            children: [
-                              const Text(
-                                '• ',
-                                style: TextStyle(color: AppColors.danger),
-                              ),
-                              Expanded(
-                                child: Text(
-                                  item,
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: Colors.grey[700],
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      )
-                      .toList(),
-                ],
-              ),
-            ),
-          ],
 
           // 전체 병용금지 목록
           if (items.isEmpty)
