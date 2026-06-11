@@ -53,15 +53,28 @@ class StoreProduct {
   factory StoreProduct.fromJson(Map<String, dynamic> json) {
     // 백엔드의 supplements_ingredients 또는 ingredients 파싱
     List<NutrientInfo> parsedNutrients = [];
-    final rawIngredients = json['supplements_ingredients'] ?? json['ingredients'];
+    final rawIngredients =
+        json['supplements_ingredients'] ?? json['ingredients'];
     if (rawIngredients != null && rawIngredients is List) {
       parsedNutrients = rawIngredients.map((item) {
         if (item is Map) {
           return NutrientInfo(
             name: (item['ingredient_name'] ?? item['name'] ?? '').toString(),
-            amount: double.tryParse(item['amount']?.toString() ?? item['value']?.toString() ?? '0') ?? 0.0,
+            amount:
+                double.tryParse(
+                  item['amount']?.toString() ??
+                      item['value']?.toString() ??
+                      '0',
+                ) ??
+                0.0,
             unit: (item['unit'] ?? '').toString(),
-            dailyPercent: double.tryParse(item['dailyPercent']?.toString() ?? item['percent']?.toString() ?? '0') ?? 0.0,
+            dailyPercent:
+                double.tryParse(
+                  item['dailyPercent']?.toString() ??
+                      item['percent']?.toString() ??
+                      '0',
+                ) ??
+                0.0,
           );
         } else {
           return NutrientInfo(
@@ -279,6 +292,7 @@ class _SupplementDetailScreenState extends State<SupplementDetailScreen> {
   bool _isReviewsLoading = true;
 
   List<IntakeResult> _intakeResults = [];
+  bool _isIntakeLoading = true;
 
   @override
   void initState() {
@@ -360,42 +374,48 @@ class _SupplementDetailScreenState extends State<SupplementDetailScreen> {
   }
 
   Future<void> _checkDetailOverdose() async {
-  try {
-    final notifier = SupplementProvider.of(context);
+    try {
+      if (mounted) {
+        setState(() => _isIntakeLoading = true);
+      }
+      final notifier = SupplementProvider.of(context);
 
-    final cartItems = [
-      ...notifier.supplements.map((s) {
-        return {
-          'productId': s.supplementId,
-          'name': s.name,
-          'brand': s.brand,
+      final cartItems = [
+        ...notifier.supplements.map((s) {
+          return {
+            'productId': s.supplementId,
+            'name': s.name,
+            'brand': s.brand,
+            'count': 1,
+          };
+        }),
+        {
+          'productId': widget.product.id,
+          'name': widget.product.name,
+          'brand': widget.product.brand,
           'count': 1,
-        };
-      }),
-      {
-        'productId': widget.product.id,
-        'name': widget.product.name,
-        'brand': widget.product.brand,
-        'count': 1,
-      },
-    ];
-    
+        },
+      ];
 
-    final results = await IntakeApiService().checkOverdoseByCartItems(
-      cartItems: cartItems,
-      age: 24,
-      gender: 'female',
-    );
+      final results = await IntakeApiService().checkOverdoseByCartItems(
+        cartItems: cartItems,
+        age: 24,
+        gender: 'female',
+      );
 
-    if (mounted) {
-      setState(() {
-        _intakeResults = results;
-      });
+      if (mounted) {
+        setState(() {
+          _intakeResults = results;
+          _isIntakeLoading = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('[SupplementDetailScreen] 과다복용 검사 실패: $e');
+      if (mounted) {
+        setState(() => _isIntakeLoading = false);
+      }
     }
-  } catch (e) {
-    debugPrint('[SupplementDetailScreen] 과다복용 검사 실패: $e');
   }
-}
 
   /// 이미 캐비닛에 등록된 영양제인지 여부 (이름 기준 비교)
   bool _isAlreadyInCabinet(BuildContext context) {
@@ -997,7 +1017,7 @@ class _SupplementDetailScreenState extends State<SupplementDetailScreen> {
       final response = await http
           .post(
             url,
-            headers: {'Content-Type': 'application/json'},
+            headers: AppConstants.headers,
             body: jsonEncode({
               'imp_uid': impUid,
               'merchant_uid': merchantUid,
@@ -1232,128 +1252,124 @@ class _SupplementDetailScreenState extends State<SupplementDetailScreen> {
     );
   }
 
-  Widget _buildNutrientRow(NutrientInfo n) {
-    final matched = _intakeResults.where(
-      (r) => r.nutrientName.trim().toLowerCase() == n.name.trim().toLowerCase(),
-    ).toList();
+Widget _buildNutrientRow(NutrientInfo n) {
+  final matched = _intakeResults
+      .where(
+        (r) =>
+            r.nutrientName.trim().toLowerCase() ==
+            n.name.trim().toLowerCase(),
+      )
+      .toList();
 
-    final result = matched.isNotEmpty ? matched.first : null;
-    final status = result?.status ?? 'safe';
+  final result = matched.isNotEmpty ? matched.first : null;
 
-    // 0~100%: 초록, 100~150%: 주황(권장량 초과), 150%+: 빨강(상한 섭취량)
-    final standardAmount = result == null
-    ? 0.0
-    : result.upperLimit > 0
-        ? result.upperLimit
-        : result.recommendedIntake > 0
-            ? result.recommendedIntake
-            : result.adequateIntake;
+  final ratio = result?.ratio ?? 0.0;
+  final clampedPercent = ratio.clamp(0.0, 1.5);
 
-final ratio = standardAmount > 0 ? result!.currentTotal / standardAmount : 0.0;
+  final status = result?.status ?? 'none';
+  final targetType = result?.targetType ?? 'none';
 
-final Color barColor = status == 'danger'
-    ? AppColors.danger
-    : status == 'warning'
-        ? AppColors.warning
-        : AppColors.primary;
+  final Color barColor = _statusColor(status);
 
-final Color badgeBg = status == 'danger'
-    ? AppColors.dangerBg
-    : status == 'warning'
-        ? const Color(0xFFFFF3E0)
-        : AppColors.primaryLight;
+  final Color badgeBg = status == 'danger' || status == 'very_low'
+      ? AppColors.dangerBg
+      : status == 'low'
+          ? const Color(0xFFFFF3E0)
+          : AppColors.primaryLight;
 
-final clampedPercent = ratio.clamp(0.0, 1.5);
-final percentLabel = standardAmount > 0
-    ? '${(ratio * 100).toStringAsFixed(0)}%'
-    : '-';
+  final percentLabel = _isIntakeLoading
+      ? '계산중'
+      : result != null
+          ? '${(ratio * 100).toStringAsFixed(0)}%'
+          : '-';
 
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 14),
-      child: Column(
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                n.name,
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
+  final statusLabel = result == null ? '' : _statusText(status, targetType);
+
+  return Padding(
+    padding: const EdgeInsets.only(bottom: 14),
+    child: Column(
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              n.name,
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            Row(
+              children: [
+                Text(
+                  '${n.amount}${n.unit}',
+                  style: const TextStyle(fontSize: 13, color: Colors.black54),
                 ),
-              ),
-              Row(
-                children: [
-                  Text(
-                    '${n.amount}${n.unit}',
-                    style: const TextStyle(fontSize: 13, color: Colors.black54),
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 2,
                   ),
-                  const SizedBox(width: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 6,
-                      vertical: 2,
-                    ),
-                    decoration: BoxDecoration(
-                      color: badgeBg,
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Text(
-                      percentLabel,
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
-                        color: barColor,
-                      ),
-                    ),
+                  decoration: BoxDecoration(
+                    color: badgeBg,
+                    borderRadius: BorderRadius.circular(6),
                   ),
-                ],
-              ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          LayoutBuilder(
-            builder: (context, constraints) {
-              return Stack(
-                children: [
-                  // 배경 바
-                  Container(
-                    height: 8,
-                    decoration: BoxDecoration(
-                      color: Colors.grey[200],
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                  ),
-                  // 채워진 바
-                  AnimatedContainer(
-                    duration: const Duration(milliseconds: 600),
-                    curve: Curves.easeOut,
-                    height: 8,
-                    width:
-                        constraints.maxWidth *
-                        (clampedPercent / 1.5).clamp(0.0, 1.0),
-                    decoration: BoxDecoration(
+                  child: Text(
+                    statusLabel.isEmpty
+                        ? percentLabel
+                        : '$percentLabel $statusLabel',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
                       color: barColor,
-                      borderRadius: BorderRadius.circular(4),
                     ),
                   ),
-                  // 100% 기준선
-                  Positioned(
-                    left: constraints.maxWidth * (1.0 / 1.5),
-                    child: Container(
-                      width: 1.5,
-                      height: 8,
-                      color: Colors.grey[400],
-                    ),
+                ),
+              ],
+            ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            return Stack(
+              children: [
+                Container(
+                  height: 8,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[200],
+                    borderRadius: BorderRadius.circular(4),
                   ),
-                ],
-              );
-            },
-          ),
-        ],
-      ),
-    );
-  }
+                ),
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 600),
+                  curve: Curves.easeOut,
+                  height: 8,
+                  width:
+                      constraints.maxWidth *
+                      (clampedPercent / 1.5).clamp(0.0, 1.0),
+                  decoration: BoxDecoration(
+                    color: barColor,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
+                Positioned(
+                  left: constraints.maxWidth * (1.0 / 1.5),
+                  child: Container(
+                    width: 1.5,
+                    height: 8,
+                    color: Colors.grey[400],
+                  ),
+                ),
+              ],
+            );
+          },
+        ),
+      ],
+    ),
+  );
+}
 
   // 병용 금지 정보
   void _showConsultPopup() {
@@ -2124,5 +2140,42 @@ final percentLabel = standardAmount > 0
       RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
       (m) => '${m[1]},',
     );
+  }
+}
+
+Color _statusColor(String status) {
+  switch (status) {
+    case 'very_low':
+      return AppColors.danger;
+    case 'low':
+      return AppColors.warning;
+    case 'normal':
+    case 'enough':
+      return AppColors.primary;
+    case 'danger':
+      return AppColors.danger;
+    default:
+      return Colors.grey;
+  }
+}
+
+String _statusText(String status, String targetType) {
+  if (targetType == 'upper') {
+    return status == 'danger' ? '위험' : '정상';
+  }
+
+  switch (status) {
+    case 'very_low':
+      return '매우 부족';
+    case 'low':
+      return '부족';
+    case 'normal':
+      return '적정';
+    case 'enough':
+      return '충분';
+    case 'danger':
+      return '위험';
+    default:
+      return '-';
   }
 }

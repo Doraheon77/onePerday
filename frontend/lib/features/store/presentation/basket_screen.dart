@@ -629,18 +629,6 @@ class _BasketScreenState extends State<BasketScreen> {
         age: 24,
         gender: 'female',
       );
-      
-      print('===== API RESULT =====');
-      for (final r in results) {
-        print(
-          '${r.nutrientName}'
-          ' current=${r.currentTotal}'
-          ' recommended=${r.recommendedIntake}'
-          ' adequate=${r.adequateIntake}'
-          ' upper=${r.upperLimit}'
-          ' status=${r.status}',
-        );
-      }
 
       setState(() {
         _isOverdoseLoading = false;
@@ -746,48 +734,64 @@ class _BasketScreenState extends State<BasketScreen> {
   // 장바구니 상품 카드
   Widget _buildEmptyCart() {
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.shopping_cart_outlined, size: 64, color: Colors.grey[300]),
-          const SizedBox(height: 16),
-          Text(
-            '장바구니가 비어있습니다',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-              color: Colors.grey[400],
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 48),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.shopping_cart_outlined,
+              size: 48,
+              color: Colors.grey[300],
             ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            '스토어에서 영양제를 담아보세요',
-            style: TextStyle(fontSize: 13, color: Colors.grey[400]),
-          ),
-          const SizedBox(height: 24),
-          OutlinedButton.icon(
-            onPressed: () => context.go('/store'),
-            style: OutlinedButton.styleFrom(
-              side: const BorderSide(color: AppColors.primary),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20),
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-            ),
-            icon: const Icon(
-              Icons.storefront_outlined,
-              size: 16,
-              color: AppColors.primary,
-            ),
-            label: const Text(
-              '스토어 보러가기',
+            const SizedBox(height: 12),
+            Text(
+              '장바구니가 비어있습니다',
+              textAlign: TextAlign.center,
               style: TextStyle(
-                color: AppColors.primary,
-                fontWeight: FontWeight.bold,
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+                color: Colors.grey[400],
               ),
             ),
-          ),
-        ],
+            const SizedBox(height: 6),
+            Text(
+              '스토어에서 영양제를 담아보세요',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 12, color: Colors.grey[400]),
+            ),
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () => context.go('/store'),
+                style: OutlinedButton.styleFrom(
+                  side: const BorderSide(color: AppColors.primary),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
+                ),
+                icon: const Icon(
+                  Icons.storefront_outlined,
+                  size: 14,
+                  color: AppColors.primary,
+                ),
+                label: const Text(
+                  '스토어 보러가기',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: AppColors.primary,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -863,12 +867,12 @@ class _BasketScreenState extends State<BasketScreen> {
               // 수량 1에서 - 누르면 삭제 확인 다이얼로그
               showDialog(
                 context: context,
-                builder: (_) => AlertDialog(
+                builder: (dialogContext) => AlertDialog(
                   title: const Text('상품 삭제'),
                   content: Text('${item.name}을(를) 장바구니에서 삭제할까요?'),
                   actions: [
                     TextButton(
-                      onPressed: () => Navigator.pop(context),
+                      onPressed: () => Navigator.pop(dialogContext),
                       child: const Text(
                         '취소',
                         style: TextStyle(color: Colors.grey),
@@ -876,7 +880,7 @@ class _BasketScreenState extends State<BasketScreen> {
                     ),
                     TextButton(
                       onPressed: () {
-                        Navigator.pop(context);
+                        Navigator.pop(dialogContext);
                         notifier.updateCartCount(item.productId, -1);
                       },
                       child: const Text(
@@ -1501,20 +1505,26 @@ class _LoadingIndicator extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 28),
-      child: Column(
-        children: [
-          const CircularProgressIndicator(
-            color: AppColors.primary,
-            strokeWidth: 2.5,
-          ),
-          const SizedBox(height: 14),
-          Text(
-            message,
-            style: const TextStyle(fontSize: 13, color: Colors.black54),
-          ),
-        ],
+    return SizedBox(
+      width: double.infinity,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 28),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            const CircularProgressIndicator(
+              color: AppColors.primary,
+              strokeWidth: 2.5,
+            ),
+            const SizedBox(height: 14),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 13, color: Colors.black54),
+            ),
+          ],
+        ),
       ),
     );
   }

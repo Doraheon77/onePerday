@@ -1,3 +1,4 @@
+import 'package:simcap/core/constant/app_constants.dart';
 import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
@@ -101,7 +102,8 @@ class SupplementMatch {
     Map<String, dynamic> json,
     Map<String, dynamic>? matchJson,
   ) {
-    final rawIngredients = json['supplements_ingredients'] ?? json['ingredients'];
+    final rawIngredients =
+        json['supplements_ingredients'] ?? json['ingredients'];
     return SupplementMatch(
       id: json['id']?.toString() ?? '',
       productName: json['product_name'] as String? ?? '',
@@ -129,18 +131,16 @@ class MatchedIngredient {
 
   factory MatchedIngredient.fromJson(dynamic json) {
     if (json is String) {
-      return MatchedIngredient(
-        name: json,
-        amount: null,
-        unit: '',
-      );
+      return MatchedIngredient(name: json, amount: null, unit: '');
     }
     final data = json is Map<String, dynamic>
         ? json
         : const <String, dynamic>{};
     return MatchedIngredient(
       name: (data['ingredient_name'] ?? data['name'] ?? '').toString(),
-      amount: (data['amount'] as num?)?.toDouble() ?? (data['value'] as num?)?.toDouble(),
+      amount:
+          (data['amount'] as num?)?.toDouble() ??
+          (data['value'] as num?)?.toDouble(),
       unit: (data['unit'] ?? '').toString(),
     );
   }
@@ -152,7 +152,10 @@ class LabelRecognitionApiService {
       'POST',
       Uri.parse('${ApiConfig.baseUrl}/label-recognition/analyze'),
     );
-    request.files.add(await http.MultipartFile.fromPath('image', imageFile.path));
+    request.headers.addAll(AppConstants.headers);
+    request.files.add(
+      await http.MultipartFile.fromPath('image', imageFile.path),
+    );
 
     final streamed = await request.send();
     final response = await http.Response.fromStream(streamed);

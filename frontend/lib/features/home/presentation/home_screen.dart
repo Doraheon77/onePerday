@@ -39,52 +39,51 @@ class _HomeScreenState extends State<HomeScreen> {
     final notifier = SupplementProvider.of(context);
     final supplements = notifier.supplements;
 
+    // 실제 사용자 정보 조회
+    final userInfo = await AuthService().getUserInfo();
+    if (!mounted) return;
+
+    final int userAge = userInfo?['birth_year'] != null
+        ? DateTime.now().year - (userInfo!['birth_year'] as int)
+        : 24;
+    // DB: 'male'/'female' 또는 '남성'/'여성'/'남자'/'여자' 모두 처리
+    final rawGender = (userInfo?['gender'] as String?)?.toLowerCase() ?? '';
+    final String userGender =
+        (rawGender == 'male' ||
+            rawGender == '남성' ||
+            rawGender == '남자' ||
+            rawGender == 'm')
+        ? 'male'
+        : 'female';
+
     final List<Map<String, dynamic>> takenCartItems = [];
     for (final s in supplements) {
+      if (s.supplementId == null) continue;
       int takenCount = 0;
       if (s.dailyFrequency <= 1) {
-        if (notifier.isDoneOn(s.id, _selectedDate)) {
-          takenCount = 1;
-        }
+        if (notifier.isDoneOn(s.id, _selectedDate)) takenCount = 1;
       } else {
         for (int i = 0; i < s.dailyFrequency; i++) {
-          if (notifier.isDoneOnIndex(s.id, _selectedDate, i)) {
-            takenCount++;
-          }
+          if (notifier.isDoneOnIndex(s.id, _selectedDate, i)) takenCount++;
         }
       }
-
-      if (takenCount > 0) {
-        takenCartItems.add({
-          'productId': s.supplementId,
-          'name': s.name,
-          'brand': s.brand,
-          'count': takenCount,
-        });
-      }
-    }
-
-    if (takenCartItems.isEmpty) {
-      setState(() {
-        _hasNutritionDanger = false;
-        _hasNutritionWarning = false;
-        _homeIntakeResults = [];
-        _isNutritionChecking = false;
+      takenCartItems.add({
+        'productId': s.supplementId,
+        'name': s.name,
+        'brand': s.brand,
+        'count': takenCount > 0 ? takenCount : 1,
       });
-      return;
     }
 
-    setState(() {
-      _isNutritionChecking = true;
-    });
+    if (takenCartItems.isEmpty) return;
+
+    setState(() => _isNutritionChecking = true);
 
     try {
-      final api = IntakeApiService();
-
-      final results = await api.checkOverdoseByCartItems(
+      final results = await IntakeApiService().checkOverdoseByCartItems(
         cartItems: takenCartItems,
-        age: 24,
-        gender: 'female',
+        age: userAge,
+        gender: userGender,
       );
 
       if (!mounted) return;
@@ -93,24 +92,32 @@ class _HomeScreenState extends State<HomeScreen> {
       for (final r in results) {
         debugPrint(
           '${r.nutrientName} current=${r.currentTotal} '
-          'recommended=${r.recommendedIntake} adequate=${r.adequateIntake} '
-          'upper=${r.upperLimit} status=${r.status}',
+          'recommended=${r.recommendedIntake} upper=${r.upperLimit} status=${r.status}',
         );
       }
 
       setState(() {
-        _hasNutritionDanger = results.any((r) => r.status == 'danger');
-        _hasNutritionWarning = results.any((r) => r.status == 'warning');
+        _hasNutritionDanger = results.any(
+          (r) => r.status == 'danger' || r.status == 'very_low',
+        );
+        _hasNutritionWarning = results.any(
+          (r) => r.status == 'low' || r.status == 'enough',
+        );
         _homeIntakeResults = results;
         _isNutritionChecking = false;
       });
-    } catch (_) {
+    } catch (e) {
+      debugPrint('[HomeScreen] 영양 검사 실패: \$e');
       if (!mounted) return;
       setState(() {
         _isNutritionChecking = false;
+        _hasNutritionWarning = false;
+        _hasNutritionDanger = false;
+        _homeIntakeResults = [];
       });
     }
   }
+
   String _formatDateForApi(DateTime date) {
     return DateFormat('yyyy-MM-dd').format(date);
   }
@@ -152,11 +159,10 @@ class _HomeScreenState extends State<HomeScreen> {
       );
 
       onLocalComplete();
-      await _checkHomeNutritionSafety();
-
-      if (mounted) {
-        setState(() {});
-      }
+      // setState 완료 후 검사 실행 (레이스 컨디션 방지)
+      if (mounted) setState(() {});
+      await Future.microtask(() {});
+      if (mounted) await _checkHomeNutritionSafety();
     } catch (e) {
       if (!mounted) return;
 
@@ -199,11 +205,10 @@ class _HomeScreenState extends State<HomeScreen> {
       );
 
       onLocalCancel();
-      await _checkHomeNutritionSafety();
-
-      if (mounted) {
-        setState(() {});
-      }
+      // setState 완료 후 검사 실행 (레이스 컨디션 방지)
+      if (mounted) setState(() {});
+      await Future.microtask(() {});
+      if (mounted) await _checkHomeNutritionSafety();
     } catch (e) {
       if (!mounted) return;
 
@@ -215,7 +220,6 @@ class _HomeScreenState extends State<HomeScreen> {
       );
     }
   }
-
 
   @override
   void initState() {
@@ -769,16 +773,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
   // ── 영양 성분 카드 ────────────────────────────────────────────────────────
   Widget _buildNutritionCard() {
-    final supplements = SupplementProvider.of(context).supplements;
-    final Map<String, double> totals = {};
-    for (final s in supplements) {
-      for (final n in s.nutrients) {
-        totals[n.name.trim()] = (totals[n.name.trim()] ?? 0) + n.percent;
-      }
-    }
-    final sorted = totals.entries.toList()
-      ..sort((a, b) => b.value.compareTo(a.value));
-    final top = sorted.take(5).toList();
+    final nutrients = [..._homeIntakeResults]
+      ..sort((a, b) => b.ratio.compareTo(a.ratio));
 
     final boxDeco = BoxDecoration(
       color: Colors.white,
@@ -792,7 +788,7 @@ class _HomeScreenState extends State<HomeScreen> {
       ],
     );
 
-    if (top.isEmpty) {
+    if (nutrients.isEmpty) {
       return Container(
         padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 24),
         decoration: boxDeco,
@@ -851,7 +847,7 @@ class _HomeScreenState extends State<HomeScreen> {
       decoration: boxDeco,
       child: Column(
         children: [
-          ...top.map((e) => _buildBarGraph(e.key, e.value)),
+          ...nutrients.map((r) => _buildBarGraph(r)),
           const SizedBox(height: 12),
           Container(
             padding: const EdgeInsets.all(12),
@@ -869,7 +865,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 SizedBox(width: 8),
                 Text(
-                  '적정 섭취량은 권장량의 70%~100% 사이입니다.',
+                  '권장/충분 섭취량과 상한 섭취량 기준으로 분석합니다.',
                   style: TextStyle(
                     fontSize: 12,
                     color: AppColors.primaryDark,
@@ -885,89 +881,60 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   // ── 바 그래프 ─────────────────────────────────────────────────────────────
-  Widget _buildBarGraph(String label, double ratio) {
-  final matched = _homeIntakeResults.where(
-    (r) => r.nutrientName.trim() == label.trim(),
-  ).toList();
+  Widget _buildBarGraph(IntakeResult result) {
+    final ratio = result.ratio;
+    final status = result.status;
+    final targetType = result.targetType;
 
-  final result = matched.isNotEmpty ? matched.first : null;
-  final status = result?.status ?? 'safe';
+    final barColor = _statusColor(status);
+    final pct = '${(ratio * 100).round()}%';
+    final statusNote = _statusText(status, targetType);
 
-  final standardAmount = result == null
-      ? 0.0
-      : result.upperLimit > 0
-          ? result.upperLimit
-          : result.recommendedIntake > 0
-              ? result.recommendedIntake
-              : result.adequateIntake;
-
-  final apiRatio = standardAmount > 0
-      ? result!.currentTotal / standardAmount
-      : ratio;
-
-  final Color barColor = status == 'danger'
-    ? AppColors.danger
-    : status == 'warning'
-        ? AppColors.warning
-        : apiRatio >= 0.7
-            ? AppColors.primary
-            : AppColors.warning;
-
-  final pct = '${(apiRatio * 100).round()}%';
-
-  final statusNote = status == 'danger'
-      ? '과다 섭취 주의'
-      : status == 'warning'
-          ? '권장량 초과'
-          : apiRatio >= 0.7
-              ? '적정 섭취'
-              : '섭취 부족';
-
-  return Padding(
-    padding: const EdgeInsets.only(bottom: 18),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Expanded(
-              child: Text(
-                label,
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 18),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Text(
+                  result.nutrientName,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  overflow: TextOverflow.ellipsis,
                 ),
-                overflow: TextOverflow.ellipsis,
               ),
-            ),
-            const SizedBox(width: 8),
-            Text(
-              pct,
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.bold,
-                color: barColor,
+              const SizedBox(width: 8),
+              Text(
+                pct,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                  color: barColor,
+                ),
               ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 6),
-        ClipRRect(
-          borderRadius: BorderRadius.circular(10),
-          child: LinearProgressIndicator(
-            value: apiRatio.clamp(0.0, 1.0),
-            backgroundColor: Colors.grey[100],
-            color: barColor,
-            minHeight: 10,
+            ],
           ),
-        ),
-        const SizedBox(height: 4),
-        Text(statusNote, style: TextStyle(fontSize: 10, color: barColor)),
-      ],
-    ),
-  );
-}
+          const SizedBox(height: 6),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(10),
+            child: LinearProgressIndicator(
+              value: ratio.clamp(0.0, 1.0),
+              backgroundColor: Colors.grey[100],
+              color: barColor,
+              minHeight: 10,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(statusNote, style: TextStyle(fontSize: 10, color: barColor)),
+        ],
+      ),
+    );
+  }
 
   // ── 복용 목록 ─────────────────────────────────────────────────────────────
   Widget _buildMedicationList() {
@@ -1240,7 +1207,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           }
                         }
                       : null,
-                  
+
                   child: _buildMedicationCard(
                     supplement,
                     isDone,
@@ -1715,5 +1682,42 @@ class _MonthlyCalendarSheetState extends State<_MonthlyCalendarSheet> {
         Text(label, style: TextStyle(fontSize: 11, color: Colors.grey[500])),
       ],
     );
+  }
+}
+
+Color _statusColor(String status) {
+  switch (status) {
+    case 'very_low':
+      return AppColors.danger;
+    case 'low':
+      return AppColors.warning;
+    case 'normal':
+    case 'enough':
+      return AppColors.primary;
+    case 'danger':
+      return AppColors.danger;
+    default:
+      return Colors.grey;
+  }
+}
+
+String _statusText(String status, String targetType) {
+  if (targetType == 'upper') {
+    return status == 'danger' ? '위험' : '정상';
+  }
+
+  switch (status) {
+    case 'very_low':
+      return '매우 부족';
+    case 'low':
+      return '부족';
+    case 'normal':
+      return '적정';
+    case 'enough':
+      return '충분';
+    case 'danger':
+      return '위험';
+    default:
+      return '-';
   }
 }

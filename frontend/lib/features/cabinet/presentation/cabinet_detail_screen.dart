@@ -8,6 +8,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:simcap/features/store/data/store_product_data.dart';
 import 'package:simcap/features/store/presentation/supplement_detail_screen.dart';
 import 'package:simcap/services/store_api_service.dart';
+import 'package:simcap/services/intake_api_service.dart';
 
 class CabinetDetailScreen extends StatefulWidget {
   final Supplement item;
@@ -22,11 +23,58 @@ class _CabinetDetailScreenState extends State<CabinetDetailScreen> {
   bool _isLaunching = false;
   StoreProduct? _matchedProduct;
   bool _isLoadingProduct = false;
+  List<IntakeResult> _cabinetIntakeResults = [];
+  bool _isIntakeLoading = true;
 
-  @override
-  void initState() {
-    super.initState();
-    _resolveMatchedProduct();
+
+@override
+void initState() {
+  super.initState();
+  _resolveMatchedProduct();
+
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    _checkCabinetNutritionSafety();
+  });
+}
+
+  Future<void> _checkCabinetNutritionSafety() async {
+    if (!mounted) return;
+
+    setState(() {
+      _isIntakeLoading = true;
+    });
+
+    try {
+      final notifier = SupplementProvider.of(context);
+
+      final cartItems = notifier.supplements.map((s) {
+        return {
+          'productId': s.supplementId,
+          'name': s.name,
+          'brand': s.brand,
+          'count': 1,
+        };
+      }).toList();
+
+      final results = await IntakeApiService().checkOverdoseByCartItems(
+        cartItems: cartItems,
+        age: 24,
+        gender: 'female',
+      );
+
+      if (!mounted) return;
+
+      setState(() {
+        _cabinetIntakeResults = results;
+        _isIntakeLoading = false;
+      });
+    } catch (e) {
+      debugPrint('[CabinetDetailScreen] 영양성분 검사 실패: $e');
+      if (!mounted) return;
+      setState(() {
+        _isIntakeLoading = false;
+      });
+    }
   }
 
   Future<void> _resolveMatchedProduct() async {
@@ -567,84 +615,90 @@ class _CabinetDetailScreenState extends State<CabinetDetailScreen> {
     );
   }
 
-  Widget _buildNutrientBar(Nutrient n) {
-    // 0~100%: 초록, 100~150%: 주황(권장량 초과), 150%+: 빨강(상한 섭취량)
-    Color barColor;
-    String statusLabel;
-    if (n.percent > 1.5) {
-      barColor = AppColors.danger;
-      statusLabel = '상한 섭취량 초과';
-    } else if (n.percent > 1.0) {
-      barColor = AppColors.warning;
-      statusLabel = '권장량 초과';
-    } else if (n.percent >= 0.7) {
-      barColor = AppColors.primary;
-      statusLabel = '적정 섭취';
-    } else {
-      barColor = AppColors.warning;
-      statusLabel = '섭취 부족';
-    }
+Widget _buildNutrientBar(Nutrient n) {
+  final matched = _cabinetIntakeResults
+      .where(
+        (r) =>
+            r.nutrientName.trim().toLowerCase() ==
+            n.name.trim().toLowerCase(),
+      )
+      .toList();
 
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 20),
-      child: Column(
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                children: [
-                  Text(
-                    n.name,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                    ),
+  final result = matched.isNotEmpty ? matched.first : null;
+
+  final ratio = result?.ratio ?? n.percent;
+  final status = result?.status ?? 'none';
+  final targetType = result?.targetType ?? 'none';
+
+  final barColor = result == null ? AppColors.warning : _statusColor(status);
+  final statusLabel = result == null ? '분석 전' : _statusText(status, targetType);
+
+  final percentLabel = _isIntakeLoading
+      ? '계산중'
+      : result != null
+          ? '${(ratio * 100).toInt()}% $statusLabel'
+          : '-';
+
+  return Padding(
+    padding: const EdgeInsets.only(bottom: 20),
+    child: Column(
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Row(
+              children: [
+                Text(
+                  n.name,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
                   ),
-                  const SizedBox(width: 8),
-                  Text(
-                    '${n.value.toInt()}${n.unit}',
-                    style: TextStyle(fontSize: 12, color: Colors.grey[500]),
-                  ),
-                ],
-              ),
-              Text(
-                '하루 기준치 ${(n.percent * 100).toInt()}%',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.bold,
-                  color: barColor,
                 ),
+                const SizedBox(width: 8),
+                Text(
+                  '${n.value.toInt()}${n.unit}',
+                  style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+                ),
+              ],
+            ),
+            Text(
+              percentLabel,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.bold,
+                color: barColor,
               ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Stack(
-            children: [
-              Container(
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        Stack(
+          children: [
+            Container(
+              height: 10,
+              width: double.infinity,
+              decoration: BoxDecoration(
+                color: AppColors.dividerBg,
+                borderRadius: BorderRadius.circular(5),
+              ),
+            ),
+            FractionallySizedBox(
+              widthFactor: ratio.clamp(0.0, 1.0),
+              child: Container(
                 height: 10,
-                width: double.infinity,
                 decoration: BoxDecoration(
-                  color: AppColors.dividerBg,
+                  color: barColor,
                   borderRadius: BorderRadius.circular(5),
                 ),
               ),
-              FractionallySizedBox(
-                widthFactor: n.percent.clamp(0.0, 1.0),
-                child: Container(
-                  height: 10,
-                  decoration: BoxDecoration(
-                    color: barColor,
-                    borderRadius: BorderRadius.circular(5),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
+            ),
+          ],
+        ),
+      ],
+    ),
+  );
+}
 
   Widget _buildAnalysisGuide() {
     return Container(
@@ -772,5 +826,42 @@ class _CabinetDetailScreenState extends State<CabinetDetailScreen> {
         ],
       ),
     );
+  }
+}
+
+Color _statusColor(String status) {
+  switch (status) {
+    case 'very_low':
+      return AppColors.danger;
+    case 'low':
+      return AppColors.warning;
+    case 'normal':
+    case 'enough':
+      return AppColors.primary;
+    case 'danger':
+      return AppColors.danger;
+    default:
+      return Colors.grey;
+  }
+}
+
+String _statusText(String status, String targetType) {
+  if (targetType == 'upper') {
+    return status == 'danger' ? '위험' : '정상';
+  }
+
+  switch (status) {
+    case 'very_low':
+      return '매우 부족';
+    case 'low':
+      return '부족';
+    case 'normal':
+      return '적정';
+    case 'enough':
+      return '충분';
+    case 'danger':
+      return '위험';
+    default:
+      return '-';
   }
 }

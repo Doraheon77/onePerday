@@ -15,7 +15,7 @@ class CabinetApiService {
   }) async {
     final response = await http.post(
       Uri.parse('${AppConstants.apiBaseUrl}/cabinet'),
-      headers: {'Content-Type': 'application/json'},
+      headers: AppConstants.headers,
       body: jsonEncode({
         'userUuid': userUuid,
         'supplementId': supplementId,
@@ -34,7 +34,7 @@ class CabinetApiService {
     final decoded = jsonDecode(response.body) as Map<String, dynamic>;
     final data = decoded['data'];
 
-    if(data is! Map<String, dynamic>) {
+    if (data is! Map<String, dynamic>) {
       throw Exception('캐비넷 서버 응답 형식 오류: ${response.body}');
     }
 
@@ -60,9 +60,7 @@ class CabinetApiService {
         .toList();
   }
 
-  Future<void> deleteCabinetItem({
-    required String inventoryId,
-  }) async {
+  Future<void> deleteCabinetItem({required String inventoryId}) async {
     final response = await http.delete(
       Uri.parse('${AppConstants.apiBaseUrl}/cabinet/$inventoryId'),
     );

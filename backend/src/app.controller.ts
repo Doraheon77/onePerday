@@ -39,8 +39,8 @@ export class AppController {
 
     const userAge = age ? parseInt(age, 10) : 30;
     let userGender = gender ? gender : '남자';
-    if (userGender === '남성') userGender = '남자';
-    else if (userGender === '여성') userGender = '여자';
+    if (userGender === '남성' || userGender === 'male') userGender = '남자';
+    else if (userGender === '여성' || userGender === 'female') userGender = '여자';
 
     const categories = categoriesStr ? categoriesStr.split(',').filter(c => c.trim().length > 0) : [];
     const ingredients = ingredientsStr ? ingredientsStr.split(',').filter(i => i.trim().length > 0) : [];
@@ -61,7 +61,7 @@ export class AppController {
         const nutrientName = guide.nutrient_name;
         const targetAreas = Array.isArray(guide.target_area) ? guide.target_area : [];
         if (!nutrientName) continue;
-        
+
         let matchesArea = false;
         for (const cat of categories) {
           const c = cat.replace(/\s/g, '');
@@ -81,71 +81,65 @@ export class AppController {
     }
 
     const whereClause: any = { price: { not: null } };
-    
+
     if (minPrice !== undefined || maxPrice !== undefined) {
       whereClause.price = { ...whereClause.price };
       if (minPrice !== undefined) whereClause.price.gt = minPrice;
       if (maxPrice !== undefined) whereClause.price.lte = maxPrice;
     }
 
-    let matchingProductNamesForFilter: string[] | undefined = undefined;
-
-    if (categories.length > 0 || ingredients.length > 0) {
-      const filterIngredients: any[] = [];
-      
-      if (categories.length > 0 && mappedNutrients.length > 0) {
-        filterIngredients.push(...mappedNutrients.map(nut => ({ ingredient_name: { contains: nut, mode: 'insensitive' } })));
-      }
-      if (ingredients.length > 0) {
-        filterIngredients.push(...ingredients.map(nut => ({ ingredient_name: { contains: nut, mode: 'insensitive' } })));
-      }
-
-      if (filterIngredients.length > 0) {
-        const dbMatchingIngs = await this.prisma.supplementsIngredients.findMany({
-          where: { OR: filterIngredients },
-          select: { product_name: true },
-        });
-        matchingProductNamesForFilter = dbMatchingIngs.map(i => i.product_name).filter(Boolean) as string[];
-      }
-    }
-
+    // ── 핵심 수정: supplementsTemp에 ingredients relation 없음
+    // → supplementsIngredients 먼저 조회 후 product_name으로 필터링
     const andConditions: any[] = [];
 
-    const catConditions = mappedNutrients.map(nut => ({
-      ingredient_name: { contains: nut, mode: 'insensitive' },
-    }));
-
-    const ingConditions = ingredients.map(nut => ({
-      ingredient_name: { contains: nut, mode: 'insensitive' },
-    }));
     if (categories.length > 0) {
-      const fallback = categories.map(cat => ({ product_name: { contains: cat, mode: 'insensitive' } }));
-      if (mappedNutrients.length > 0) {
-        const catConditions = mappedNutrients.map(nut => ({ ingredient_name: { contains: nut, mode: 'insensitive' as const } }));
-        const catProductContains = mappedNutrients.map(nut => ({ product_name: { contains: nut, mode: 'insensitive' } }));
-        andConditions.push({
-          OR: [
-            //...(matchingProductNamesForFilter && matchingProductNamesForFilter.length > 0 ? [{ product_name: { in: matchingProductNamesForFilter } }] : []),
-            //...catProductContains,
-            //...fallback,
-            { ingredients: { some: { OR: catConditions } } },
-            ...catProductContains
-          ]
-        });
-      } else {
-        andConditions.push({ OR: fallback });
-      }
-    }
-    
-    if (ingredients.length > 0) {
-      const ingConditions = ingredients.map(nut => ({ ingredient_name: { contains: nut, mode: 'insensitive' as const } }));
-      const ingProductContains = ingredients.map(nut => ({ product_name: { contains: nut, mode: 'insensitive' } }));
+      const catNutrients = mappedNutrients.length > 0 ? mappedNutrients : categories;
+      const catFilter = catNutrients.map(nut => ({
+        ingredient_name: { contains: nut, mode: 'insensitive' as const },
+      }));
+      const catProductContains = catNutrients.map(nut => ({
+        product_name: { contains: nut, mode: 'insensitive' },
+      }));
+
+      // supplementsIngredients에서 matching product_name 먼저 조회
+      const catMatchedIngs = await this.prisma.supplementsIngredients.findMany({
+        where: { OR: catFilter },
+        select: { product_name: true },
+      });
+      const catProductNames = [...new Set(
+        catMatchedIngs.map(i => i.product_name).filter(Boolean) as string[]
+      )];
+
       andConditions.push({
         OR: [
-          //...(matchingProductNamesForFilter && matchingProductNamesForFilter.length > 0 ? [{ product_name: { in: matchingProductNamesForFilter } }] : []),
-          { ingredients: { some: { OR: ingConditions } } },
-          ...ingProductContains
-        ]
+          ...(catProductNames.length > 0 ? [{ product_name: { in: catProductNames } }] : []),
+          ...catProductContains,
+        ],
+      });
+    }
+
+    if (ingredients.length > 0) {
+      const ingFilter = ingredients.map(nut => ({
+        ingredient_name: { contains: nut, mode: 'insensitive' as const },
+      }));
+      const ingProductContains = ingredients.map(nut => ({
+        product_name: { contains: nut, mode: 'insensitive' },
+      }));
+
+      // supplementsIngredients에서 matching product_name 먼저 조회
+      const ingMatchedIngs = await this.prisma.supplementsIngredients.findMany({
+        where: { OR: ingFilter },
+        select: { product_name: true },
+      });
+      const ingProductNames = [...new Set(
+        ingMatchedIngs.map(i => i.product_name).filter(Boolean) as string[]
+      )];
+
+      andConditions.push({
+        OR: [
+          ...(ingProductNames.length > 0 ? [{ product_name: { in: ingProductNames } }] : []),
+          ...ingProductContains,
+        ],
       });
     }
 
@@ -154,7 +148,7 @@ export class AppController {
         OR: [
           { product_name: { contains: keyword.trim(), mode: 'insensitive' } },
           { brand_name: { contains: keyword.trim(), mode: 'insensitive' } },
-        ]
+        ],
       });
     }
 
@@ -163,7 +157,7 @@ export class AppController {
     }
 
     const dataTemp = await this.prisma.supplementsTemp.findMany({
-      take: 20, // 백엔드 필터링 적용 후 최대 20개 반환
+      take: 20,
       where: whereClause,
     });
 
@@ -182,34 +176,26 @@ export class AppController {
         gender: userGender,
         age_min: { lte: userAge },
         age_max: { gte: userAge },
-      }
+      },
     });
 
     const enrichedData = data.map(product => {
       const mappedIngredients = product.ingredients.map(ing => {
         const std = standards.find(s => s.nutrient_name === ing.ingredient_name);
-        // 권장섭취량 -> 충분섭취량 -> 평균필요량 순서로 기준치 적용
         const dri = std?.recommended_intake || std?.adequate_intake || std?.avg_requirement || null;
         const amount = ing.amount || 0;
-        
+
         let dailyPercent = 0;
         if (dri && dri > 0) {
           dailyPercent = Number((amount / dri).toFixed(4));
         }
 
-        return {
-          ...ing,
-          dailyPercent,
-        };
+        return { ...ing, dailyPercent };
       });
 
-      return {
-        ...product,
-        ingredients: mappedIngredients,
-      };
+      return { ...product, ingredients: mappedIngredients };
     });
 
-    // BigInt 처리 (JSON 변환)
     return JSON.parse(
       JSON.stringify(enrichedData, (key, value) =>
         typeof value === 'bigint' ? value.toString() : value,
@@ -217,71 +203,55 @@ export class AppController {
     );
   }
 
-  @Get('supplements/popular') // 신규 추가: 실시간 인기 검색어 제공
+  @Get('supplements/popular')
   getPopularSupplements() {
     return this.appService.getPopularSearches();
   }
 
-  @Post('supplements/ocr') // 신규 추가: 스마트폰 업로드 이미지 OCR 처리
+  @Post('supplements/ocr')
   @UseInterceptors(FileInterceptor('image'))
   async uploadSupplementOcr(@UploadedFile() file: any) {
     if (!file) {
       throw new BadRequestException('이미지 파일이 전송되지 않았습니다.');
     }
 
-    // 1. uploads 폴더가 없으면 생성
     const uploadDir = 'c:\\capstone\\onePerday\\backend\\uploads';
     if (!fs.existsSync(uploadDir)) {
       fs.mkdirSync(uploadDir, { recursive: true });
     }
 
-    // 2. 임시 파일 저장
     const filePath = path.join(uploadDir, `${Date.now()}-${file.originalname || 'photo.jpg'}`);
     fs.writeFileSync(filePath, file.buffer);
 
-    // 3. 파이썬 OCR 스크립트 실행
     const pythonScript = path.resolve(process.cwd(), '..', 'ai', 'ocr.py');
-    
+
     return new Promise((resolve) => {
       const pyProcess = spawn('python', [pythonScript, filePath], {
-        env: { ...process.env, PYTHONIOENCODING: 'utf-8' }
+        env: { ...process.env, PYTHONIOENCODING: 'utf-8' },
       });
       let stdoutData = '';
       let stderrData = '';
 
-      pyProcess.stdout.on('data', (data) => {
-        stdoutData += data.toString();
-      });
-
-      pyProcess.stderr.on('data', (data) => {
-        stderrData += data.toString();
-      });
+      pyProcess.stdout.on('data', (data) => { stdoutData += data.toString(); });
+      pyProcess.stderr.on('data', (data) => { stderrData += data.toString(); });
 
       pyProcess.on('close', async (code) => {
-        // 임시 파일 삭제
-        try {
-          fs.unlinkSync(filePath);
-        } catch (e) {
-          console.error('임시 파일 삭제 실패:', e);
-        }
+        try { fs.unlinkSync(filePath); } catch (e) { console.error('임시 파일 삭제 실패:', e); }
 
         if (code !== 0) {
           console.error('파이썬 OCR 실행 실패:', stderrData);
-          // 발표/데모 중 CUDA 에러 등으로 실패 시 크래시 방지용 극강의 우아한 폴백(Fallback) 제공
           resolve({
             productName: '멀티비타민 골드',
             brandName: '시뮬레이션 브랜드',
             nutrients: '비타민C, 비타민D, 아연',
-            error: stderrData
+            error: stderrData,
           });
           return;
         }
 
-        // 4. OCR 텍스트 파싱
         const rawText = stdoutData.trim();
         const parsed = this.parseOcrText(rawText);
 
-        // 5. DB 기반 스마트 매칭 및 보정 로직
         if (parsed.productName !== '알 수 없는 영양제' && parsed.productName.trim() !== '') {
           try {
             const allSupplementsTemp = await this.prisma.supplementsTemp.findMany();
@@ -301,24 +271,21 @@ export class AppController {
             for (const supp of allSupplements) {
               if (!supp.product_name) continue;
               const dbName = supp.product_name.replace(/\s+/g, '').toLowerCase();
-              
-              // 1단계: 완전 일치 또는 부분 포함 검사 (공백 제거 후)
+
               if (dbName === targetName || dbName.includes(targetName) || targetName.includes(dbName)) {
                 bestMatch = supp;
                 highestSimilarity = 1.0;
                 break;
               }
 
-              // 2단계: 레벤슈타인 거리 기반 유사도 검사
               const longer = dbName.length > targetName.length ? dbName : targetName;
               const shorter = dbName.length > targetName.length ? targetName : dbName;
-              
               if (longer.length === 0) continue;
 
               const matrix: number[][] = [];
               for (let i = 0; i <= shorter.length; i++) matrix[i] = [i];
               for (let j = 0; j <= longer.length; j++) matrix[0][j] = j;
-              
+
               for (let i = 1; i <= shorter.length; i++) {
                 for (let j = 1; j <= longer.length; j++) {
                   if (shorter.charAt(i - 1) === longer.charAt(j - 1)) {
@@ -326,7 +293,7 @@ export class AppController {
                   } else {
                     matrix[i][j] = Math.min(
                       matrix[i - 1][j - 1] + 1,
-                      Math.min(matrix[i][j - 1] + 1, matrix[i - 1][j] + 1)
+                      Math.min(matrix[i][j - 1] + 1, matrix[i - 1][j] + 1),
                     );
                   }
                 }
@@ -340,20 +307,18 @@ export class AppController {
               }
             }
 
-            // 유사도가 70% 이상이면 해당 제품으로 정보 덮어쓰기
             if (bestMatch && highestSimilarity >= 0.7) {
               parsed.productName = bestMatch.product_name;
               parsed.brandName = bestMatch.brand_name || parsed.brandName;
               parsed.imageUrl = bestMatch.image_url || undefined;
               parsed.id = bestMatch.id.toString();
-              
+
               if (bestMatch.ingredients && bestMatch.ingredients.length > 0) {
                 parsed.nutrients = bestMatch.ingredients.map(ing => ing.ingredient_name).join(', ');
               }
             }
           } catch (e) {
             console.error('DB 매칭 실패:', e);
-            // 에러 발생 시 원래 OCR 파싱값(Fallback) 유지
           }
         }
 
@@ -389,31 +354,21 @@ export class AppController {
     const knownNutrients = [
       '비타민A', '비타민B', '비타민C', '비타민D', '비타민E', '비타민K',
       '아연', '마그네슘', '칼슘', '철분', '유산균', '프로바이오틱스',
-      '루테인', '밀크씨슬', '오메가3', '엽산', '비오틴', '셀레늄', '크롬'
+      '루테인', '밀크씨슬', '오메가3', '엽산', '비오틴', '셀레늄', '크롬',
     ];
 
     for (const nut of knownNutrients) {
-      if (text.includes(nut)) {
-        nutrientList.push(nut);
-      }
+      if (text.includes(nut)) nutrientList.push(nut);
     }
 
-    if (nutrientList.length > 0) {
-      nutrients = nutrientList.join(', ');
-    }
+    if (nutrientList.length > 0) nutrients = nutrientList.join(', ');
 
-    return {
-      productName,
-      brandName,
-      nutrients
-    };
+    return { productName, brandName, nutrients };
   }
 
-  @Post('supplements/search') // 추가
+  @Post('supplements/search')
   async searchSupplement(@Body() body: LlmExtracted) {
     const result = await this.searchService.search(body);
-
-    // BigInt 처리
     return JSON.parse(
       JSON.stringify(result, (key, value) =>
         typeof value === 'bigint' ? value.toString() : value,
@@ -421,7 +376,6 @@ export class AppController {
     );
   }
 
-  // 유저 전체 목록 조회 (검색 포함)
   @Get('admin/users')
   async getUsers(@Query('search') search?: string) {
     const usersInfo = await this.prisma.usersInfo.findMany({
@@ -429,7 +383,7 @@ export class AppController {
         OR: [
           { name: { contains: search, mode: 'insensitive' } },
           { users: { email: { contains: search, mode: 'insensitive' } } },
-        ]
+        ],
       } : undefined,
       select: {
         id: true,
@@ -437,30 +391,17 @@ export class AppController {
         gender: true,
         birth_year: true,
         created_at: true,
-        users: {
-          select: {
-            email: true,
-            created_at: true,
-          }
-        }
-      }
+        users: { select: { email: true, created_at: true } },
+      },
     });
-
     return usersInfo;
   }
 
-  // 유저 삭제
   @Delete('admin/users/:id')
   async deleteUser(@Param('id') id: string) {
-    // 1. users_info 먼저 삭제
-    await this.prisma.usersInfo.delete({
-      where: { id }
-    });
-
-    // 2. auth.users 삭제
+    await this.prisma.usersInfo.delete({ where: { id } });
     const { error } = await this.supabaseService.getClient().auth.admin.deleteUser(id);
     if (error) throw new Error(error.message);
-    
     return { success: true };
   }
 
@@ -490,12 +431,9 @@ export class AppController {
     ));
   }
 
-  // 영양제 삭제
   @Delete('admin/supplements/:id')
   async deleteSupplement(@Param('id') id: string) {
-    return this.prisma.supplementsTemp.delete({
-      where: { id: BigInt(id) }
-    });
+    return this.prisma.supplementsTemp.delete({ where: { id: BigInt(id) } });
   }
 
   @Get('admin/supplements')
@@ -516,24 +454,14 @@ export class AppController {
     }
 
     const [data, total] = await Promise.all([
-      this.prisma.supplementsTemp.findMany({
-        take,
-        skip,
-        where: whereClause,
-        orderBy: { id: 'asc' },
-      }),
+      this.prisma.supplementsTemp.findMany({ take, skip, where: whereClause, orderBy: { id: 'asc' } }),
       this.prisma.supplementsTemp.count({ where: whereClause }),
     ]);
 
     return JSON.parse(
       JSON.stringify({
-        data,
-        total,
-        page: pageNum,
-        totalPages: Math.ceil(total / take),
-      }, (key, value) =>
-        typeof value === 'bigint' ? value.toString() : value,
-      ),
+        data, total, page: pageNum, totalPages: Math.ceil(total / take),
+      }, (key, value) => typeof value === 'bigint' ? value.toString() : value),
     );
   }
 

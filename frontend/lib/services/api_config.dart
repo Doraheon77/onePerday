@@ -1,6 +1,5 @@
+import 'package:simcap/core/constant/app_constants.dart';
+
 class ApiConfig {
-  static const String baseUrl = String.fromEnvironment(
-    'API_BASE_URL',
-    defaultValue: 'http://10.0.2.2:3000',
-  );
+  static String get baseUrl => AppConstants.apiBaseUrl;
 }

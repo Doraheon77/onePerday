@@ -1,3 +1,4 @@
+import 'package:simcap/core/constant/app_constants.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:simcap/features/cabinet/domain/dataModels/supplement_model.dart';
@@ -31,7 +32,7 @@ class ChatbotApiService {
   }) async {
     final response = await http.post(
       Uri.parse('${ApiConfig.baseUrl}/chatbot/message'),
-      headers: {'Content-Type': 'application/json'},
+      headers: AppConstants.headers,
       body: jsonEncode({
         'message': message,
         'userProfile': userProfile,
